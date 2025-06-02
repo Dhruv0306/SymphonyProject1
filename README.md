@@ -29,54 +29,73 @@ This application provides a web-based interface for detecting Symphony logos in 
 
 ### Basic Flow
 ```mermaid
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontSize': '14px',
+      'fontFamily': 'Arial, sans-serif'
+    }
+  }
+}%%
 graph TD
-    A[User] -->|Upload Image/URL| B[Frontend]
-    B -->|API Request| C[Backend]
-    C -->|Load Models| D[YOLOv8 Models]
-    D -->|Process Image| E[Logo Detection]
+    A[**User**] -->|Upload Image/URL| B[**Frontend**]
+    B -->|API Request| C[**Backend**]
+    C -->|Load Models| D[**YOLOv8 and YOLOv11 Models**]
+    D -->|Process Image| E[**Logo Detection**]
     E -->|Return Results| C
     C -->|Response| B
     B -->|Display Results| A
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
-    style C fill:#dfd,stroke:#333,stroke-width:2px
-    style D fill:#fdd,stroke:#333,stroke-width:2px
-    style E fill:#ddf,stroke:#333,stroke-width:2px
+    linkStyle default stroke-width: 3px
+    linkStyle default stroke: #FAF9F6
+    style A fill:#f9f,stroke:#000,stroke-width:4px,color:000
+    style B fill:#bbf,stroke:#000,stroke-width:4px,color:000
+    style C fill:#dfd,stroke:#000,stroke-width:4px,color:000
+    style D fill:#fdd,stroke:#000,stroke-width:4px,color:000
+    style E fill:#ddf,stroke:#000,stroke-width:4px,color:000
 ```
 
 ### Detailed Processing Pipeline
 ```mermaid
+%%{
+  init: {
+    'themeVariables': {
+      'fontSize': '14px',
+      'fontFamily': 'Arial, sans-serif'
+    }
+  }
+}%%
 flowchart LR
     subgraph Input
-        A[Image Upload] --> B[URL Input]
-        B --> C[Input Validation]
+        A[**Image Upload**] --> B[**URL Input**]
+        B --> C[**Input Validation**]
     end
     
     subgraph Processing
-        C --> D[Image Preprocessing]
-        D --> E[Model Selection]
-        E --> F[YOLOv8 Inference]
-        F --> G[Confidence Check]
+        C --> D[**Image Preprocessing**]
+        D --> E[**Model Selection**]
+        E --> F[**YOLOv8 and YOLOv11 Inference**]
+        F --> G[**Confidence Check**]
     end
     
     subgraph Output
-        G -->|Above Threshold| H[Valid Logo]
-        G -->|Below Threshold| I[Invalid Logo]
-        H --> J[Result Storage]
+        G -->|Above Threshold| H[**Valid Logo**]
+        G -->|Below Threshold| I[**Invalid Logo**]
+        H --> J[**Result Storage**]
         I --> J
     end
-    
-    style A fill:#f9f
-    style B fill:#f9f
-    style C fill:#bbf
-    style D fill:#dfd
-    style E fill:#dfd
-    style F fill:#dfd
-    style G fill:#fdd
-    style H fill:#ddf
-    style I fill:#ddf
-    style J fill:#ddf
+    linkStyle default stroke-width: 3px
+    linkStyle default stroke: #FAF9F6
+    style A fill:#f9f,stroke:#000,stroke-width:2px,color:000
+    style B fill:#f9f,stroke:#000,stroke-width:2px,color:000
+    style C fill:#bbf,stroke:#000,stroke-width:2px,color:000
+    style D fill:#dfd,stroke:#000,stroke-width:2px,color:000
+    style E fill:#dfd,stroke:#000,stroke-width:2px,color:000
+    style F fill:#dfd,stroke:#000,stroke-width:2px,color:000
+    style G fill:#fdd,stroke:#000,stroke-width:2px,color:000
+    style H fill:#ddf,stroke:#000,stroke-width:2px,color:000
+    style I fill:#ddf,stroke:#000,stroke-width:2px,color:000
+    style J fill:#ddf,stroke:#000,stroke-width:2px,color:000
 ```
 
 ### Batch Processing Timeline
@@ -122,13 +141,21 @@ The frontend is built using React (v19.1.0) with Material-UI (MUI v7.1.0) for a 
 
 ### Technology Details
 ```mermaid
+%%{
+  init: {
+    'themeVariables': {
+      'fontSize': '14px',
+      'fontFamily': 'Arial, sans-serif'
+    }
+  }
+}%%
 graph TD
-    A[React v19.1.0] --> B[Core Technologies]
+    A[**React v19.1.0**] --> B[**Core Technologies**]
     B --> C[Material-UI v7.1.0]
     B --> D[React-Dropzone v14.3.8]
     B --> E[Axios v1.9.0]
     
-    F[Development Tools] --> G[React Scripts v5.0.1]
+    F[**Development Tools**] --> G[React Scripts v5.0.1]
     F --> H[Cross-env v7.0.3]
     F --> I[Testing Libraries]
     
@@ -136,9 +163,9 @@ graph TD
     I --> K[React Testing v16.3.0]
     I --> L[User Event v13.5.0]
     
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
-    style F fill:#dfd,stroke:#333,stroke-width:2px
+    style A fill:#f9f,stroke:#333,stroke-width:2px,color:000
+    style B fill:#bbf,stroke:#333,stroke-width:2px,color:000
+    style F fill:#dfd,stroke:#333,stroke-width:2px,color:000
 ```
 
 ### Key Features
