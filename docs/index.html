@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symphony Logo Detection System - Documentation</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972">
+</head>
+<body>
+    <div class="documentation-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972" alt="Symphony Logo" class="logo">
+                <h2>Documentation</h2>
+                <button id="menuToggle" class="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#getting-started" class="active"><i class="fas fa-rocket"></i> Quick Start</a></li>
+                <li><a href="#upload-methods"><i class="fas fa-upload"></i> Upload Methods</a></li>
+                <li><a href="#single-image"><i class="fas fa-image"></i> Single Image Detection</a></li>
+                <li><a href="#batch-processing"><i class="fas fa-images"></i> Batch Processing</a></li>
+                <li><a href="#results"><i class="fas fa-chart-bar"></i> Understanding Results</a></li>
+                <li><a href="#troubleshooting"><i class="fas fa-wrench"></i> Troubleshooting</a></li>
+                <li><a href="#faq"><i class="fas fa-question-circle"></i> FAQ</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1>Logo Detection System</h1>
+                <p class="subtitle">Detect logos in images with Symphony's advanced detection system</p>
+                <div class="search-box">
+                    <input type="text" placeholder="Search the documentation...">
+                    <i class="fas fa-search"></i>
+                </div>
+            </header>
+
+            <!-- Quick Start Section -->
+            <section id="getting-started" class="content-section">
+                <h2>Quick Start Guide</h2>
+                <div class="card overview">
+                    <h3>Features</h3>
+                    <ul>
+                        <li>Single image logo detection</li>
+                        <li>Batch processing for multiple images</li>
+                        <li>Support for file uploads and URLs</li>
+                        <li>Instant results with validation status</li>
+                        <li>Symphony-branded modern interface</li>
+                    </ul>
+                </div>
+
+                <div class="card file-requirements">
+                    <h3>File Requirements</h3>
+                    <ul>
+                        <li>Supported formats: PNG, JPG, JPEG</li>
+                        <li>Maximum file size: 200MB per file</li>
+                        <li>Clear, high-quality images recommended</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Upload Methods -->
+            <section id="upload-methods" class="content-section">
+                <h2>Upload Methods</h2>
+                <div class="card methods">
+                    <h3>Choose Your Method</h3>
+                    <div class="method-grid">
+                        <div class="method">
+                            <i class="fas fa-file-upload"></i>
+                            <h4>File Upload</h4>
+                            <p>Drag and drop files directly into the upload area or click to browse</p>
+                        </div>
+                        <div class="method">
+                            <i class="fas fa-link"></i>
+                            <h4>URL Input</h4>
+                            <p>Paste image URLs for remote processing</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Single Image Processing -->
+            <section id="single-image" class="content-section">
+                <h2>Single Image Detection</h2>
+                <div class="card workflow">
+                    <h3>Processing Steps</h3>
+                    <div class="workflow-steps">
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            <h4>Select Mode</h4>
+                            <p>Choose "Single" mode from the radio buttons</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <h4>Choose Method</h4>
+                            <p>Select "Upload" or "URL" input method</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <h4>Input Image</h4>
+                            <p>Upload file or enter URL</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">4</span>
+                            <h4>Process</h4>
+                            <p>Click "Detect Logo" button</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Batch Processing -->
+            <section id="batch-processing" class="content-section">
+                <h2>Batch Processing</h2>
+                <div class="card workflow">
+                    <h3>Batch Processing Steps</h3>
+                    <div class="workflow-steps">
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            <h4>Select Mode</h4>
+                            <p>Choose "Batch" mode from the radio buttons</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <h4>Choose Method</h4>
+                            <p>Select "Upload" for multiple files or "URL" for multiple links</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <h4>Input Images</h4>
+                            <p>Upload files or enter URLs (one per line)</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">4</span>
+                            <h4>Process Batch</h4>
+                            <p>Click "Process Batch" button</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card batch-tips">
+                    <h3>Batch Processing Tips</h3>
+                    <ul>
+                        <li>Multiple files can be dragged and dropped simultaneously</li>
+                        <li>For URLs, enter each URL on a new line</li>
+                        <li>Progress indicator shows batch processing status</li>
+                        <li>Results are displayed for each image in the batch</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results" class="content-section">
+                <h2>Understanding Results</h2>
+                <div class="card results-guide">
+                    <h3>Result Indicators</h3>
+                    <div class="result-item">
+                        <div class="result-example valid">
+                            <i class="fas fa-check-circle"></i>
+                            <div class="result-text">
+                                <h4>Valid Logo</h4>
+                                <p>Logo detected with high confidence</p>
+                            </div>
+                        </div>
+                        <div class="result-example invalid">
+                            <i class="fas fa-times-circle"></i>
+                            <div class="result-text">
+                                <h4>Invalid Logo</h4>
+                                <p>No logo detected or low confidence</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Troubleshooting -->
+            <section id="troubleshooting" class="content-section">
+                <h2>Troubleshooting</h2>
+                <div class="card common-issues">
+                    <h3>Common Issues</h3>
+                    <div class="issue">
+                        <h4>Connection Error</h4>
+                        <p>If you see "Cannot connect to the server. Please ensure the backend is running.":</p>
+                        <div class="error-example">
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <code>ERR_NETWORK: Cannot connect to the server</code>
+                            </div>
+                            <ul>
+                                <li>Check if the backend server is running at <code>http://localhost:8000</code></li>
+                                <li>Verify your internet connection</li>
+                                <li>Ensure no firewall is blocking the connection</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="issue">
+                        <h4>File Size Error</h4>
+                        <p>When uploading large files:</p>
+                        <div class="error-example">
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <code>413 Request Entity Too Large: Image file is too large</code>
+                            </div>
+                            <ul>
+                                <li>Ensure each file is under 200MB</li>
+                                <li>Compress large images before uploading</li>
+                                <li>For batch processing, check total batch size</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="issue">
+                        <h4>File Type Error</h4>
+                        <p>When uploading unsupported files:</p>
+                        <div class="error-example">
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <code>415 Unsupported Media Type: Invalid file type</code>
+                            </div>
+                            <ul>
+                                <li>Check file extension (must be .jpg, .jpeg, or .png)</li>
+                                <li>Ensure file is not corrupted</li>
+                                <li>Convert images to supported formats</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="issue">
+                        <h4>URL Processing Error</h4>
+                        <p>When using image URLs:</p>
+                        <div class="error-example">
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <code>Invalid or inaccessible image URL</code>
+                            </div>
+                            <ul>
+                                <li>Verify URL points directly to an image file</li>
+                                <li>Check if URL is publicly accessible</li>
+                                <li>Ensure URL is properly encoded</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- API Reference -->
+            <section id="api-reference" class="content-section">
+                <h2>API Reference</h2>
+                
+                <div class="card api-overview">
+                    <h3>API Endpoints</h3>
+                    <p>The Logo Detection System provides RESTful API endpoints for both single image and batch processing:</p>
+                </div>
+
+                <div class="card api-endpoint">
+                    <h3>Single Image Detection</h3>
+                    <div class="endpoint-details">
+                        <div class="endpoint-header">
+                            <span class="method">POST</span>
+                            <code>/api/check-logo/single/</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>Request Format</h4>
+                            <div class="code-block">
+                                <div class="code-header">Request</div>
+                                <pre><code><span class="keyword">Content-Type:</span> <span class="string">multipart/form-data</span>
+
+<span class="keyword">Parameters:</span>
+- <span class="property">file:</span> Image file (optional)
+- <span class="property">image_path:</span> Image URL (optional)
+
+<span class="comment"># Note: Provide either file or image_path, not both</span></code></pre>
+                            </div>
+
+                            <h4>Success Response</h4>
+                            <div class="code-block">
+                                <div class="code-header">Response (200 OK)</div>
+                                <pre><code>{
+    <span class="property">"Image_Path_or_URL":</span> <span class="string">"example.jpg"</span>,
+    <span class="property">"Is_Valid":</span> <span class="string">"Valid"</span>,
+    <span class="property">"Error":</span> <span class="keyword">null</span>
+}</code></pre>
+                            </div>
+
+                            <h4>Error Response</h4>
+                            <div class="code-block">
+                                <div class="code-header">Response (400 Bad Request)</div>
+                                <pre><code>{
+    <span class="property">"Image_Path_or_URL":</span> <span class="string">"example.jpg"</span>,
+    <span class="property">"Is_Valid":</span> <span class="string">"Invalid"</span>,
+    <span class="property">"Error":</span> <span class="string">"Failed to process image"</span>
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card api-endpoint">
+                    <h3>Batch Processing</h3>
+                    <div class="endpoint-details">
+                        <div class="endpoint-header">
+                            <span class="method">POST</span>
+                            <code>/api/check-logo/batch/</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>Request Format</h4>
+                            <div class="code-block">
+                                <div class="code-header">Request</div>
+                                <pre><code><span class="keyword">Content-Type:</span> <span class="string">multipart/form-data</span>
+
+<span class="keyword">Parameters:</span>
+- <span class="property">files:</span> Multiple image files (optional)
+- <span class="property">paths:</span> Semicolon-separated URLs (optional)
+
+<span class="comment"># Note: Provide either files or paths, not both</span></code></pre>
+                            </div>
+
+                            <h4>Success Response</h4>
+                            <div class="code-block">
+                                <div class="code-header">Response (200 OK)</div>
+                                <pre><code>[
+    {
+        <span class="property">"Image_Path_or_URL":</span> <span class="string">"image1.jpg"</span>,
+        <span class="property">"Is_Valid":</span> <span class="string">"Valid"</span>,
+        <span class="property">"Error":</span> <span class="keyword">null</span>
+    },
+    {
+        <span class="property">"Image_Path_or_URL":</span> <span class="string">"image2.jpg"</span>,
+        <span class="property">"Is_Valid":</span> <span class="string">"Invalid"</span>,
+        <span class="property">"Error":</span> <span class="string">"No logo detected"</span>
+    }
+]</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card api-endpoint">
+                    <h3>Batch Statistics</h3>
+                    <div class="endpoint-details">
+                        <div class="endpoint-header">
+                            <span class="method">GET</span>
+                            <code>/check-logo/batch/getCount</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>Response Format</h4>
+                            <div class="code-block">
+                                <pre><code>{
+    "valid": 5,
+    "invalid": 3,
+    "total": 8
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card api-notes">
+                    <h3>Important Notes</h3>
+                    <ul>
+                        <li>All endpoints return HTTP 200 for successful requests</li>
+                        <li>File size limit: 200MB per file</li>
+                        <li>Supported formats: JPG, JPEG, PNG</li>
+                        <li>URLs must be publicly accessible</li>
+                        <li>Batch processing supports up to 50 images</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- FAQ Section -->
+            <section id="faq" class="content-section">
+                <h2>Frequently Asked Questions</h2>
+                <div class="card faq-list">
+                    <div class="faq-item">
+                        <h4>What image formats are supported?</h4>
+                        <p>The system supports PNG, JPG, and JPEG formats.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4>Is there a file size limit?</h4>
+                        <p>Yes, each file must be under 200MB.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4>Can I process multiple URLs at once?</h4>
+                        <p>Yes, in batch mode you can enter multiple URLs, one per line.</p>
+                    </div>
+                    <div class="faq-item">
+                        <h4>What happens if the server is down?</h4>
+                        <p>You'll see a connection error message. Try again later or contact support.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html> 
