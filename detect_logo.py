@@ -17,6 +17,7 @@ MODEL_PATHS = [
     'runs/detect/yolov8s_logo_detection2/weights/best.pt',
     'runs/detect/yolov8s_logo_detection3/weights/best.pt',
     'runs/detect/yolov11s_logo_detection/weights/best.pt',
+    'runs/detect/yolov11s3_logo_detection/weights/best.pt'
 ]
 
 # Confidence threshold

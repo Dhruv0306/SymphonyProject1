@@ -15,6 +15,7 @@ import concurrent.futures
 from threading import Lock
 from io import BytesIO
 import tempfile
+import uvicorn
 
 # Set up logging
 LOG_FILE = 'logs.txt'
@@ -49,6 +50,9 @@ watchfiles_logger.setLevel(logging.ERROR)
 
 
 app = FastAPI()
+
+# Increase the maximum number of files allowed
+app.max_files = 5000
 
 # Add middleware to log all requests
 @app.middleware("http")
@@ -311,6 +315,14 @@ async def check_logo_batch(
     Returns a list of logo detection results for each image, along with summary counts.
     Processes images sequentially.
     """
+    # Add file limit check
+    print(app.max_files)
+    if files and len(files) > app.max_files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many files. Maximum number of files is {app.max_files}"
+        )
+    
     results = []
     valid_count = 0
     invalid_count = 0
@@ -393,3 +405,12 @@ async def get_last_batch_count():
     if counts is None:
         return {"detail": "No batch has been processed yet."}
     return counts
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "App:app",
+        host="0.0.0.0",
+        port=8000,
+        limit_concurrency=1000,
+        limit_max_requests=5000,
+    )
