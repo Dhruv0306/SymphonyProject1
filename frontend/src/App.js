@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Divider, Card, CardContent, Grid, useTheme, useMediaQuery, Drawer, IconButton } from '@mui/material';
+import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Card, CardContent, Grid, useTheme, useMediaQuery, Drawer, IconButton } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -25,8 +25,6 @@ function App() {
   const [files, setFiles] = useState([]);
   const [preview, setPreview] = useState(null);
   const [previews, setPreviews] = useState([]);
-  const [urlPreview, setUrlPreview] = useState(null);
-  const [urlPreviews, setUrlPreviews] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -95,8 +93,6 @@ function App() {
   useEffect(() => {
     setPreview(null);
     setPreviews([]);
-    setUrlPreview(null);
-    setUrlPreviews([]);
   }, [inputMethod, mode]);
 
   // Handle URL input changes
@@ -108,7 +104,7 @@ function App() {
     
     // Update preview for single mode
     if (mode === 'single') {
-      setUrlPreview(url);
+      setPreview(url);
     }
   };
 
@@ -121,7 +117,7 @@ function App() {
 
     // Update previews for batch mode
     const urlList = urls.split('\n').filter(url => url.trim());
-    setUrlPreviews(urlList);
+    setPreviews(urlList.map(url => ({ url })));
   };
 
   const handleSubmit = async () => {
@@ -449,7 +445,8 @@ function App() {
                   backgroundColor: symphonyLightBlue,
                   borderRadius: 2,
                   border: `1px solid ${symphonyBlue}20`,
-                  height: { xs: '300px', sm: '400px' },
+                  minHeight: { xs: '200px', sm: '400px' },
+                  maxHeight: { xs: '80vh', sm: '600px' },
                   display: 'flex',
                   flexDirection: 'column'
                 }}
@@ -461,52 +458,53 @@ function App() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1,
-                    p: 2,
+                    p: { xs: 1.5, sm: 2 },
                     borderBottom: `1px solid ${symphonyBlue}20`,
                     backgroundColor: symphonyLightBlue,
                   }}
                 >
-                  <ImageIcon sx={{ fontSize: 20 }} />
+                  <ImageIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
                   URL Previews ({urls.length} images)
                 </Typography>
-                <Box
-                  sx={{
-                    p: 2,
+                <Box 
+                  sx={{ 
+                    p: { xs: 1.5, sm: 2 },
                     flex: 1,
-                    overflow: 'auto'
+                    overflow: 'auto',
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                    gap: { xs: 1.5, sm: 2 }
                   }}
                 >
-                  <Grid container spacing={2}>
-                    {urls.map((url, index) => (
-                      <Grid item xs={6} sm={4} md={3} key={index}>
-                        <Paper
-                          elevation={1}
-                          sx={{
-                            height: { xs: 120, sm: 150 },
-                            position: 'relative',
-                            overflow: 'hidden',
-                            borderRadius: 1,
-                            backgroundColor: 'white',
-                            border: `1px solid ${symphonyBlue}20`,
-                          }}
-                        >
-                          <img
-                            src={url}
-                            alt={`URL Preview ${index + 1}`}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'contain',
-                            }}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxsaW5lIHgxPSIxOCIgeTE9IjYiIHgyPSI2IiB5Mj0iMTgiPjwvbGluZT48bGluZSB4MT0iNiIgeTE9IjYiIHgyPSIxOCIgeTI9IjE4Ij48L2xpbmU+PC9zdmc+';
-                            }}
-                          />
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
+                  {urls.map((url, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        position: 'relative',
+                        paddingTop: '75%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        borderRadius: 1,
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'placeholder-image.png';
+                        }}
+                      />
+                    </Box>
+                  ))}
                 </Box>
               </Paper>
             </Box>
@@ -1141,10 +1139,16 @@ function App() {
                 sx={{ 
                   backgroundColor: symphonyWhite,
                   borderRadius: 2,
-                  height: { xs: '400px', sm: '600px' },
+                  height: { xs: 'auto', sm: 'calc(100vh - 400px)' }, // Auto height on mobile, fixed on desktop
+                  maxHeight: { xs: '100%', sm: 'calc(100vh - 400px)' },
+                  minHeight: { xs: '400px', sm: '500px' },
                   display: 'flex',
                   flexDirection: 'column',
                   mt: { xs: 2, sm: 3 },
+                  position: { xs: 'relative', sm: 'sticky' }, // Only sticky on desktop
+                  bottom: { xs: 'auto', sm: 0 },
+                  zIndex: 1,
+                  boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.1)'
                 }}
               >
                 <Typography
@@ -1154,19 +1158,24 @@ function App() {
                     p: { xs: 2, sm: 3 },
                     borderBottom: `1px solid ${symphonyBlue}20`,
                     backgroundColor: symphonyWhite,
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 2
                   }}
                 >
-                  Results
+                  Results ({results.length} {results.length === 1 ? 'image' : 'images'})
                 </Typography>
 
-                {/* Batch Summary - Only show for batch mode with multiple results */}
                 {mode === 'batch' && results.length > 1 && (
                   <Box 
                     sx={{ 
                       px: { xs: 2, sm: 3 },
                       py: 2,
                       borderBottom: `1px solid ${symphonyBlue}20`,
-                      backgroundColor: symphonyLightBlue
+                      backgroundColor: symphonyLightBlue,
+                      position: 'sticky',
+                      top: '64px',
+                      zIndex: 2
                     }}
                   >
                     <Typography 
@@ -1340,87 +1349,146 @@ function App() {
 
                 <Box
                   sx={{
-                    p: { xs: 2, sm: 3 },
                     flex: 1,
-                    overflow: 'auto'
+                    overflow: 'auto',
+                    px: { xs: 1.5, sm: 3 },
+                    py: 2,
+                    '&::-webkit-scrollbar': {
+                      width: '8px',
+                      height: '8px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: '#f1f1f1',
+                      borderRadius: '4px',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: symphonyBlue + '40',
+                      borderRadius: '4px',
+                      '&:hover': {
+                        background: symphonyBlue + '60',
+                      },
+                    },
                   }}
                 >
-                  <Grid container spacing={2}>
+                  <Grid container spacing={{ xs: 2, sm: 2 }}> {/* Increased spacing for mobile */}
                     {results.map((result, index) => (
-                      <Grid item xs={12} sm={6} md={4} key={index}>
+                      <Grid item xs={12} key={index}>
                         <Card 
                           sx={{ 
                             height: '100%',
                             display: 'flex',
-                            flexDirection: 'column'
+                            flexDirection: 'column',
+                            transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                            '&:hover': {
+                              transform: { xs: 'none', sm: 'translateY(-2px)' }, // Disable hover effect on mobile
+                              boxShadow: { xs: 'none', sm: '0 4px 8px rgba(0,0,0,0.1)' },
+                            },
                           }}
                         >
-                          <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                          <CardContent sx={{ 
+                            p: { xs: 2, sm: 2 },
+                            '&:last-child': { pb: { xs: 2, sm: 2 } } // Fix padding bottom
+                          }}>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'flex-start', 
+                              gap: { xs: 2, sm: 2 },
+                              flexDirection: { xs: 'row', sm: 'row' } // Keep row layout on mobile
+                            }}>
                               {/* Status Icon */}
                               <Box 
                                 sx={{ 
                                   backgroundColor: result.isValid ? 'success.main' : 'error.main',
                                   borderRadius: '50%',
-                                  p: 1,
+                                  p: { xs: 1.5, sm: 1 }, // Larger padding on mobile
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'center'
+                                  justifyContent: 'center',
+                                  alignSelf: 'flex-start', // Always align to top
+                                  flexShrink: 0 // Prevent icon from shrinking
                                 }}
                               >
                                 {result.isValid ? (
-                                  <CheckCircleIcon sx={{ color: 'white', fontSize: 24 }} />
+                                  <CheckCircleIcon sx={{ color: 'white', fontSize: { xs: 28, sm: 24 } }} />
                                 ) : (
-                                  <CancelIcon sx={{ color: 'white', fontSize: 24 }} />
+                                  <CancelIcon sx={{ color: 'white', fontSize: { xs: 28, sm: 24 } }} />
                                 )}
                               </Box>
 
                               {/* Content */}
-                              <Box sx={{ flex: 1 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <Box sx={{ 
+                                flex: 1,
+                                minWidth: 0 // Allow text to wrap properly
+                              }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  mb: 1,
+                                  flexWrap: 'wrap' // Allow wrapping on mobile
+                                }}>
                                   {inputMethod === 'upload' ? (
-                                    <InsertDriveFileIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                                    <InsertDriveFileIcon sx={{ 
+                                      mr: 1, 
+                                      color: 'text.secondary',
+                                      fontSize: { xs: 20, sm: 20 }
+                                    }} />
                                   ) : (
-                                    <LinkIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                                    <LinkIcon sx={{ 
+                                      mr: 1, 
+                                      color: 'text.secondary',
+                                      fontSize: { xs: 20, sm: 20 }
+                                    }} />
                                   )}
                                   <Typography 
                                     variant="subtitle1" 
                                     sx={{ 
                                       fontWeight: 500,
                                       color: result.isValid ? 'success.dark' : 'error.dark',
-                                      wordBreak: 'break-all'
+                                      wordBreak: 'break-word',
+                                      fontSize: { xs: '0.95rem', sm: '1rem' }
                                     }}
                                   >
                                     {result.name}
                                   </Typography>
                                 </Box>
 
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  flexWrap: 'wrap',
+                                  gap: 1, 
+                                  mt: 1 
+                                }}>
                                   <Typography 
                                     variant="body2" 
                                     sx={{ 
                                       color: 'text.secondary',
                                       backgroundColor: result.isValid ? 'rgba(76, 175, 80, 0.2)' : 'rgba(211, 47, 47, 0.2)',
-                                      py: 0.5,
-                                      px: 1,
+                                      py: { xs: 0.75, sm: 0.5 },
+                                      px: { xs: 1.5, sm: 1 },
                                       borderRadius: 1,
                                       display: 'inline-flex',
-                                      alignItems: 'center'
+                                      alignItems: 'center',
+                                      fontSize: { xs: '0.9rem', sm: '0.875rem' }
                                     }}
                                   >
-                                    <VerifiedIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                                    <VerifiedIcon sx={{ fontSize: { xs: 18, sm: 16 }, mr: 0.5 }} />
                                     Status: {result.isValid ? 'Valid Logo Detected' : 'No Valid Logo Found'}
                                   </Typography>
                                 </Box>
 
                                 {result.message && result.message.includes('Error') && (
-                                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 20 }} />
+                                  <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <ErrorOutlineIcon sx={{ 
+                                      color: 'error.main', 
+                                      fontSize: { xs: 20, sm: 20 } 
+                                    }} />
                                     <Typography 
                                       variant="body2" 
                                       sx={{ 
                                         color: 'error.main',
-                                        fontStyle: 'italic'
+                                        fontStyle: 'italic',
+                                        fontSize: { xs: '0.9rem', sm: '0.875rem' }
                                       }}
                                     >
                                       {result.message.split('(')[1]?.replace(')', '') || result.message}
@@ -1434,6 +1502,19 @@ function App() {
                       </Grid>
                     ))}
                   </Grid>
+                  {results.length > 10 && (
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        textAlign: 'center', 
+                        mt: 2, 
+                        color: 'text.secondary',
+                        fontSize: { xs: '0.85rem', sm: '0.875rem' }
+                      }}
+                    >
+                      Showing all {results.length} results. Scroll to view more.
+                    </Typography>
+                  )}
                 </Box>
               </Paper>
             )}

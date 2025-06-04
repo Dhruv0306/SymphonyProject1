@@ -61,17 +61,10 @@ async def log_requests(request, call_next):
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://10.1.2.97:3000",  # Allow requests from IP address
-        "http://127.0.0.1:3000",
-        "http://localhost:8501",
-        "http://10.1.2.97:8501",  # Allow Streamlit frontend
-        "http://127.0.0.1:8501"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
 UPLOAD_DIR = "temp_uploads"
@@ -316,88 +309,67 @@ async def check_logo_batch(
     """
     Accepts either multiple uploaded files or a semicolon-separated string of image paths/URLs.
     Returns a list of logo detection results for each image, along with summary counts.
-    Uses multithreading for parallel processing.
+    Processes images sequentially.
     """
     results = []
     valid_count = 0
     invalid_count = 0
-    max_workers = min(os.cpu_count() or 4, 5)  # Limit max threads
-    print(f"Using {max_workers} threads for batch processing")
 
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
-            
-            # Handle uploaded files
-            if files:
-                # Create temporary files for threading
-                temp_files = []
-                for file in files:
-                    try:
-                        # Create a temporary file
-                        temp_file_path = os.path.join(UPLOAD_DIR, f"temp_{file.filename}")
-                        with open(temp_file_path, "wb") as buffer:
-                            file.file.seek(0)
-                            shutil.copyfileobj(file.file, buffer)
-                            file.file.seek(0)  # Reset original file pointer
-                        temp_files.append((temp_file_path, file.filename))
-                    except Exception as e:
-                        logger.error(f"Error creating temporary file for {file.filename}: {str(e)}")
-                        results.append({
-                            "Image_Path_or_URL": file.filename,
-                            "Is_Valid": "Invalid",
-                            "Error": f"Error preparing file: {str(e)}"
-                        })
-                        with counter_lock:
-                            invalid_count += 1
-                        continue
-
-                # Submit jobs for processing
-                futures.extend([
-                    executor.submit(lambda p, n: process_single_path(p), temp_path, orig_name)
-                    for temp_path, orig_name in temp_files
-                ])
-
-            # Handle URL or path strings
-            if paths:
-                image_paths = [p.strip() for p in paths.split(";") if p.strip()]
-                futures.extend([
-                    executor.submit(process_single_path, path)
-                    for path in image_paths
-                ])
-
-            # Process results as they complete
-            for future in tqdm(
-                concurrent.futures.as_completed(futures),
-                total=len(futures),
-                desc="Processing images"
-            ):
+        # Handle uploaded files
+        if files:
+            for file in tqdm(files, desc="Processing uploaded files"):
                 try:
-                    result = future.result()
+                    # Create a temporary file
+                    temp_file_path = os.path.join(UPLOAD_DIR, f"temp_{file.filename}")
+                    with open(temp_file_path, "wb") as buffer:
+                        file.file.seek(0)
+                        shutil.copyfileobj(file.file, buffer)
+                        file.file.seek(0)  # Reset original file pointer
+
+                    # Process the file
+                    result = process_single_path(temp_file_path)
+                    result["Image_Path_or_URL"] = file.filename  # Use original filename
                     results.append(result)
-                    with counter_lock:
-                        if result["Is_Valid"] == "Valid":
-                            valid_count += 1
-                        else:
-                            invalid_count += 1
+
+                    # Update counts
+                    if result["Is_Valid"] == "Valid":
+                        valid_count += 1
+                    else:
+                        invalid_count += 1
+
+                    # Clean up temporary file
+                    if os.path.exists(temp_file_path):
+                        os.remove(temp_file_path)
+
                 except Exception as e:
-                    logger.error(f"Error in future: {str(e)}")
+                    logger.error(f"Error processing file {file.filename}: {str(e)}")
                     results.append({
-                        "Image_Path_or_URL": "Unknown",
+                        "Image_Path_or_URL": file.filename,
+                        "Is_Valid": "Invalid",
+                        "Error": f"Error processing file: {str(e)}"
+                    })
+                    invalid_count += 1
+
+        # Handle URL or path strings
+        if paths:
+            image_paths = [p.strip() for p in paths.split(";") if p.strip()]
+            for path in tqdm(image_paths, desc="Processing image paths"):
+                try:
+                    result = process_single_path(path)
+                    results.append(result)
+                    if result["Is_Valid"] == "Valid":
+                        valid_count += 1
+                    else:
+                        invalid_count += 1
+                except Exception as e:
+                    logger.error(f"Error processing path {path}: {str(e)}")
+                    results.append({
+                        "Image_Path_or_URL": path,
                         "Is_Valid": "Invalid",
                         "Error": str(e)
                     })
-                    with counter_lock:
-                        invalid_count += 1
-                        
-            # Clean up temporary files
-            if files:
-                for temp_path, _ in temp_files:
-                    try:
-                        if os.path.exists(temp_path):
-                            os.remove(temp_path)
-                    except Exception as e:
-                        logger.error(f"Error removing temporary file {temp_path}: {str(e)}")
+                    invalid_count += 1
 
         # Store batch summary in app state
         app.state.last_batch_counts = {
