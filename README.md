@@ -93,7 +93,7 @@ graph TD
 
 ### Detailed Processing Pipeline
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '20px','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as Client
     participant A as API Gateway
@@ -102,16 +102,16 @@ sequenceDiagram
     participant M as Model Pool
     participant S as Storage
 
-    rect rgb(187, 222, 251) 
+    rect rgba(40, 100, 160, 0.4)
         C->>A: Submit Image
     end
     
-    rect rgb(200, 230, 201)
+    rect rgba(30, 90, 50, 0.4)
         A->>A: Authenticate
         A->>V: Validate Request
     end
     
-    rect rgb(225, 190, 231) 
+    rect rgba(90, 50, 100, 0.4)
         V->>P: Process Image
         
         par Image Processing
@@ -121,7 +121,7 @@ sequenceDiagram
         end
     end
     
-    rect rgb(255, 224, 178) 
+    rect rgba(130, 90, 20, 0.4) 
         P->>M: Request Detection
         
         par Model Processing
@@ -133,7 +133,7 @@ sequenceDiagram
         end
     end
     
-    rect rgb(255, 205, 210) 
+    rect rgba(120, 40, 50, 0.4)
         M->>P: Return Results
         P->>S: Cache Results
         P->>A: Aggregate Response
