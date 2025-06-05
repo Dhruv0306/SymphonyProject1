@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Card, CardContent, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress } from '@mui/material';
+import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Card, CardContent, Grid, useTheme, useMediaQuery, Drawer, IconButton } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -33,10 +33,6 @@ function App() {
   const [imageUrl, setImageUrl] = useState('');
   const [batchUrls, setBatchUrls] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [totalFiles, setTotalFiles] = useState(0);
-  const [processedFiles, setProcessedFiles] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -140,91 +136,57 @@ function App() {
     setPreviews(urlList.map(url => ({ url })));
   };
 
+  const processImageChunk = async (imageChunk, isFiles = true) => {
+    try {
+      const formData = new FormData();
+      if (isFiles) {
+        imageChunk.forEach(file => {
+          formData.append('files', file);
+        });
+      } else {
+        formData.append('paths', imageChunk.join(';'));
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        timeout: 300000, // 5 minutes timeout
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error processing chunk:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async () => {
+    // Clear previous results and errors before starting new detection
     setResults([]);
     setError(null);
-    setProgress(0);
-    setProcessedFiles(0);
-    setIsProcessing(true);
 
     if (inputMethod === 'upload' && files.length === 0) {
       setError('Please select image(s) first');
-      setIsProcessing(false);
       return;
     }
 
     if (inputMethod === 'url' && mode === 'single' && !imageUrl) {
       setError('Please enter an image URL');
-      setIsProcessing(false);
       return;
     }
 
     if (inputMethod === 'url' && mode === 'batch' && !batchUrls) {
       setError('Please enter image URLs');
-      setIsProcessing(false);
       return;
     }
 
     setLoading(true);
-    
-    try {
-      if (mode === 'batch') {
-        let totalItems;
-        if (inputMethod === 'upload') {
-          totalItems = files.length;
-        } else {
-          totalItems = batchUrls.split('\n').filter(url => url.trim()).length;
-        }
-        setTotalFiles(totalItems);
 
-        if (inputMethod === 'upload') {
-          const formData = new FormData();
-          files.forEach(file => {
-            formData.append('files', file);
-          });
-          
-          const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress: (progressEvent) => {
-              const uploadProgress = (progressEvent.loaded / progressEvent.total) * 50;
-              setProgress(uploadProgress); // First 50% is upload progress
-            }
-          });
-          
-          setResults(response.data.map((result, index) => {
-            setProcessedFiles(prev => prev + 1);
-            setProgress(50 + ((index + 1) / totalItems) * 50); // Last 50% is processing progress
-            return {
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: files[index].name
-            };
-          }));
-        } else {
-          // For batch URL input
-          const urls = batchUrls.split('\n').filter(url => url.trim());
-          const formData = new FormData();
-          formData.append('paths', urls.join(';'));
-          
-          const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            }
-          });
-          
-          setResults(response.data.map((result, index) => {
-            setProcessedFiles(prev => prev + 1);
-            setProgress((index + 1) / totalItems * 100);
-            return {
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: urls[index]
-            };
-          }));
-        }
-      } else {
+    try {
+      if (mode === 'single') {
         let response;
         if (inputMethod === 'upload') {
           const formData = new FormData();
@@ -249,6 +211,31 @@ function App() {
           message: `Logo detection result: ${response.data.Is_Valid}${response.data.Error ? ` (${response.data.Error})` : ''}`,
           name: inputMethod === 'upload' ? files[0].name : imageUrl
         }]);
+      } else {
+        // Batch processing
+        let allResults = [];
+        if (inputMethod === 'upload') {
+          // Process files in chunks of 900
+          for (let i = 0; i < files.length; i += 900) {
+            const chunk = files.slice(i, i + 900);
+            const chunkResults = await processImageChunk(chunk, true);
+            allResults = [...allResults, ...chunkResults];
+          }
+        } else {
+          // Process URLs in chunks of 900
+          const urls = batchUrls.split('\n').filter(url => url.trim());
+          for (let i = 0; i < urls.length; i += 900) {
+            const chunk = urls.slice(i, i + 900);
+            const chunkResults = await processImageChunk(chunk, false);
+            allResults = [...allResults, ...chunkResults];
+          }
+        }
+
+        setResults(allResults.map((result, index) => ({
+          isValid: result.Is_Valid === "Valid",
+          message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+          name: inputMethod === 'upload' ? files[index].name : batchUrls.split('\n').filter(url => url.trim())[index]
+        })));
       }
     } catch (err) {
       console.error('Error details:', err);
@@ -265,8 +252,6 @@ function App() {
       }
     } finally {
       setLoading(false);
-      setIsProcessing(false);
-      setProgress(0);
     }
   };
 
@@ -940,37 +925,6 @@ function App() {
     };
   };
 
-  // Add this component to render the progress
-  const BatchProgress = ({ progress, processedFiles, totalFiles, isProcessing }) => {
-    if (!isProcessing) return null;
-    
-    return (
-      <Box sx={{ width: '100%', mt: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            Processing images: {processedFiles} / {totalFiles}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {Math.round(progress)}%
-          </Typography>
-        </Box>
-        <LinearProgress 
-          variant="determinate" 
-          value={progress} 
-          sx={{
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: `${symphonyLightBlue}`,
-            '& .MuiLinearProgress-bar': {
-              backgroundColor: symphonyBlue,
-              borderRadius: 4,
-            }
-          }}
-        />
-      </Box>
-    );
-  };
-
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar for desktop */}
@@ -1426,13 +1380,6 @@ function App() {
                     </Grid>
                   </Box>
                 )}
-
-                <BatchProgress 
-                  progress={progress}
-                  processedFiles={processedFiles}
-                  totalFiles={totalFiles}
-                  isProcessing={isProcessing}
-                />
 
                 <Box
                   sx={{

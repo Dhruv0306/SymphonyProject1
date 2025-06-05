@@ -71,6 +71,14 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+# Configure server for large file uploads
+@app.middleware("http")
+async def add_large_file_support(request, call_next):
+    # Increase the maximum request body size
+    request.scope.setdefault("_body_size_limit", None)
+    response = await call_next(request)
+    return response
+
 UPLOAD_DIR = "temp_uploads"
 
 # Ensure upload directory exists with proper permissions
@@ -413,4 +421,6 @@ if __name__ == "__main__":
         port=8000,
         limit_concurrency=1000,
         limit_max_requests=5000,
+        timeout_keep_alive=300,
+        backlog=2000
     )
