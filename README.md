@@ -36,7 +36,7 @@ This application provides an enterprise-grade solution for detecting Symphony lo
 
 ### High-Level System Overview
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph TD
     subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -93,7 +93,7 @@ graph TD
 
 ### Detailed Processing Pipeline
 ```mermaid
-%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '20px','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
+%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '22px','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as Client
     participant A as API Gateway
@@ -143,7 +143,7 @@ sequenceDiagram
 
 ### Model Architecture
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph TD
     subgraph "Input Processing" 
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -200,7 +200,7 @@ graph TD
 
 ### Error Handling and Monitoring
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph LR
     subgraph "Error Sources"
         style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
@@ -250,7 +250,7 @@ graph LR
 
 ### Data Flow and Storage
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph TD
     subgraph "Input Sources" 
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
