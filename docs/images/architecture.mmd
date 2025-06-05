@@ -1,0 +1,26 @@
+graph TD
+    A[Client] -->|HTTP Request| B[FastAPI Server]
+    B -->|Load Balance| C[Model Pool]
+    
+    subgraph "Model Pool"
+        C --> D[YOLOv8s #1]
+        C --> E[YOLOv8s #2]
+        C --> F[YOLOv11s #1]
+        C --> G[YOLOv11s #2]
+        C --> H[YOLOv11s #3]
+    end
+    
+    subgraph "Processing Pipeline"
+        B --> I[Input Validation]
+        I --> J[Image Enhancement]
+        J --> K[Model Selection]
+        K --> L[Inference]
+        L --> M[Result Validation]
+        M --> N[Response Generation]
+    end
+    
+    B -->|Metrics| O[Prometheus]
+    O --> P[Grafana]
+    
+    B -->|Logs| Q[Log Rotation]
+    B -->|Errors| R[Error Tracking] 

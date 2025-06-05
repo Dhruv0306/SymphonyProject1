@@ -1,3 +1,10 @@
+"""
+Logo Detection Module using YOLOv8 and YOLOv11 Models
+
+This module provides functionality to detect Symphony logos in images using multiple YOLO models.
+It supports both local image files and URLs, and implements a multi-model approach for robust detection.
+"""
+
 import sys
 import os
 import logging
@@ -7,32 +14,61 @@ import requests
 from io import BytesIO
 from ultralytics import YOLO
 
-# Set up logging
+# Configure logging with basic settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Paths to the trained YOLO model weights
+# List of trained model weights paths, ordered by preference
+# Multiple models are used for ensemble-like predictions to improve accuracy
 MODEL_PATHS = [
-    'runs/detect/yolov8s_logo_detection/weights/best.pt',
-    'runs/detect/yolov8s_logo_detection2/weights/best.pt',
-    'runs/detect/yolov8s_logo_detection3/weights/best.pt',
-    'runs/detect/yolov11s_logo_detection/weights/best.pt',
-    'runs/detect/yolov11s3_logo_detection/weights/best.pt'
+    'runs/detect/yolov8s_logo_detection/weights/best.pt',    # YOLOv8s model trained on logo dataset
+    'runs/detect/yolov8s_logo_detection2/weights/best.pt',   # Second iteration with additional data
+    'runs/detect/yolov8s_logo_detection3/weights/best.pt',   # Third iteration with refined data
+    'runs/detect/yolov11s_logo_detection/weights/best.pt',   # YOLOv11s model for comparison
+    'runs/detect/yolov11s3_logo_detection/weights/best.pt'   # YOLOv11s with optimized parameters
 ]
 
-# Confidence threshold
+# Minimum confidence threshold for logo detection
+# Adjust this value to balance between false positives and false negatives
 CONFIDENCE_THRESHOLD = 0.35
 
 def add_boundary(img, boundary_size=10, color=(255, 255, 255)):
-    """Add a frame (boundary) of specified size and color around the PIL image."""
+    """
+    Add a white frame around the image to prevent edge-case detection issues.
+    
+    Args:
+        img (PIL.Image): Input image
+        boundary_size (int): Width of the boundary in pixels
+        color (tuple): RGB color tuple for the boundary
+    
+    Returns:
+        PIL.Image: Image with added boundary
+    """
     return ImageOps.expand(img, border=boundary_size, fill=color)
 
 def is_url(path):
-    """Check if the given path is a URL"""
+    """
+    Check if the given path is a valid HTTP/HTTPS URL.
+    
+    Args:
+        path (str): Path or URL to check
+    
+    Returns:
+        bool: True if path is a URL, False otherwise
+    """
     return path.startswith('http://') or path.startswith('https://')
 
 def load_models():
-    """Load all YOLO models and pair each with its path."""
+    """
+    Load all available YOLO models from the MODEL_PATHS list.
+    
+    Returns:
+        list: List of tuples containing (model, path) pairs for successfully loaded models
+    
+    Note:
+        - Models that fail to load are skipped with a warning
+        - System exits if no models can be loaded
+    """
     loaded_models = []
     for path in MODEL_PATHS:
         try:
@@ -47,7 +83,7 @@ def load_models():
             logger.error(f"Error loading model from {path}: {str(e)}")
     return loaded_models
 
-# Load models on initialization
+# Initialize models on module load
 models = load_models()
 if not models:
     logger.error("No models loaded. Exiting.")
@@ -56,7 +92,22 @@ if not models:
 def check_logo(image_path):
     """
     Check for Symphony logo in the given image using multiple YOLO models.
-    Returns early if any model detects it.
+    
+    Args:
+        image_path (str): Local file path or URL of the image to check
+    
+    Returns:
+        dict: Result dictionary containing:
+            - Image Path/URL: Original path/URL of the image
+            - Is Valid: "Valid" if logo detected, "Invalid" otherwise
+            - Error: Error message if any (optional)
+            - Detected By: Name of model that detected the logo (if valid)
+    
+    Note:
+        - Returns early if any model detects a logo
+        - Adds white boundary to images before processing
+        - Handles both local files and URLs
+        - Implements robust error handling
     """
     try:
         logger.info(f"\nProcessing image: {image_path}")

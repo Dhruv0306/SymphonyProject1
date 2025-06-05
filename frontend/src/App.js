@@ -1,5 +1,17 @@
+/**
+ * Symphony Logo Detection Web Application
+ * 
+ * A React-based web interface for detecting Symphony logos in images.
+ * Features:
+ * - Single and batch image processing
+ * - File upload and URL input support
+ * - Real-time progress tracking
+ * - Responsive design with mobile support
+ * - Material-UI components for modern UI
+ */
+
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Card, CardContent, Grid, useTheme, useMediaQuery, Drawer, IconButton } from '@mui/material';
+import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -7,53 +19,65 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import LinkIcon from '@mui/icons-material/Link';
 import ImageIcon from '@mui/icons-material/Image';
-import VerifiedIcon from '@mui/icons-material/Verified';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MenuIcon from '@mui/icons-material/Menu';
 import { API_BASE_URL } from './config';
+import { chunkImages, processImageChunks } from './utils/imageChunker';
 
-const symphonyBlue = '#0066B3';  // Official Symphony blue
-const symphonyWhite = '#FFFFFF';
-const symphonyGray = '#333333';
-const symphonyLightBlue = '#f0f9ff';
-const symphonyDarkBlue = '#005299';
+// Theme constants for consistent branding
+const symphonyBlue = '#0066B3';     // Primary brand color
+const symphonyWhite = '#FFFFFF';     // Background color
+const symphonyGray = '#333333';      // Text color
+const symphonyLightBlue = '#f0f9ff'; // Secondary background
+const symphonyDarkBlue = '#005299';  // Hover/active state
 
+// Sidebar width for responsive layout
 const SIDEBAR_WIDTH = 280;
 
+/**
+ * Main application component handling logo detection functionality
+ * @component
+ */
 function App() {
-  const [files, setFiles] = useState([]);
-  const [preview, setPreview] = useState(null);
-  const [previews, setPreviews] = useState([]);
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [mode, setMode] = useState('single');
-  const [inputMethod, setInputMethod] = useState('upload');
-  const [imageUrl, setImageUrl] = useState('');
-  const [batchUrls, setBatchUrls] = useState('');
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // State management for file handling and UI
+  const [files, setFiles] = useState([]);                 // Uploaded files
+  const [preview, setPreview] = useState(null);           // Single image preview
+  const [previews, setPreviews] = useState([]);          // Batch image previews
+  const [results, setResults] = useState([]);            // Detection results
+  const [loading, setLoading] = useState(false);         // Loading state
+  const [error, setError] = useState(null);              // Error messages
+  const [mode, setMode] = useState('single');            // 'single' or 'batch' mode
+  const [inputMethod, setInputMethod] = useState('upload'); // 'upload' or 'url' input
+  const [imageUrl, setImageUrl] = useState('');          // Single image URL
+  const [batchUrls, setBatchUrls] = useState('');        // Batch image URLs
+  const [mobileOpen, setMobileOpen] = useState(false);   // Mobile drawer state
+  const [progress, setProgress] = useState(null);        // Progress tracking
+  const [processSummary, setProcessSummary] = useState(null); // Processing summary
 
+  // Responsive design hooks
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+  /**
+   * Toggle mobile navigation drawer
+   */
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  /**
+   * Handle file drop/selection
+   * @param {File[]} acceptedFiles - Array of accepted image files
+   */
   const onDrop = (acceptedFiles) => {
-    if (acceptedFiles.length > 5000) {
-      setError('Maximum number of files exceeded. Please select up to 5000 files.');
-      return;
-    }
-    
     if (mode === 'single') {
       const selectedFile = acceptedFiles[0];
       setFiles([selectedFile]);
       setError(null);
       setResults([]);
       
-      // Create preview URL
+      // Create preview URL for single image
       const previewUrl = URL.createObjectURL(selectedFile);
       setPreview(previewUrl);
       setPreviews([]); // Clear batch previews
@@ -63,7 +87,7 @@ function App() {
       setResults([]);
       setPreview(null);
       
-      // Create preview URLs for batch mode
+      // Create preview URLs for batch images
       const newPreviews = acceptedFiles.map(file => ({
         url: URL.createObjectURL(file),
         name: file.name
@@ -72,7 +96,7 @@ function App() {
     }
   };
 
-  // Cleanup preview URLs when component unmounts or files change
+  // Cleanup preview URLs to prevent memory leaks
   useEffect(() => {
     return () => {
       if (preview) {
@@ -86,32 +110,25 @@ function App() {
     };
   }, [preview, previews]);
 
+  // Configure dropzone with accepted file types
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png']
+      'image/*': ['.jpeg', '.jpg', '.png']  // Accept common image formats
     },
-    multiple: mode === 'batch',
-    maxFiles: 5000,
-    maxSize: 5242880, // 5MB per file
-    validator: (file) => {
-      if (files.length >= 5000) {
-        return {
-          code: "too-many-files",
-          message: `Cannot add more files. Maximum is 5000 files.`
-        };
-      }
-      return null;
-    }
+    multiple: mode === 'batch'
   });
 
-  // Clear previews when changing input method
+  // Reset previews when changing input method or mode
   useEffect(() => {
     setPreview(null);
     setPreviews([]);
   }, [inputMethod, mode]);
 
-  // Handle URL input changes
+  /**
+   * Handle URL input for single image mode
+   * @param {Event} e - Input change event
+   */
   const handleUrlChange = (e) => {
     const url = e.target.value;
     setImageUrl(url);
@@ -124,49 +141,27 @@ function App() {
     }
   };
 
-  // Handle batch URLs input changes
+  /**
+   * Handle URL input for batch mode
+   * @param {Event} e - Input change event
+   */
   const handleBatchUrlsChange = (e) => {
     const urls = e.target.value;
     setBatchUrls(urls);
     setResults([]);
     setError(null);
 
-    // Update previews for batch mode
+    // Parse and preview URLs from textarea
     const urlList = urls.split('\n').filter(url => url.trim());
     setPreviews(urlList.map(url => ({ url })));
-  };
-
-  const processImageChunk = async (imageChunk, isFiles = true) => {
-    try {
-      const formData = new FormData();
-      if (isFiles) {
-        imageChunk.forEach(file => {
-          formData.append('files', file);
-        });
-      } else {
-        formData.append('paths', imageChunk.join(';'));
-      }
-
-      const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
-        timeout: 300000, // 5 minutes timeout
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error('Error processing chunk:', error);
-      throw error;
-    }
   };
 
   const handleSubmit = async () => {
     // Clear previous results and errors before starting new detection
     setResults([]);
     setError(null);
+    setProgress(null);
+    setProcessSummary(null);
 
     if (inputMethod === 'upload' && files.length === 0) {
       setError('Please select image(s) first');
@@ -184,6 +179,7 @@ function App() {
     }
 
     setLoading(true);
+    const processStartTime = Date.now();
 
     try {
       if (mode === 'single') {
@@ -213,43 +209,124 @@ function App() {
         }]);
       } else {
         // Batch processing
-        let allResults = [];
         if (inputMethod === 'upload') {
-          // Process files in chunks of 900
-          for (let i = 0; i < files.length; i += 900) {
-            const chunk = files.slice(i, i + 900);
-            const chunkResults = await processImageChunk(chunk, true);
-            allResults = [...allResults, ...chunkResults];
+          if (files.length >= 100) {
+            // Use chunking for large batches
+            const chunks = chunkImages(files, 100);
+            
+            const processChunk = async (chunk) => {
+              const formData = new FormData();
+              chunk.forEach(file => {
+                formData.append('files', file);
+              });
+              
+              const response = await axios.post(
+                `${API_BASE_URL}/api/check-logo/batch/`,
+                formData,
+                {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                }
+              );
+              return response.data;
+            };
+
+            const allResults = await processImageChunks(
+              chunks,
+              processChunk,
+              (progressData) => {
+                setProgress(progressData);
+              }
+            );
+
+            // Store final processing summary
+            const processEndTime = Date.now();
+            setProcessSummary({
+              totalImages: files.length,
+              totalTime: processEndTime - processStartTime,
+              averageTimePerImage: (processEndTime - processStartTime) / files.length,
+              startTime: processStartTime,
+              endTime: processEndTime
+            });
+
+            setResults(allResults.map((result, index) => ({
+              isValid: result.Is_Valid === "Valid",
+              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+              name: files[index].name
+            })));
+          } else {
+            // Original processing for smaller batches
+          const formData = new FormData();
+          files.forEach(file => {
+            formData.append('files', file);
+          });
+            const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          setResults(response.data.map((result, index) => ({
+            isValid: result.Is_Valid === "Valid",
+            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+            name: files[index].name
+          })));
           }
         } else {
-          // Process URLs in chunks of 900
+          // For batch URL input
           const urls = batchUrls.split('\n').filter(url => url.trim());
-          for (let i = 0; i < urls.length; i += 900) {
-            const chunk = urls.slice(i, i + 900);
-            const chunkResults = await processImageChunk(chunk, false);
-            allResults = [...allResults, ...chunkResults];
-          }
-        }
+          if (urls.length >= 100) {
+            // Use chunking for large URL batches
+            const chunks = chunkImages(urls, 100);
+            
+            const processChunk = async (chunk) => {
+              const formData = new FormData();
+              formData.append('paths', chunk.join(';'));
+              const response = await axios.post(
+                `${API_BASE_URL}/api/check-logo/batch/`,
+                formData,
+                {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                }
+              );
+              return response.data;
+            };
 
-        setResults(allResults.map((result, index) => ({
-          isValid: result.Is_Valid === "Valid",
-          message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-          name: inputMethod === 'upload' ? files[index].name : batchUrls.split('\n').filter(url => url.trim())[index]
-        })));
+            const allResults = await processImageChunks(
+              chunks,
+              processChunk,
+              (progressData) => {
+                setProgress(progressData);
+              }
+            );
+
+            setResults(allResults.map((result, index) => ({
+              isValid: result.Is_Valid === "Valid",
+              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+              name: urls[index]
+            })));
+          } else {
+            // Original processing for smaller URL batches
+          const formData = new FormData();
+          formData.append('paths', urls.join(';'));
+            const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          setResults(response.data.map((result, index) => ({
+            isValid: result.Is_Valid === "Valid",
+            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+            name: urls[index]
+          })));
+        }
       }
-    } catch (err) {
-      console.error('Error details:', err);
-      if (err.code === 'ERR_NETWORK') {
-        setError('Cannot connect to the server. Please ensure the backend is running.');
-      } else if (err.response?.status === 413) {
-        setError('Image file is too large. Please try a smaller image.');
-      } else if (err.response?.status === 415) {
-        setError('Invalid file type. Please upload a JPG or PNG image.');
-      } else if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError('An error occurred while processing the image(s). Please try again.');
       }
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error.response?.data?.detail || 'An error occurred during processing');
     } finally {
       setLoading(false);
     }
@@ -806,9 +883,8 @@ function App() {
               setPreview(null);
               setResults([]);
               setError(null);
-              if (isMobile) {
-                setMobileOpen(false);
-              }
+              setImageUrl('');
+              setBatchUrls('');
             }}
             sx={{
               display: 'flex',
@@ -909,20 +985,301 @@ function App() {
     </Box>
   );
 
-  // Add this helper function at the top level
-  const getBatchSummary = (results) => {
-    const validCount = results.filter(r => r.isValid).length;
-    const invalidCount = results.length - validCount;
-    const total = results.length;
-    // Calculate success rate, ensuring it's 0 when there are no valid logos
-    const successRate = total > 0 ? (validCount / total) * 100 : 0;
-    
-    return {
-      validCount,
-      invalidCount,
-      total,
-      successRate: Math.round(successRate) // Round here instead of in the display
+  // Update progress display component with larger sizes
+  const ProgressDisplay = ({ progress }) => {
+    if (!progress) return null;
+
+    return (
+      <Box sx={{ width: '100%', mt: 3, mb: 3 }}>
+        <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+          Processing images: {progress.processedImages} / {progress.totalImages}
+        </Typography>
+        <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+          Chunk: {progress.currentChunk} / {progress.totalChunks}
+        </Typography>
+        
+        {/* Time information with larger text */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 6, my: 2 }}>
+          <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+            Time elapsed: {progress.elapsedTime}
+          </Typography>
+          <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+            Est. time remaining: {progress.estimatedTimeRemaining}
+          </Typography>
+        </Box>
+
+        <LinearProgress 
+          variant="determinate" 
+          value={progress.percentComplete}
+          sx={{ 
+            mt: 2, 
+            mb: 2,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: 'rgba(0, 102, 179, 0.1)',
+            '& .MuiLinearProgress-bar': {
+              backgroundColor: symphonyBlue,
+              borderRadius: 6,
+            }
+          }}
+        />
+        <Typography variant="h6" color="text.secondary" align="center" sx={{ fontWeight: 500, fontSize: '1.4rem' }}>
+          {Math.round(progress.percentComplete)}% complete
+        </Typography>
+      </Box>
+    );
+  };
+
+  // Add ProcessingSummary component
+  const ProcessingSummary = ({ summary, results }) => {
+    if (!summary) return null;
+
+    const formatTime = (ms) => {
+      const totalSeconds = ms / 1000;
+      const hours = totalSeconds / 3600;
+      const minutes = (totalSeconds % 3600) / 60;
+      const seconds = totalSeconds % 60;
+
+      if (hours >= 1) {
+        return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(3)}s`;
+      } else if (minutes >= 1) {
+        return `${Math.trunc(minutes)}m ${seconds.toFixed(3)}s`;
+      } else {
+        return `${seconds.toFixed(3)}s`;
+      }
     };
+
+    const validCount = results.filter(r => r.isValid).length;
+    const successRate = (validCount / results.length) * 100;
+
+    return (
+      <Paper sx={{ 
+        p: 3, 
+        mt: 3, 
+        backgroundColor: symphonyLightBlue,
+        border: `1px solid ${symphonyBlue}20`
+      }}>
+        <Typography variant="h6" sx={{ color: symphonyBlue, mb: 2 }}>
+          Processing Summary
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                Total Images
+              </Typography>
+              <Typography variant="h4" sx={{ color: symphonyBlue }}>
+                {summary.totalImages}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                Total Time
+              </Typography>
+              <Typography variant="h4" sx={{ color: symphonyBlue }}>
+                {formatTime(summary.totalTime)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Processing speed: {(summary.totalImages / (summary.totalTime / 1000)).toFixed(2)} images/sec
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                Success Rate
+              </Typography>
+              <Typography variant="h4" sx={{ color: symphonyBlue }}>
+                {successRate.toFixed(1)}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {validCount} valid / {results.filter(r => !r.isValid).length} invalid
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                Avg. Time per Image
+              </Typography>
+              <Typography variant="h4" sx={{ color: symphonyBlue }}>
+                {formatTime(summary.averageTimePerImage)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Min: {formatTime(summary.totalTime / summary.totalImages)}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+    );
+  };
+
+  // Update the results section to include both progress and summary
+  const renderResults = () => {
+    return (
+      <Box sx={{ mt: 4 }}>
+        {/* Show progress during loading */}
+        {loading && (
+          <Paper 
+            sx={{ 
+              p: 4,
+              backgroundColor: symphonyWhite,
+              borderRadius: 2,
+              border: `1px solid ${symphonyBlue}20`
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+              <CircularProgress sx={{ color: symphonyBlue, width: '4rem !important', height: '4rem !important' }} />
+            </Box>
+            <ProgressDisplay progress={progress} />
+          </Paper>
+        )}
+
+        {/* Show results section when we have results */}
+        {results.length > 0 && !loading && (
+          <>
+            {/* Show processing summary for batch mode */}
+            {mode === 'batch' && processSummary && (
+              <ProcessingSummary summary={processSummary} results={results} />
+            )}
+
+            {/* Results list */}
+            <Paper 
+              sx={{ 
+                backgroundColor: symphonyWhite,
+                borderRadius: 2,
+                height: { xs: 'auto', sm: 'calc(100vh - 400px)' },
+                maxHeight: { xs: '100%', sm: 'calc(100vh - 400px)' },
+                minHeight: { xs: '400px', sm: '500px' },
+                display: 'flex',
+                flexDirection: 'column',
+                mt: { xs: 2, sm: 3 },
+                position: { xs: 'relative', sm: 'sticky' },
+                bottom: { xs: 'auto', sm: 0 },
+                zIndex: 1,
+                boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              {/* Results header */}
+              <Box
+                sx={{
+                  borderBottom: `1px solid ${symphonyBlue}20`,
+                  backgroundColor: symphonyWhite,
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 2,
+                  p: { xs: 3, sm: 2 },
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: symphonyBlue,
+                    fontWeight: 500,
+                    fontSize: '1.4rem'
+                  }}
+                >
+                  Results ({results.length} {results.length === 1 ? 'image' : 'images'})
+                </Typography>
+                {mode === 'batch' && (
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      fontSize: '1rem'
+                    }}
+                  >
+                    <Box component="span" sx={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center',
+                      color: 'success.main'
+                    }}>
+                      <CheckCircleIcon sx={{ fontSize: '2.8rem', mr: 1 }} />
+                      {results.filter(r => r.isValid).length} Valid
+                    </Box>
+                    <Box component="span" sx={{ mx: 2 }}>•</Box>
+                    <Box component="span" sx={{ 
+                      display: 'inline-flex', 
+                      alignItems: 'center',
+                      color: 'error.main'
+                    }}>
+                      <CancelIcon sx={{ fontSize: '2.8rem', mr: 1 }} />
+                      {results.filter(r => !r.isValid).length} Invalid
+                    </Box>
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Results list */}
+              <Box sx={{ 
+                flex: 1, 
+                overflow: 'auto',
+                p: { xs: 2, sm: 3 },
+                pt: 0
+              }}>
+                <Grid container spacing={2}>
+                  {results.map((result, index) => (
+                    <Grid item xs={12} sm={6} md={4} key={index}>
+                      <Paper
+                        sx={{
+                          p: 2,
+                          backgroundColor: result.isValid ? 'rgba(76, 175, 80, 0.05)' : 'rgba(211, 47, 47, 0.05)',
+                          border: `1px solid ${result.isValid ? 'rgba(76, 175, 80, 0.1)' : 'rgba(211, 47, 47, 0.1)'}`,
+                          borderRadius: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          height: '100%'
+                        }}
+                      >
+                        {result.isValid ? (
+                          <CheckCircleIcon sx={{ 
+                            color: 'success.main',
+                            fontSize: '2.5rem'
+                          }} />
+                        ) : (
+                          <CancelIcon sx={{ 
+                            color: 'error.main',
+                            fontSize: '2.5rem'
+                          }} />
+                        )}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="h6" sx={{ 
+                            color: result.isValid ? 'success.main' : 'error.main',
+                            fontWeight: 500,
+                            fontSize: '1.1rem',
+                            mb: 0.5
+                          }}>
+                            {result.isValid ? 'Valid Logo' : 'Invalid Logo'}
+                          </Typography>
+                          <Typography sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.9rem',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {result.name}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            </Paper>
+          </>
+        )}
+      </Box>
+    );
   };
 
   return (
@@ -1118,28 +1475,25 @@ function App() {
                 {renderInputSection()}
               </Box>
 
-              <Box sx={{ textAlign: 'center' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                 <Button
                   variant="contained"
                   onClick={handleSubmit}
                   disabled={loading}
                   sx={{
-                    px: { xs: 3, sm: 4 },
-                    py: { xs: 1, sm: 1.5 },
-                    fontSize: { xs: '0.9rem', sm: '1rem' },
                     backgroundColor: symphonyBlue,
                     '&:hover': {
                       backgroundColor: symphonyDarkBlue,
                     },
-                    '&.Mui-disabled': {
-                      backgroundColor: '#ccc',
-                    },
+                    minWidth: '200px',
+                    height: '48px',
+                    fontSize: '1.2rem'
                   }}
                 >
                   {loading ? (
-                    <CircularProgress size={24} sx={{ color: symphonyWhite }} />
+                    <CircularProgress size={28} sx={{ color: symphonyWhite }} />
                   ) : (
-                    'Process Image' + (mode === 'batch' ? 's' : '')
+                    'Process Images'
                   )}
                 </Button>
               </Box>
@@ -1168,390 +1522,7 @@ function App() {
               </Paper>
             )}
 
-            {results.length > 0 && (
-              <Paper 
-                sx={{ 
-                  backgroundColor: symphonyWhite,
-                  borderRadius: 2,
-                  height: { xs: 'auto', sm: 'calc(100vh - 400px)' }, // Auto height on mobile, fixed on desktop
-                  maxHeight: { xs: '100%', sm: 'calc(100vh - 400px)' },
-                  minHeight: { xs: '400px', sm: '500px' },
-                  display: 'flex',
-                  flexDirection: 'column',
-                  mt: { xs: 2, sm: 3 },
-                  position: { xs: 'relative', sm: 'sticky' }, // Only sticky on desktop
-                  bottom: { xs: 'auto', sm: 0 },
-                  zIndex: 1,
-                  boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: symphonyBlue,
-                    p: { xs: 2, sm: 3 },
-                    borderBottom: `1px solid ${symphonyBlue}20`,
-                    backgroundColor: symphonyWhite,
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 2
-                  }}
-                >
-                  Results ({results.length} {results.length === 1 ? 'image' : 'images'})
-                </Typography>
-
-                {mode === 'batch' && results.length > 1 && (
-                  <Box 
-                    sx={{ 
-                      px: { xs: 2, sm: 3 },
-                      py: 2,
-                      borderBottom: `1px solid ${symphonyBlue}20`,
-                      backgroundColor: symphonyLightBlue,
-                      position: 'sticky',
-                      top: '64px',
-                      zIndex: 2
-                    }}
-                  >
-                    <Typography 
-                      variant="subtitle1" 
-                      sx={{ 
-                        color: symphonyBlue,
-                        mb: 2,
-                        fontWeight: 500
-                      }}
-                    >
-                      Batch Processing Summary
-                    </Typography>
-                    
-                    <Grid container spacing={2}>
-                      {/* Valid Logos */}
-                      <Grid item xs={6} sm={4}>
-                        <Paper 
-                          sx={{ 
-                            p: 2,
-                            backgroundColor: 'rgba(76, 175, 80, 0.05)',
-                            border: '1px solid rgba(76, 175, 80, 0.1)',
-                            borderRadius: 2,
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                        >
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              color: 'success.main',
-                              mb: 1,
-                              fontWeight: 500 
-                            }}
-                          >
-                            Valid Logos
-                          </Typography>
-                          <Typography 
-                            variant="h3" 
-                            sx={{ 
-                              color: 'success.main',
-                              fontWeight: 500,
-                              lineHeight: 1
-                            }}
-                          >
-                            {getBatchSummary(results).validCount}
-                          </Typography>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: 'success.main',
-                              mt: 1,
-                              opacity: 0.8
-                            }}
-                          >
-                            {getBatchSummary(results).successRate}% Success
-                          </Typography>
-                        </Paper>
-                      </Grid>
-
-                      {/* Invalid Logos */}
-                      <Grid item xs={6} sm={4}>
-                        <Paper 
-                          sx={{ 
-                            p: 2,
-                            backgroundColor: 'rgba(211, 47, 47, 0.05)',
-                            border: '1px solid rgba(211, 47, 47, 0.1)',
-                            borderRadius: 2,
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}
-                        >
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              color: 'error.main',
-                              mb: 1,
-                              fontWeight: 500
-                            }}
-                          >
-                            Invalid Logos
-                          </Typography>
-                          <Typography 
-                            variant="h3" 
-                            sx={{ 
-                              color: 'error.main',
-                              fontWeight: 500,
-                              lineHeight: 1
-                            }}
-                          >
-                            {getBatchSummary(results).invalidCount}
-                          </Typography>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: 'error.main',
-                              mt: 1,
-                              opacity: 0.8
-                            }}
-                          >
-                            {100 - getBatchSummary(results).successRate}% Failed
-                          </Typography>
-                        </Paper>
-                      </Grid>
-
-                      {/* Total Processed */}
-                      <Grid item xs={12} sm={4}>
-                        <Paper 
-                          sx={{ 
-                            p: 2,
-                            backgroundColor: 'rgba(0, 102, 179, 0.05)',
-                            border: `1px solid ${symphonyBlue}20`,
-                            borderRadius: 2,
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            justifyContent: 'space-between'
-                          }}
-                        >
-                          <Box>
-                            <Typography 
-                              variant="subtitle2" 
-                              sx={{ 
-                                color: symphonyBlue,
-                                mb: 1,
-                                fontWeight: 500
-                              }}
-                            >
-                              Total Processed
-                            </Typography>
-                            <Typography 
-                              variant="h3" 
-                              sx={{ 
-                                color: symphonyBlue,
-                                fontWeight: 500,
-                                lineHeight: 1
-                              }}
-                            >
-                              {getBatchSummary(results).total}
-                            </Typography>
-                          </Box>
-                          <Box 
-                            sx={{ 
-                              width: 46,
-                              height: 46,
-                              borderRadius: '50%',
-                              border: `2px solid ${symphonyBlue}`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: symphonyWhite,
-                              mt: 0.5
-                            }}
-                          >
-                            <Typography 
-                              variant="subtitle2" 
-                              sx={{ 
-                                color: symphonyBlue,
-                                fontWeight: 500
-                              }}
-                            >
-                              {getBatchSummary(results).successRate}%
-                            </Typography>
-                          </Box>
-                        </Paper>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
-
-                <Box
-                  sx={{
-                    flex: 1,
-                    overflow: 'auto',
-                    px: { xs: 1.5, sm: 3 },
-                    py: 2,
-                    '&::-webkit-scrollbar': {
-                      width: '8px',
-                      height: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      background: '#f1f1f1',
-                      borderRadius: '4px',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: symphonyBlue + '40',
-                      borderRadius: '4px',
-                      '&:hover': {
-                        background: symphonyBlue + '60',
-                      },
-                    },
-                  }}
-                >
-                  <Grid container spacing={{ xs: 2, sm: 2 }}> {/* Increased spacing for mobile */}
-                    {results.map((result, index) => (
-                      <Grid item xs={12} key={index}>
-                        <Card 
-                          sx={{ 
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                            '&:hover': {
-                              transform: { xs: 'none', sm: 'translateY(-2px)' }, // Disable hover effect on mobile
-                              boxShadow: { xs: 'none', sm: '0 4px 8px rgba(0,0,0,0.1)' },
-                            },
-                          }}
-                        >
-                          <CardContent sx={{ 
-                            p: { xs: 2, sm: 2 },
-                            '&:last-child': { pb: { xs: 2, sm: 2 } } // Fix padding bottom
-                          }}>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'flex-start', 
-                              gap: { xs: 2, sm: 2 },
-                              flexDirection: { xs: 'row', sm: 'row' } // Keep row layout on mobile
-                            }}>
-                              {/* Status Icon */}
-                              <Box 
-                                sx={{ 
-                                  backgroundColor: result.isValid ? 'success.main' : 'error.main',
-                                  borderRadius: '50%',
-                                  p: { xs: 1.5, sm: 1 }, // Larger padding on mobile
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  alignSelf: 'flex-start', // Always align to top
-                                  flexShrink: 0 // Prevent icon from shrinking
-                                }}
-                              >
-                                {result.isValid ? (
-                                  <CheckCircleIcon sx={{ color: 'white', fontSize: { xs: 28, sm: 24 } }} />
-                                ) : (
-                                  <CancelIcon sx={{ color: 'white', fontSize: { xs: 28, sm: 24 } }} />
-                                )}
-                              </Box>
-
-                              {/* Content */}
-                              <Box sx={{ 
-                                flex: 1,
-                                minWidth: 0 // Allow text to wrap properly
-                              }}>
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  mb: 1,
-                                  flexWrap: 'wrap' // Allow wrapping on mobile
-                                }}>
-                                  {inputMethod === 'upload' ? (
-                                    <InsertDriveFileIcon sx={{ 
-                                      mr: 1, 
-                                      color: 'text.secondary',
-                                      fontSize: { xs: 20, sm: 20 }
-                                    }} />
-                                  ) : (
-                                    <LinkIcon sx={{ 
-                                      mr: 1, 
-                                      color: 'text.secondary',
-                                      fontSize: { xs: 20, sm: 20 }
-                                    }} />
-                                  )}
-                                  <Typography 
-                                    variant="subtitle1" 
-                                    sx={{ 
-                                      fontWeight: 500,
-                                      color: result.isValid ? 'success.dark' : 'error.dark',
-                                      wordBreak: 'break-word',
-                                      fontSize: { xs: '0.95rem', sm: '1rem' }
-                                    }}
-                                  >
-                                    {result.name}
-                                  </Typography>
-                                </Box>
-
-                                <Box sx={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  flexWrap: 'wrap',
-                                  gap: 1, 
-                                  mt: 1 
-                                }}>
-                                  <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                      color: 'text.secondary',
-                                      backgroundColor: result.isValid ? 'rgba(76, 175, 80, 0.2)' : 'rgba(211, 47, 47, 0.2)',
-                                      py: { xs: 0.75, sm: 0.5 },
-                                      px: { xs: 1.5, sm: 1 },
-                                      borderRadius: 1,
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      fontSize: { xs: '0.9rem', sm: '0.875rem' }
-                                    }}
-                                  >
-                                    <VerifiedIcon sx={{ fontSize: { xs: 18, sm: 16 }, mr: 0.5 }} />
-                                    Status: {result.isValid ? 'Valid Logo Detected' : 'No Valid Logo Found'}
-                                  </Typography>
-                                </Box>
-
-                                {result.message && result.message.includes('Error') && (
-                                  <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <ErrorOutlineIcon sx={{ 
-                                      color: 'error.main', 
-                                      fontSize: { xs: 20, sm: 20 } 
-                                    }} />
-                                    <Typography 
-                                      variant="body2" 
-                                      sx={{ 
-                                        color: 'error.main',
-                                        fontStyle: 'italic',
-                                        fontSize: { xs: '0.9rem', sm: '0.875rem' }
-                                      }}
-                                    >
-                                      {result.message.split('(')[1]?.replace(')', '') || result.message}
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </Box>
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                  {results.length > 10 && (
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        textAlign: 'center', 
-                        mt: 2, 
-                        color: 'text.secondary',
-                        fontSize: { xs: '0.85rem', sm: '0.875rem' }
-                      }}
-                    >
-                      Showing all {results.length} results. Scroll to view more.
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
-            )}
+            {renderResults()}
           </Box>
         </Container>
       </Box>

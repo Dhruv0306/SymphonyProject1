@@ -1,3 +1,15 @@
+"""
+FastAPI Application for Logo Detection Service
+
+This module provides a RESTful API service for detecting Symphony logos in images.
+Features:
+- Single image processing via file upload or URL
+- Batch processing of multiple images
+- Comprehensive error handling and logging
+- CORS support for cross-origin requests
+- Automatic API documentation
+"""
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
@@ -15,87 +27,90 @@ import concurrent.futures
 from threading import Lock
 from io import BytesIO
 import tempfile
-import uvicorn
 
-# Set up logging
+# Configure rotating file logging
+# Logs are rotated when they reach 10MB, keeping up to 5 backup files
 LOG_FILE = 'logs.txt'
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-# Create file handler with rotation
 file_handler = RotatingFileHandler(
     LOG_FILE,
-    maxBytes=10*1024*1024,  # 10MB
-    backupCount=5,
+    maxBytes=10*1024*1024,  # 10MB per file
+    backupCount=5,          # Keep 5 backup files
     encoding='utf-8'
 )
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
 
-# Configure root logger
+# Configure root logger with file handler only
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
-# Remove any existing handlers (including the default console handler)
 for handler in root_logger.handlers[:]:
     root_logger.removeHandler(handler)
-# Add only the file handler
 root_logger.addHandler(file_handler)
 
-# Configure app logger
+# Set up application-specific logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Keep watchfiles suppressed but log to file
+# Suppress watchfiles logs but maintain file logging
 watchfiles_logger = logging.getLogger("watchfiles")
 watchfiles_logger.setLevel(logging.ERROR)
 
+# Initialize FastAPI application
+app = FastAPI(
+    title="Symphony Logo Detection API",
+    description="API service for detecting Symphony logos in images using YOLO models",
+    version="1.0.0"
+)
 
-app = FastAPI()
-
-# Increase the maximum number of files allowed
-app.max_files = 5000
-
-# Add middleware to log all requests
+# Configure request logging middleware
 @app.middleware("http")
 async def log_requests(request, call_next):
+    """Log all incoming HTTP requests and their responses"""
     logger.info(f"Request: {request.method} {request.url}")
     response = await call_next(request)
     logger.info(f"Response: {request.method} {request.url} - Status: {response.status_code}")
     return response
 
-# Add CORS middleware
+# Configure CORS for cross-origin requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=False,  # Must be False when allow_origins=["*"]
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_origins=["*"],     # Allow all origins for testing
+    allow_credentials=False,  # Required when allow_origins=["*"]
+    allow_methods=["*"],     # Allow all HTTP methods
+    allow_headers=["*"],     # Allow all headers
 )
 
-# Configure server for large file uploads
-@app.middleware("http")
-async def add_large_file_support(request, call_next):
-    # Increase the maximum request body size
-    request.scope.setdefault("_body_size_limit", None)
-    response = await call_next(request)
-    return response
-
+# Configuration constants
 UPLOAD_DIR = "temp_uploads"
+ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/jpg'}
 
-# Ensure upload directory exists with proper permissions
+# Create upload directory with secure permissions
 try:
     os.makedirs(UPLOAD_DIR, mode=0o755, exist_ok=True)
 except Exception as e:
     logger.error(f"Failed to create upload directory: {str(e)}")
     raise RuntimeError(f"Failed to create upload directory: {str(e)}")
 
-# Allowed image mime types
-ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/jpg'}
-
-# Configure thread-safe counters
+# Thread synchronization for batch processing
 counter_lock = Lock()
 
 def is_valid_image(file: UploadFile) -> bool:
-    """Check if the uploaded file is a valid image"""
+    """
+    Validate uploaded file as an image.
+    
+    Args:
+        file (UploadFile): FastAPI UploadFile object
+    
+    Returns:
+        bool: True if file is a valid image, False otherwise
+    
+    Note:
+        - Checks MIME type against allowed types
+        - Validates file is not empty
+        - Handles missing content types by inferring from extension
+    """
     try:
         # Set default content type if none provided
         if not file.content_type:
@@ -323,14 +338,6 @@ async def check_logo_batch(
     Returns a list of logo detection results for each image, along with summary counts.
     Processes images sequentially.
     """
-    # Add file limit check
-    print(app.max_files)
-    if files and len(files) > app.max_files:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Too many files. Maximum number of files is {app.max_files}"
-        )
-    
     results = []
     valid_count = 0
     invalid_count = 0
@@ -413,14 +420,3 @@ async def get_last_batch_count():
     if counts is None:
         return {"detail": "No batch has been processed yet."}
     return counts
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "App:app",
-        host="0.0.0.0",
-        port=8000,
-        limit_concurrency=1000,
-        limit_max_requests=5000,
-        timeout_keep_alive=300,
-        backlog=2000
-    )

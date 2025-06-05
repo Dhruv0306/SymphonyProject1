@@ -1,58 +1,97 @@
-# Logo Detection System Documentation
+# Image Validation Using Logo Detection
+## By Symphony Limited. Powered by YOLO Object Detection
 
-Welcome to the Logo Detection System documentation. This documentation provides comprehensive information about the system's architecture, setup, usage, and maintenance.
+Welcome to the official documentation for Symphony Limited's Image Validation System. This enterprise-grade solution provides comprehensive logo detection capabilities using advanced YOLO-based machine learning models.
 
 ## Table of Contents
 
 1. [Getting Started](./getting-started.md)
    - System Requirements
-   - Installation
-   - Quick Start Guide
+   - Installation Guide
+   - Quick Start Tutorial
+   - Environment Setup
 
-2. [Architecture Overview](./architecture.md)
-   - System Components
-   - Data Flow
-   - Technology Stack
+2. [System Architecture](./architecture.md)
+   - Multi-Model Architecture
+   - Processing Pipeline
+   - Performance Optimization
+   - Scalability Features
 
 3. [API Reference](./api-reference.md)
-   - Endpoints
+   - RESTful Endpoints
    - Request/Response Formats
+   - Authentication
+   - Rate Limiting
    - Error Codes
 
-4. [Frontend Guide](./frontend-guide.md)
-   - User Interface
-   - Features
-   - Usage Examples
+4. [Detection Features](./detection-features.md)
+   - Single Image Validation
+   - Batch Processing
+   - URL-based Detection
+   - Confidence Thresholds
+   - Model Ensemble Approach
 
 5. [Error Handling](./error-handling.md)
-   - Common Errors
-   - Troubleshooting
-   - Logging
+   - Error Categories
+   - Troubleshooting Guide
+   - Logging System
+   - Debug Procedures
 
 6. [Security](./security.md)
-   - File Validation
+   - Input Validation
+   - File Security
    - CORS Configuration
    - Best Practices
+   - Compliance Guidelines
 
 7. [Development Guide](./development-guide.md)
-   - Setup Development Environment
-   - Code Structure
+   - Development Environment
+   - Code Standards
+   - Testing Procedures
+   - CI/CD Pipeline
    - Contributing Guidelines
 
-8. [Maintenance](./maintenance.md)
-   - Monitoring
-   - Performance Optimization
-   - Updates
+8. [Production Deployment](./deployment.md)
+   - Deployment Strategies
+   - Performance Monitoring
+   - Resource Optimization
+   - Maintenance Procedures
+   - Update Protocols
 
-## Quick Links
+## Key Features
 
-- [GitHub Repository](https://github.com/yourusername/logo-detection)
-- [API Documentation](http://localhost:8000/docs)
-- [Issue Tracker](https://github.com/yourusername/logo-detection/issues)
+- **Advanced Detection Models**
+  - 5 specialized YOLO models (YOLOv8s and YOLOv11s variants)
+  - Confidence threshold: 0.35
+  - Early detection return
+  - Model ensemble approach
 
-## Support
+- **Enterprise Integration**
+  - RESTful API architecture
+  - Comprehensive error handling
+  - Detailed logging system
+  - Production-grade security
 
-For additional support or questions, please:
-1. Check the troubleshooting guide in the [Error Handling](./error-handling.md) section
-2. Submit an issue on the project's issue tracker
-3. Contact the development team 
+- **Performance Optimization**
+  - Concurrent processing
+  - Automatic resource management
+  - Optimized inference pipeline
+  - Scalable architecture
+
+## Support and Resources
+
+- **Technical Support**
+  - Email: support@symphony.com
+  - Support Portal: https://support.symphony.com
+  - Documentation Updates: Weekly
+
+- **Additional Resources**
+  - [API Documentation](http://localhost:8000/docs)
+  - [Security Guidelines](./security.md)
+  - [Performance Metrics](./metrics.md)
+
+## Copyright
+
+Copyright © 2024 Symphony Limited. All rights reserved.
+
+For licensing inquiries, please contact legal@symphony.com 
