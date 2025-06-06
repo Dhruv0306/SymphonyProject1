@@ -3,6 +3,14 @@
 
 Welcome to the official documentation for Symphony Limited's Image Validation System. This enterprise-grade solution provides comprehensive logo detection capabilities using advanced YOLO-based machine learning models.
 
+## System Architecture Overview
+
+Our system is built with scalability and performance in mind. Key architectural components include:
+
+![High Level System Overview](./images/High%20Level%20System%20Overview.png)
+
+For detailed architectural information, see our [Architecture Documentation](./architecture.md).
+
 ## Table of Contents
 
 1. [Getting Started](./getting-started.md)
@@ -12,10 +20,11 @@ Welcome to the official documentation for Symphony Limited's Image Validation Sy
    - Environment Setup
 
 2. [System Architecture](./architecture.md)
-   - Multi-Model Architecture
-   - Processing Pipeline
-   - Performance Optimization
-   - Scalability Features
+   - [High-Level System Overview](./architecture.md#high-level-system-overview)
+   - [Processing Pipeline](./architecture.md#detailed-processing-pipeline)
+   - [Data Flow and Storage](./architecture.md#data-flow-and-storage)
+   - [Model Architecture](./architecture.md#model-architecture)
+   - [Error Handling](./architecture.md#error-handling-and-monitoring)
 
 3. [API Reference](./api-reference.md)
    - RESTful Endpoints
@@ -30,6 +39,7 @@ Welcome to the official documentation for Symphony Limited's Image Validation Sy
    - URL-based Detection
    - Confidence Thresholds
    - Model Ensemble Approach
+   - CSV Export Functionality
 
 5. [Error Handling](./error-handling.md)
    - Error Categories
@@ -71,6 +81,7 @@ Welcome to the official documentation for Symphony Limited's Image Validation Sy
   - Comprehensive error handling
   - Detailed logging system
   - Production-grade security
+  - CSV export capabilities
 
 - **Performance Optimization**
   - Concurrent processing
@@ -86,6 +97,7 @@ Welcome to the official documentation for Symphony Limited's Image Validation Sy
   - Documentation Updates: Weekly
 
 - **Additional Resources**
+  - [System Architecture](./architecture.md)
   - [API Documentation](http://localhost:8000/docs)
   - [Security Guidelines](./security.md)
   - [Performance Metrics](./metrics.md)

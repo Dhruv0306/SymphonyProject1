@@ -1,0 +1,46 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+graph LR
+    subgraph "Error Sources"
+        style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style A2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style A4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        A1[Input Errors] -->|Validation| B[Error Handler]
+        A2[Processing Errors] -->|Runtime| B
+        A3[Model Errors] -->|Inference| B
+        A4[System Errors] -->|Infrastructure| B
+    end
+
+    subgraph "Error Processing" 
+        style B fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|Categorize| C[Error Classifier]
+        C -->|Log| D[Error Logger]
+        C -->|Alert| E[Alert Manager]
+        C -->|Metrics| F[Metrics Collector]
+    end
+
+    subgraph "Monitoring Stack" 
+        style G fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style J fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style K fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style M fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        D -->|Write| G[Log Files]
+        E -->|Notify| H[Alert System]
+        F -->|Store| I[Prometheus]
+        
+        G -->|Aggregate| J[Log Aggregator]
+        I -->|Visualize| K[Grafana]
+        
+        J & K -->|Display| L[Dashboard]
+        H -->|Notify| M[DevOps Team]
+    end
+
+    %% Style all edge labels
+    linkStyle default color:#000000,font-weight:bold

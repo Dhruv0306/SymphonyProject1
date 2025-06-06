@@ -105,7 +105,35 @@ curl -X POST "http://localhost:8000/api/check-logo/batch/" \
 }
 ```
 
-### 3. Batch Statistics
+### 3. Batch Results Export
+
+```http
+GET /api/check-logo/batch/export-csv
+```
+
+Export the latest batch processing results as a CSV file.
+
+#### Request
+
+No parameters required. The endpoint returns results from the most recent batch processing operation.
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/api/check-logo/batch/export-csv" \
+  -H "X-API-Key: your-api-key" \
+  --output results.csv
+```
+
+#### Response
+
+A CSV file with the following columns:
+- Image_Path_or_URL
+- Is_Valid
+- Error (if any)
+
+The file is named with a timestamp: `logo_detection_results_YYYYMMDD_HHMMSS.csv`
+
+### 4. Batch Statistics
 
 ```http
 GET /api/check-logo/batch/getCount
@@ -161,6 +189,7 @@ Retrieve processing statistics.
 
 - Default: 100 requests per minute
 - Batch endpoints: 20 requests per minute
+- Export endpoints: 10 requests per minute
 - Headers returned:
   - `X-RateLimit-Limit`
   - `X-RateLimit-Remaining`
@@ -172,4 +201,11 @@ Retrieve processing statistics.
 2. Implement exponential backoff for retries
 3. Cache results when possible
 4. Monitor rate limits
-5. Handle errors gracefully 
+5. Handle errors gracefully
+6. Download CSV exports promptly as they are temporarily stored
+
+## See Also
+
+- [System Architecture](./architecture.md)
+- [Data Flow Documentation](./architecture.md#data-flow-and-storage)
+- [Error Handling](./architecture.md#error-handling-and-monitoring) 

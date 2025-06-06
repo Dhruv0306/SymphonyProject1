@@ -1,0 +1,61 @@
+%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '22px','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as Client
+    participant A as API Gateway
+    participant V as Validator
+    participant P as Processor
+    participant M as Model Pool
+    participant E as CSV Exporter
+    participant S as Storage
+
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: Submit Image
+    end
+    
+    rect rgba(30, 90, 50, 0.4)
+        A->>A: Authenticate
+        A->>V: Validate Request
+    end
+    
+    rect rgba(90, 50, 100, 0.4)
+        V->>P: Process Image
+        
+        par Image Processing
+            P->>P: Enhance Image
+            P->>P: Add Boundaries
+            P->>P: Normalize
+        end
+    end
+    
+    rect rgba(130, 90, 20, 0.4) 
+        P->>M: Request Detection
+        
+        par Model Processing
+            M->>M: YOLOv8s #1
+            M->>M: YOLOv8s #2
+            M->>M: YOLOv11s #1
+            M->>M: YOLOv11s #2
+            M->>M: YOLOv11s #3
+        end
+    end
+    
+    rect rgba(120, 40, 50, 0.4)
+        M->>P: Return Results
+        P->>S: Cache Results
+        P->>A: Aggregate Response
+        A->>C: Return Response
+    end
+
+    rect rgba(60, 80, 110, 0.4)
+        Note over C,S: CSV Export Flow
+        C->>A: Request CSV Export
+        A->>E: Fetch Batch Results
+        E->>S: Get Cached Results
+        S-->>E: Return Results
+        E->>E: Generate CSV
+        Note right of E: Add Timestamps
+        E->>S: Store Temporary File
+        S-->>A: File Location
+        A-->>C: Download CSV
+        Note over S: Cleanup Temporary Files
+    end

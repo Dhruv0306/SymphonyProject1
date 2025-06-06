@@ -1,0 +1,53 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+graph TD
+    subgraph "Input Processing" 
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A[Raw Image] -->|Preprocessing| B[Enhanced Image]
+        B -->|Normalization| C[Normalized Image]
+        C -->|Batching| D[Image Batch]
+    end
+
+    subgraph "Model Pool Manager" 
+        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style J1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style J2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style J3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        D -->|Distribution| E[Load Balancer]
+        E -->|Route| F[Model Selection]
+        
+        F -->|High Confidence| G[YOLOv8s Pool]
+        F -->|Complex Cases| H[YOLOv11s Pool]
+        
+        subgraph "YOLOv8s Models"
+            G -->|Instance 1| I1[YOLOv8s #1]
+            G -->|Instance 2| I2[YOLOv8s #2]
+        end
+        
+        subgraph "YOLOv11s Models"
+            H -->|Instance 1| J1[YOLOv11s #1]
+            H -->|Instance 2| J2[YOLOv11s #2]
+            H -->|Instance 3| J3[YOLOv11s #3]
+        end
+    end
+
+    subgraph "Result Processing" 
+        style K fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style M fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style N fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        I1 & I2 & J1 & J2 & J3 -->|Results| K[Result Collector]
+        K -->|Aggregation| L[Confidence Checker]
+        L -->|Threshold Check| M[Decision Maker]
+        M -->|Final Result| N[Response Generator]
+    end
+
+    %% Style all edge labels
+    linkStyle default color:#000000,font-weight:bold

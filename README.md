@@ -17,6 +17,8 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Support for both file uploads and URLs
   - Automatic image enhancement with boundary addition
   - Robust error handling and validation
+  - CSV export functionality for batch results
+  - Timestamped result downloads
 
 - **Enterprise-Ready API**
   - RESTful FastAPI implementation
@@ -24,6 +26,7 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Rate limiting and CORS protection
   - Detailed logging with rotation (10MB limit)
   - Swagger UI integration
+  - CSV export endpoint for batch results
 
 - **Production-Grade Infrastructure**
   - Thread-safe operations
@@ -31,6 +34,7 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Configurable environment settings
   - Comprehensive error tracking
   - Performance optimization features
+  - Secure file handling for exports
 
 ## Detailed System Architecture
 
@@ -100,6 +104,7 @@ sequenceDiagram
     participant V as Validator
     participant P as Processor
     participant M as Model Pool
+    participant E as CSV Exporter
     participant S as Storage
 
     rect rgba(40, 100, 160, 0.4)
@@ -138,6 +143,20 @@ sequenceDiagram
         P->>S: Cache Results
         P->>A: Aggregate Response
         A->>C: Return Response
+    end
+
+    rect rgba(60, 80, 110, 0.4)
+        Note over C,S: CSV Export Flow
+        C->>A: Request CSV Export
+        A->>E: Fetch Batch Results
+        E->>S: Get Cached Results
+        S-->>E: Return Results
+        E->>E: Generate CSV
+        Note right of E: Add Timestamps
+        E->>S: Store Temporary File
+        S-->>A: File Location
+        A-->>C: Download CSV
+        Note over S: Cleanup Temporary Files
     end
 ```
 
@@ -256,10 +275,13 @@ graph TD
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style A4 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style X fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         A1[File Upload] -->|Process| B[Input Handler]
         A2[URL Input] -->|Process| B
         A3[Batch Upload] -->|Process| B
+        A4[CSV Request] -->|Export| X[Export Handler]
     end
 
     subgraph "Storage Systems" 
@@ -267,11 +289,16 @@ graph TD
         style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style Y fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         B -->|Temporary| C[Temp Storage]
         B -->|Persist| D[File System]
         
         C -->|Cleanup| E[Storage Cleaner]
         D -->|Archive| F[Long-term Storage]
+        
+        X -->|Generate| Y[CSV Export]
+        Y -->|Save| D
+        Y -->|Cleanup| E
     end
 
     subgraph "Caching Layer" 
@@ -284,13 +311,17 @@ graph TD
         
         H -->|Serve| J[API Response]
         H -->|Miss| I
+        G -->|Export| Y
     end
 
     subgraph "Maintenance" 
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         K[Scheduler] -->|Trigger| E
         K -->|Manage| L[Cache Invalidator]
+        K -->|Cleanup| M[Export Cleaner]
+        M -->|Remove Old| Y
         L -->|Clean| G
     end
 
@@ -450,29 +481,36 @@ pre-commit run --all-files
 
 ## API Endpoints
 
-### 1. Single Image Validation
-```http
-POST /api/check-logo/single/
-```
-- Supports file upload or image URL
-- Returns immediate validation result
-- Includes model identification
+### Main Endpoints
 
-### 2. Batch Processing
-```http
-POST /api/check-logo/batch/
-```
-- Process multiple images concurrently
-- Supports mixed input (files/URLs)
-- Returns aggregated results
+1. `/api/check-logo/single/`
+   - **Method**: POST
+   - **Purpose**: Validate a single image for logo presence
+   - **Input**: File upload or image URL
+   - **Output**: JSON with validation result
 
-### 3. Batch Statistics
-```http
-GET /check-logo/batch/getCount
-```
-- Returns processing statistics
-- Includes valid/invalid counts
-- Provides batch summary
+2. `/api/check-logo/batch/`
+   - **Method**: POST
+   - **Purpose**: Process multiple images for logo detection
+   - **Input**: Multiple file uploads or semicolon-separated URLs
+   - **Output**: JSON array with validation results
+
+3. `/api/check-logo/batch/export-csv`
+   - **Method**: GET
+   - **Purpose**: Export latest batch processing results
+   - **Output**: CSV file with columns:
+     - Image_Path_or_URL
+     - Is_Valid
+     - Error (if any)
+   - **Features**:
+     - Timestamped filenames
+     - Automatic file cleanup
+     - Secure temporary file handling
+
+4. `/check-logo/batch/getCount`
+   - **Method**: GET
+   - **Purpose**: Get summary of latest batch process
+   - **Output**: JSON with valid/invalid counts
 
 ## Security Features
 

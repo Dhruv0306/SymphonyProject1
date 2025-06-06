@@ -10,6 +10,16 @@ This guide will help you set up and run the Symphony Logo Detection system.
 - 20GB disk space
 - Docker (optional)
 
+## System Overview
+
+Before diving into installation, you might want to understand the system architecture:
+
+- [High-Level System Overview](./architecture.md#high-level-system-overview)
+- [Processing Pipeline](./architecture.md#detailed-processing-pipeline)
+- [Data Flow](./architecture.md#data-flow-and-storage)
+
+For a complete architectural overview, see our [Architecture Documentation](./architecture.md).
+
 ## Installation Guide
 
 ### Standard Installation
@@ -85,8 +95,28 @@ CORS_ORIGINS=["http://localhost:3000"]
 RATE_LIMIT=100
 ```
 
+## System Components
+
+Our system consists of several key components:
+
+1. **Model Layer**
+   - Multiple YOLO models for detection
+   - See [Model Architecture](./architecture.md#model-architecture)
+
+2. **Processing Pipeline**
+   - Image processing and enhancement
+   - Batch processing capabilities
+   - CSV export functionality
+   - See [Processing Pipeline](./architecture.md#detailed-processing-pipeline)
+
+3. **Error Handling**
+   - Comprehensive error management
+   - Monitoring and logging
+   - See [Error Handling](./architecture.md#error-handling-and-monitoring)
+
 ## Next Steps
 
+- Review the [System Architecture](./architecture.md)
 - Read the [API Reference](./api-reference.md)
 - Review [Security Guidelines](./security.md)
 - Check [Development Guide](./development-guide.md) 
