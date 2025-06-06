@@ -9,6 +9,7 @@ This guide will help you set up and run the Symphony Logo Detection system.
 - 8GB RAM minimum (16GB recommended)
 - 20GB disk space
 - Docker (optional)
+- Node.js 14+ (for frontend)
 
 ## System Overview
 
@@ -22,7 +23,7 @@ For a complete architectural overview, see our [Architecture Documentation](./ar
 
 ## Installation Guide
 
-### Standard Installation
+### Backend Installation
 
 1. Clone the repository:
 ```bash
@@ -41,6 +42,27 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### Frontend Installation
+
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the frontend with a custom backend URL:
+```bash
+# Using npm start-backend script
+npm run start-backend --backend=http://your-backend-url:8000
+
+# Or using default backend (http://localhost:8000)
+npm run start-backend
+```
+
 ### Docker Installation
 
 1. Build the image:
@@ -55,16 +77,23 @@ docker run -p 8000:8000 -v $(pwd)/data:/app/data symphony-logo-detection
 
 ## Quick Start Tutorial
 
-1. Start the server:
+1. Start the backend server:
 ```bash
 uvicorn App:app --reload --host 0.0.0.0 --port 8000
 ```
 
-2. Open your browser and navigate to:
+2. Start the frontend (in a separate terminal):
+```bash
+cd frontend
+npm run start-backend
+```
+
+3. Open your browser and navigate to:
+- Frontend UI: http://localhost:3000
 - API Documentation: http://localhost:8000/docs
 - Alternative docs: http://localhost:8000/redoc
 
-3. Test with a sample image:
+4. Test with a sample image:
 ```bash
 curl -X POST "http://localhost:8000/api/check-logo/single/" \
   -H "accept: application/json" \
@@ -99,17 +128,23 @@ RATE_LIMIT=100
 
 Our system consists of several key components:
 
-1. **Model Layer**
+1. **Frontend Layer**
+   - React-based UI
+   - Configurable backend URL
+   - Modern material design
+   - Responsive interface
+
+2. **Model Layer**
    - Multiple YOLO models for detection
    - See [Model Architecture](./architecture.md#model-architecture)
 
-2. **Processing Pipeline**
+3. **Processing Pipeline**
    - Image processing and enhancement
    - Batch processing capabilities
    - CSV export functionality
    - See [Processing Pipeline](./architecture.md#detailed-processing-pipeline)
 
-3. **Error Handling**
+4. **Error Handling**
    - Comprehensive error management
    - Monitoring and logging
    - See [Error Handling](./architecture.md#error-handling-and-monitoring)

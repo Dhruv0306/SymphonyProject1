@@ -28,6 +28,14 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Swagger UI integration
   - CSV export endpoint for batch results
 
+- **Modern Frontend Interface**
+  - React-based user interface
+  - Configurable backend URL
+  - Material design components
+  - Responsive layout
+  - Drag-and-drop file upload
+  - Real-time validation feedback
+
 - **Production-Grade Infrastructure**
   - Thread-safe operations
   - Automatic temporary file cleanup
@@ -338,6 +346,13 @@ graph TD
   - PIL for image processing
   - Rotating file logs
 
+- **Frontend Stack**
+  - React 19.1.0
+  - Material-UI 7.1.0
+  - Axios for API calls
+  - React Dropzone for file uploads
+  - Cross-env for environment variables
+
 - **AI/ML Components**
   - 5 specialized YOLO models
   - Custom confidence thresholds
@@ -351,6 +366,8 @@ graph TD
   - Black for code formatting
 
 ## Installation
+
+### Backend Setup
 
 1. Clone the repository:
 ```bash
@@ -367,6 +384,27 @@ source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate
 3. Install dependencies:
 ```bash
 pip install -r requirements.txt
+```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the frontend with a custom backend URL:
+```bash
+# Using npm start-backend script with custom backend
+npm run start-backend --backend=http://your-backend-url:8000
+
+# Or using default backend (http://localhost:8000)
+npm run start-backend
 ```
 
 ### Docker Installation
