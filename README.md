@@ -36,16 +36,16 @@ This application provides an enterprise-grade solution for detecting Symphony lo
 
 ### High-Level System Overview
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '16px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph TD
-    subgraph "Client Layer" %% Blue theme
+    subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style Z fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         A[Web Interface] -->|HTTP/REST| B[FastAPI Backend]
         Z[CLI Client] -->|HTTP/REST| B
     end
 
-    subgraph "Application Layer" %% Green theme
+    subgraph "Application Layer"
         style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
@@ -57,7 +57,7 @@ graph TD
         E -->|Processing| F[Image Processor]
     end
 
-    subgraph "Model Layer" %% Purple theme
+    subgraph "Model Layer"
         style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
@@ -69,7 +69,7 @@ graph TD
         I -->|Results| J
     end
 
-    subgraph "Storage Layer" %% Orange theme
+    subgraph "Storage Layer" 
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
@@ -78,7 +78,7 @@ graph TD
         B -->|Logs| M[Log Files]
     end
 
-    subgraph "Monitoring" %% Red theme
+    subgraph "Monitoring" 
         style N fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style O fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style P fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
@@ -93,7 +93,7 @@ graph TD
 
 ### Detailed Processing Pipeline
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '16px', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '22px','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as Client
     participant A as API Gateway
@@ -102,16 +102,16 @@ sequenceDiagram
     participant M as Model Pool
     participant S as Storage
 
-    rect rgb(187, 222, 251) %% Blue for client interactions
+    rect rgba(40, 100, 160, 0.4)
         C->>A: Submit Image
     end
     
-    rect rgb(200, 230, 201) %% Green for validation
+    rect rgba(30, 90, 50, 0.4)
         A->>A: Authenticate
         A->>V: Validate Request
     end
     
-    rect rgb(225, 190, 231) %% Purple for processing
+    rect rgba(90, 50, 100, 0.4)
         V->>P: Process Image
         
         par Image Processing
@@ -121,7 +121,7 @@ sequenceDiagram
         end
     end
     
-    rect rgb(255, 224, 178) %% Orange for model operations
+    rect rgba(130, 90, 20, 0.4) 
         P->>M: Request Detection
         
         par Model Processing
@@ -133,7 +133,7 @@ sequenceDiagram
         end
     end
     
-    rect rgb(255, 205, 210) %% Red for results
+    rect rgba(120, 40, 50, 0.4)
         M->>P: Return Results
         P->>S: Cache Results
         P->>A: Aggregate Response
@@ -143,9 +143,9 @@ sequenceDiagram
 
 ### Model Architecture
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '16px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph TD
-    subgraph "Input Processing" %% Blue theme
+    subgraph "Input Processing" 
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -155,7 +155,7 @@ graph TD
         C -->|Batching| D[Image Batch]
     end
 
-    subgraph "Model Pool Manager" %% Purple theme
+    subgraph "Model Pool Manager" 
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
@@ -183,7 +183,7 @@ graph TD
         end
     end
 
-    subgraph "Result Processing" %% Green theme
+    subgraph "Result Processing" 
         style K fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style M fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
@@ -200,9 +200,9 @@ graph TD
 
 ### Error Handling and Monitoring
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '16px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph LR
-    subgraph "Error Sources" %% Red theme
+    subgraph "Error Sources"
         style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
@@ -213,7 +213,7 @@ graph LR
         A4[System Errors] -->|Infrastructure| B
     end
 
-    subgraph "Error Processing" %% Orange theme
+    subgraph "Error Processing" 
         style B fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
@@ -225,7 +225,7 @@ graph LR
         C -->|Metrics| F[Metrics Collector]
     end
 
-    subgraph "Monitoring Stack" %% Blue theme
+    subgraph "Monitoring Stack" 
         style G fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style H fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -250,9 +250,9 @@ graph LR
 
 ### Data Flow and Storage
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '16px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
 graph TD
-    subgraph "Input Sources" %% Blue theme
+    subgraph "Input Sources" 
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -262,7 +262,7 @@ graph TD
         A3[Batch Upload] -->|Process| B
     end
 
-    subgraph "Storage Systems" %% Purple theme
+    subgraph "Storage Systems" 
         style C fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
@@ -274,7 +274,7 @@ graph TD
         D -->|Archive| F[Long-term Storage]
     end
 
-    subgraph "Caching Layer" %% Green theme
+    subgraph "Caching Layer" 
         style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style H fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
@@ -286,7 +286,7 @@ graph TD
         H -->|Miss| I
     end
 
-    subgraph "Maintenance" %% Orange theme
+    subgraph "Maintenance" 
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         K[Scheduler] -->|Trigger| E
@@ -376,14 +376,6 @@ RATE_LIMIT=100
 LOG_LEVEL=INFO
 LOG_ROTATION=10MB
 ```
-
-## Performance Metrics
-
-| Operation | Average Time | Peak Memory | GPU Usage |
-|-----------|--------------|-------------|-----------|
-| Single Image | 0.8s | 2.1GB | 60% |
-| Batch (10) | 3.2s | 4.5GB | 85% |
-| URL Processing | 1.2s | 2.3GB | 65% |
 
 ## Running the Application
 
