@@ -55,6 +55,7 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);   // Mobile drawer state
   const [progress, setProgress] = useState(null);        // Progress tracking
   const [processSummary, setProcessSummary] = useState(null); // Processing summary
+  const [batchId, setBatchId] = useState(null);  // <-- ADD THIS
 
   // Responsive design hooks
   const theme = useTheme();
@@ -1284,9 +1285,14 @@ function App() {
   };
 
   const handleExportCSV = async () => {
+    if (!batchId) {
+      alert('No batch ID available. Please start a batch first.');
+      return;
+    }
+
     try {
-      // Make the request to the export endpoint
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/check-logo/batch/export-csv`, {
+      // Make the request to the export endpoint with batch_id
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/check-logo/batch/export-csv?batch_id=${batchId}`, {
         method: 'GET',
       });
 
@@ -1309,6 +1315,17 @@ function App() {
     } catch (error) {
       console.error('Error exporting CSV:', error);
       // Show error message to user (using your existing error handling UI)
+    }
+  };
+  
+  const handleStartBatch = async () => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/start-batch`);
+      setBatchId(response.data.batch_id);
+      alert(`Batch started! Batch ID: ${response.data.batch_id}`);
+    } catch (error) {
+      console.error('Error starting batch:', error);
+      alert('Failed to start batch.');
     }
   };
 
@@ -1571,5 +1588,6 @@ function App() {
     </Box>
   );
 }
+
 
 export default App;

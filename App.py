@@ -98,6 +98,47 @@ except Exception as e:
 # Thread synchronization for batch processing
 counter_lock = Lock()
 
+# --- Batch tracking support for Option 2 ---
+
+import uuid  # already imported? if not, add this
+
+# Global batch tracking
+app.state.batch_temp_files = {}   # batch_id -> temp CSV filename
+app.state.batch_counts = {}       # batch_id -> {valid, invalid, total}
+
+@app.post("/api/start-batch")
+async def start_batch():
+    """
+    Start a new batch processing session.
+    Returns a unique batch_id to be used for all chunks of the batch.
+    """
+    try:
+        batch_id = str(uuid.uuid4())
+        
+        # Create temporary CSV file for this batch
+        temp_csv = tempfile.NamedTemporaryFile(
+            mode='w',
+            delete=False,
+            suffix=f'_batch_results_{batch_id}.csv',
+            newline=''
+        )
+        
+        # Write CSV header
+        fieldnames = ['Image_Path_or_URL', 'Is_Valid', 'Error']
+        writer = csv.DictWriter(temp_csv, fieldnames=fieldnames)
+        writer.writeheader()
+        temp_csv.close()
+        
+        # Store temp file path and initialize counts
+        app.state.batch_temp_files[batch_id] = temp_csv.name
+        app.state.batch_counts[batch_id] = {"valid": 0, "invalid": 0, "total": 0}
+        
+        return {"batch_id": batch_id}
+    
+    except Exception as e:
+        logger.error(f"Error starting new batch: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 def is_valid_image(file: UploadFile) -> bool:
     """
     Validate uploaded file as an image.
@@ -341,7 +382,8 @@ def process_single_path(path: str) -> dict:
 @app.post("/api/check-logo/batch/", response_model=List[LogoCheckResult])
 async def check_logo_batch(
     files: Optional[List[UploadFile]] = File(None),
-    paths: Optional[str] = Form(None)
+    paths: Optional[str] = Form(None),
+    batch_id: Optional[str] = Form(None)  # NEW PARAMETER
 ):
     """
     Accepts either multiple uploaded files or a semicolon-separated string of image paths/URLs.
@@ -351,6 +393,18 @@ async def check_logo_batch(
     results = []
     valid_count = 0
     invalid_count = 0
+
+    # Validate batch_id if provided
+    if batch_id:
+        if batch_id not in app.state.batch_temp_files:
+            raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
+        
+        temp_csv_path = app.state.batch_temp_files[batch_id]
+        csv_file = open(temp_csv_path, 'a', newline='')
+        csv_writer = csv.DictWriter(csv_file, fieldnames=['Image_Path_or_URL', 'Is_Valid', 'Error'])
+    else:
+        csv_file = None
+        csv_writer = None
 
     try:
         # Handle uploaded files
@@ -368,6 +422,14 @@ async def check_logo_batch(
                     result = process_single_path(temp_file_path)
                     result["Image_Path_or_URL"] = file.filename  # Use original filename
                     results.append(result)
+
+                    # Append result to batch CSV if batch_id is given
+                    if batch_id and csv_writer:
+                        csv_writer.writerow({
+                            'Image_Path_or_URL': result['Image_Path_or_URL'],
+                            'Is_Valid': result['Is_Valid'],
+                            'Error': result.get('Error', '')
+                        })
 
                     # Update counts
                     if result["Is_Valid"] == "Valid":
@@ -395,6 +457,14 @@ async def check_logo_batch(
                 try:
                     result = process_single_path(path)
                     results.append(result)
+                    # Append result to batch CSV if batch_id is given
+                    if batch_id and csv_writer:
+                        csv_writer.writerow({
+                            'Image_Path_or_URL': result['Image_Path_or_URL'],
+                            'Is_Valid': result['Is_Valid'],
+                            'Error': result.get('Error', '')
+                        })
+
                     if result["Is_Valid"] == "Valid":
                         valid_count += 1
                     else:
@@ -416,6 +486,16 @@ async def check_logo_batch(
         }
         app.state.last_batch_results = results
         
+        # Close CSV file if used
+        if csv_file:
+            csv_file.close()
+
+        # Update global batch counts
+        if batch_id:
+            app.state.batch_counts[batch_id]["valid"] += valid_count
+            app.state.batch_counts[batch_id]["invalid"] += invalid_count
+            app.state.batch_counts[batch_id]["total"] += len(results)
+
         return results
         
     except Exception as e:
@@ -423,56 +503,31 @@ async def check_logo_batch(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/check-logo/batch/getCount")
-async def get_last_batch_count():
-    """
-    Returns the count of valid and invalid logos from the most recent batch process.
-    """
-    counts = getattr(app.state, "last_batch_counts", None)
-    if counts is None:
-        return {"detail": "No batch has been processed yet."}
-    return counts
+async def get_last_batch_count(batch_id: str):
+    if batch_id not in app.state.batch_counts:
+        raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
+
+    return app.state.batch_counts[batch_id]
 
 @app.get("/api/check-logo/batch/export-csv")
-async def export_batch_results_csv():
+async def export_batch_results_csv(batch_id: str):
+
     """
     Export the most recent batch processing results to a CSV file.
     Returns a downloadable CSV file with the results.
     """
     try:
-        # Get the last batch results
-        results = getattr(app.state, "last_batch_results", None)
-        if not results:
-            raise HTTPException(status_code=404, detail="No batch results available for export")
+        if batch_id not in app.state.batch_temp_files:
+            raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
 
-        # Create a temporary file for CSV
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        temp_csv = tempfile.NamedTemporaryFile(
-            mode='w',
-            delete=False,
-            suffix=f'_batch_results_{timestamp}.csv',
-            newline=''
-        )
-        
-        # Write results to CSV
-        fieldnames = ['Image_Path_or_URL', 'Is_Valid', 'Error']
-        writer = csv.DictWriter(temp_csv, fieldnames=fieldnames)
-        
-        writer.writeheader()
-        for result in results:
-            writer.writerow({
-                'Image_Path_or_URL': result['Image_Path_or_URL'],
-                'Is_Valid': result['Is_Valid'],
-                'Error': result.get('Error', '')
-            })
-        
-        temp_csv.close()
-        
-        # Return the CSV file as a download
+        temp_csv_path = app.state.batch_temp_files[batch_id]
+
         return FileResponse(
-            temp_csv.name,
+            temp_csv_path,
             media_type='text/csv',
-            filename=f'logo_detection_results_{timestamp}.csv'
+            filename=f'logo_detection_results_{batch_id}.csv'
         )
+
         
     except Exception as e:
         logger.error(f"Error exporting CSV: {str(e)}")
