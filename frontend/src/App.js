@@ -22,6 +22,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MenuIcon from '@mui/icons-material/Menu';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { API_BASE_URL } from './config';
 import { chunkImages, processImageChunks } from './utils/imageChunker';
 
@@ -1282,6 +1283,35 @@ function App() {
     );
   };
 
+  const handleExportCSV = async () => {
+    try {
+      // Make the request to the export endpoint
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/check-logo/batch/export-csv`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export CSV');
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('content-disposition')?.split('filename=')[1] || 'logo_detection_results.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      // Show error message to user (using your existing error handling UI)
+    }
+  };
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar for desktop */}
@@ -1523,6 +1553,18 @@ function App() {
             )}
 
             {renderResults()}
+
+            {results.length > 0 && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<FileDownloadIcon />}
+                onClick={handleExportCSV}
+                sx={{ mt: 2 }}
+              >
+                Export Results to CSV
+              </Button>
+            )}
           </Box>
         </Container>
       </Box>

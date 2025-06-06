@@ -19,7 +19,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import mimetypes
 from detect_logo import check_logo
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from tqdm import tqdm
 from PIL import UnidentifiedImageError
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +27,8 @@ import concurrent.futures
 from threading import Lock
 from io import BytesIO
 import tempfile
+import csv
+from datetime import datetime
 
 # Configure rotating file logging
 # Logs are rotated when they reach 10MB, keeping up to 5 backup files
@@ -203,6 +205,14 @@ async def api_explanation():
                     "valid": "Number of images with a valid logo.",
                     "invalid": "Number of images without a valid logo.",
                     "total": "Total number of images processed in the last batch."
+                }
+            },
+            {
+                "path": "/api/check-logo/batch/export-csv",
+                "method": "GET",
+                "description": "Export the most recent batch processing results to a CSV file.",
+                "response": {
+                    "csv_file": "Downloadable CSV file with the results."
                 }
             }
         ],
@@ -398,12 +408,13 @@ async def check_logo_batch(
                     })
                     invalid_count += 1
 
-        # Store batch summary in app state
+        # Store both counts and results in app state
         app.state.last_batch_counts = {
             "valid": valid_count,
             "invalid": invalid_count,
             "total": len(results)
         }
+        app.state.last_batch_results = results
         
         return results
         
@@ -420,3 +431,49 @@ async def get_last_batch_count():
     if counts is None:
         return {"detail": "No batch has been processed yet."}
     return counts
+
+@app.get("/api/check-logo/batch/export-csv")
+async def export_batch_results_csv():
+    """
+    Export the most recent batch processing results to a CSV file.
+    Returns a downloadable CSV file with the results.
+    """
+    try:
+        # Get the last batch results
+        results = getattr(app.state, "last_batch_results", None)
+        if not results:
+            raise HTTPException(status_code=404, detail="No batch results available for export")
+
+        # Create a temporary file for CSV
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        temp_csv = tempfile.NamedTemporaryFile(
+            mode='w',
+            delete=False,
+            suffix=f'_batch_results_{timestamp}.csv',
+            newline=''
+        )
+        
+        # Write results to CSV
+        fieldnames = ['Image_Path_or_URL', 'Is_Valid', 'Error']
+        writer = csv.DictWriter(temp_csv, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for result in results:
+            writer.writerow({
+                'Image_Path_or_URL': result['Image_Path_or_URL'],
+                'Is_Valid': result['Is_Valid'],
+                'Error': result.get('Error', '')
+            })
+        
+        temp_csv.close()
+        
+        # Return the CSV file as a download
+        return FileResponse(
+            temp_csv.name,
+            media_type='text/csv',
+            filename=f'logo_detection_results_{timestamp}.csv'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error exporting CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
