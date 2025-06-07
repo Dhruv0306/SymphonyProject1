@@ -545,7 +545,7 @@ npm install
 3. Start the frontend with a custom backend URL:
 ```bash
 # Using npm start-backend script with custom backend
-npm run start-backend --backend=http://your-backend-url:8000
+npm run start-backend -- --backend=http://your-backend-url:8000
 
 # Or using default backend (http://localhost:8000)
 npm run start-backend
