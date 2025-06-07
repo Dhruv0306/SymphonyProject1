@@ -1,0 +1,36 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Batch State"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["Batch ID"] -->|"Create"| B["State Object"]
+        B -->|"Track"| C["Progress Counter"]
+    end
+
+    subgraph "File Management"
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Create"| D["Temp CSV"]
+        D -->|"Write"| E["Results"]
+        E -->|"Generate"| F["Final CSV"]
+    end
+
+    subgraph "Metrics"
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Calculate"| G["Valid Count"]
+        C -->|"Calculate"| H["Invalid Count"]
+        G & H -->|"Update"| I["Batch Stats"]
+    end
+
+    subgraph "Lifecycle"
+        style J fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style K fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        I -->|"Monitor"| J["Completion"]
+        J -->|"Trigger"| K["Cleanup"]
+        K -->|"Remove"| L["State & Files"]
+    end

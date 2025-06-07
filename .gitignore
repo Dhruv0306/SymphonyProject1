@@ -84,7 +84,6 @@ yolov8s.pt
 # data
 data/
 download/
-runs/
 test/
 download.py
 visit_images.xlsx
@@ -101,8 +100,10 @@ logs.txt
 roboflow_cli.txt
 
 # Keep specific model weights
+runs/*
 !runs/detect/yolov11s_logo_detection/weights/*
 !runs/detect/yolov8s_logo_detection/weights/*
 !runs/detect/yolov8s_logo_detection2/weights/*
 !runs/detect/yolov8s_logo_detection3/weights/*
 
+requestID.txt

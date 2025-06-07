@@ -62,94 +62,130 @@ curl -X POST "http://localhost:8000/api/check-logo/single/" \
 
 ### 2. Batch Processing
 
+#### Starting a Batch Session
+
+```http
+POST /api/start-batch
+```
+
+Initializes a new batch processing session and returns a unique batch ID.
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8000/api/start-batch" \
+  -H "X-API-Key: your-api-key"
+```
+
+**Response:**
+```json
+{
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+#### Processing Images
+
 ```http
 POST /api/check-logo/batch/
 ```
 
-Process multiple images concurrently.
-
-#### Request
+Process multiple images concurrently within a batch session.
 
 **Content-Type:** `multipart/form-data` or `application/json`
 
 **Parameters:**
-- `files[]`: Array of image files
-- `urls[]`: Array of image URLs
+- `files[]`: Array of image files (optional)
+- `urls[]`: Array of image URLs (optional)
+- `batch_id`: UUID from start-batch endpoint (optional)
 
-**Example (Files):**
+**Example (Files with Batch ID):**
 ```bash
 curl -X POST "http://localhost:8000/api/check-logo/batch/" \
   -H "X-API-Key: your-api-key" \
   -F "files[]=@logo1.jpg" \
-  -F "files[]=@logo2.jpg"
+  -F "files[]=@logo2.jpg" \
+  -F "batch_id=550e8400-e29b-41d4-a716-446655440000"
 ```
 
-#### Response
+**Example (URLs with Batch ID):**
+```bash
+curl -X POST "http://localhost:8000/api/check-logo/batch/" \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": ["https://example.com/logo1.jpg", "https://example.com/logo2.jpg"],
+    "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+  }'
+```
 
+**Response:**
 ```json
 {
   "status": "success",
   "results": [
     {
-      "filename": "logo1.jpg",
-      "has_logo": true,
-      "confidence": 0.88
+      "Image_Path_or_URL": "logo1.jpg",
+      "Is_Valid": true,
+      "Error": null
     },
     {
-      "filename": "logo2.jpg",
-      "has_logo": false,
-      "confidence": 0.15
+      "Image_Path_or_URL": "logo2.jpg",
+      "Is_Valid": false,
+      "Error": "No logo detected"
     }
-  ],
-  "processing_time": 3.2
+  ]
 }
 ```
 
 ### 3. Batch Results Export
 
 ```http
-GET /api/check-logo/batch/export-csv
+GET /api/check-logo/batch/export-csv?batch_id={batch_id}
 ```
 
-Export the latest batch processing results as a CSV file.
+Export the batch processing results as a CSV file.
 
-#### Request
-
-No parameters required. The endpoint returns results from the most recent batch processing operation.
+**Parameters:**
+- `batch_id`: (Required) The UUID of the batch session to export
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8000/api/check-logo/batch/export-csv" \
+curl -X GET "http://localhost:8000/api/check-logo/batch/export-csv?batch_id=550e8400-e29b-41d4-a716-446655440000" \
   -H "X-API-Key: your-api-key" \
   --output results.csv
 ```
 
-#### Response
-
+**Response:**
 A CSV file with the following columns:
-- Image_Path_or_URL
-- Is_Valid
-- Error (if any)
+- Image_Path_or_URL: Path or URL of the processed image
+- Is_Valid: Whether a valid logo was detected ("Valid" or "Invalid")
+- Error: Error message if any occurred during processing
 
-The file is named with a timestamp: `logo_detection_results_YYYYMMDD_HHMMSS.csv`
+The file is named: `logo_detection_results_{batch_id}.csv`
 
 ### 4. Batch Statistics
 
 ```http
-GET /api/check-logo/batch/getCount
+GET /api/check-logo/batch/getCount?batch_id={batch_id}
 ```
 
-Retrieve processing statistics.
+Retrieve processing statistics for a specific batch.
 
-#### Response
+**Parameters:**
+- `batch_id`: (Required) The UUID of the batch session to query
 
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/api/check-logo/batch/getCount?batch_id=550e8400-e29b-41d4-a716-446655440000" \
+  -H "X-API-Key: your-api-key"
+```
+
+**Response:**
 ```json
 {
-  "total_processed": 150,
-  "valid_logos": 120,
-  "invalid_logos": 30,
-  "average_confidence": 0.82,
-  "average_processing_time": 0.9
+  "valid": 120,
+  "invalid": 30,
+  "total": 150
 }
 ```
 
@@ -198,11 +234,14 @@ Retrieve processing statistics.
 ## Best Practices
 
 1. Use batch processing for multiple images
-2. Implement exponential backoff for retries
-3. Cache results when possible
-4. Monitor rate limits
-5. Handle errors gracefully
-6. Download CSV exports promptly as they are temporarily stored
+2. Always start with creating a batch session for large processing jobs
+3. Use the batch_id to track and manage related image processing tasks
+4. Implement exponential backoff for retries
+5. Cache results when possible
+6. Monitor rate limits
+7. Handle errors gracefully
+8. Download CSV exports promptly as they are temporarily stored
+9. Clean up completed batch sessions when no longer needed
 
 ## See Also
 

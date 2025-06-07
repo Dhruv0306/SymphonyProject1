@@ -4,42 +4,242 @@ This document provides a detailed overview of the Symphony Logo Detection System
 
 ## High-Level System Overview
 
-This diagram illustrates the main components and their interactions in the system.
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Client Layer"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style Z fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["Web Interface"] -->|"HTTP/REST"| B["FastAPI Backend"]
+        Z["CLI Client"] -->|"HTTP/REST"| B
+    end
 
-![High Level System Overview](./images/High%20Level%20System%20Overview.png)
+    subgraph "Application Layer"
+        style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style X fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Request Handling"| C["Request Router"]
+        C -->|"Authentication"| D["Auth Middleware"]
+        D -->|"Validation"| E["Input Validator"]
+        E -->|"Processing"| F["Image Processor"]
+        C -->|"Batch Operations"| X["Batch Manager"]
+    end
+
+    subgraph "Model Layer"
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        F -->|"Model Selection"| G["Model Manager"]
+        G -->|"Inference"| H["YOLOv8s Models"]
+        G -->|"Inference"| I["YOLOv11s Models"]
+        H -->|"Results"| J["Result Aggregator"]
+        I -->|"Results"| J
+        X -->|"Batch Processing"| G
+    end
+
+    subgraph "Storage Layer" 
+        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style N fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        F -->|"Save"| K["Temporary Storage"]
+        J -->|"Cache"| L["Redis Cache"]
+        B -->|"Logs"| M["Log Files"]
+        X -->|"State"| N["Batch State Store"]
+    end
+
+    %% Style all edge labels
+    linkStyle default color:#000000,font-weight:bold
+```
 
 The system is organized into several layers:
 - **Client Layer**: Web interface and CLI clients
-- **Application Layer**: Request handling, authentication, and processing
+- **Application Layer**: Request handling, authentication, batch management, and processing
 - **Model Layer**: YOLO model management and inference
-- **Storage Layer**: File and cache management
+- **Storage Layer**: File, cache, and batch state management
 - **Monitoring**: System metrics and visualization
+
+## Batch Processing Architecture
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Batch Initialization"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["Client Request"] -->|"Start Batch"| B["Generate UUID"]
+        B -->|"Create"| C["Batch State"]
+    end
+
+    subgraph "Image Processing"
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Process"| D["Image Queue"]
+        D -->|"Validate"| E["Process Images"]
+        E -->|"Update"| F["Batch Results"]
+    end
+
+    subgraph "Result Management"
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        F -->|"Store"| G["Result Cache"]
+        G -->|"Export"| H["CSV Generator"]
+        H -->|"Download"| I["Client Response"]
+    end
+
+    subgraph "Cleanup"
+        style J fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style K fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        I -->|"Trigger"| J["Cleanup Timer"]
+        J -->|"Remove"| K["Temporary Files"]
+    end
+```
+
+Key components of batch processing:
+- **Batch Initialization**: UUID generation and state creation
+- **Image Processing**: Queue management and parallel processing
+- **Result Management**: Caching and CSV generation
+- **Cleanup**: Automatic resource management
 
 ## Detailed Processing Pipeline
 
-This diagram shows the step-by-step flow of image processing and logo detection.
+```mermaid
+%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '22px','fontWeight': 'bold','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as "Client"
+    participant A as "API Gateway"
+    participant B as "Batch Manager"
+    participant V as "Validator"
+    participant P as "Processor"
+    participant M as "Model Pool"
+    participant E as "CSV Exporter"
+    participant S as "Storage"
 
-![Detailed Processing Pipeline](./images/Detailed%20Processing%20Pipeline.png)
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: "Start Batch"
+        A->>B: "Initialize Batch"
+        B->>S: "Create Batch State"
+        B-->>C: "Return Batch ID"
+    end
+
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: "Submit Images (with Batch ID)"
+    end
+    
+    rect rgba(30, 90, 50, 0.4)
+        A->>A: "Authenticate"
+        A->>B: "Validate Batch ID"
+        A->>V: "Validate Request"
+    end
+    
+    rect rgba(90, 50, 100, 0.4)
+        V->>P: "Process Image"
+        
+        par "Image Processing"
+            P->>P: "Enhance Image"
+            P->>P: "Add Boundaries"
+            P->>P: "Normalize"
+        end
+    end
+    
+    rect rgba(130, 90, 20, 0.4) 
+        P->>M: "Request Detection"
+        
+        par "Model Processing"
+            M->>M: "YOLOv8s #1"
+            M->>M: "YOLOv8s #2"
+            M->>M: "YOLOv11s #1"
+            M->>M: "YOLOv11s #2"
+            M->>M: "YOLOv11s #3"
+        end
+    end
+    
+    rect rgba(120, 40, 50, 0.4)
+        M->>P: "Return Results"
+        P->>B: "Update Batch State"
+        P->>S: "Cache Results"
+        P->>A: "Aggregate Response"
+        A->>C: "Return Response"
+    end
+
+    rect rgba(60, 80, 110, 0.4)
+        Note over C,S: "CSV Export Flow"
+        C->>A: "Request CSV Export (with Batch ID)"
+        A->>B: "Validate Batch ID"
+        B->>E: "Fetch Batch Results"
+        E->>S: "Get Cached Results"
+        S-->>E: "Return Results"
+        E->>E: "Generate CSV"
+        Note right of E: "Add Batch ID"
+        E->>S: "Store CSV File"
+        S-->>A: "File Location"
+        A-->>C: "Download CSV"
+        Note over S: "Cleanup Temporary Files"
+    end
+```
 
 Key processing stages:
-1. Image submission and validation
-2. Authentication and request processing
-3. Image enhancement and normalization
-4. Model selection and inference
-5. Result aggregation and response
-6. CSV export functionality for batch results
+1. Batch initialization and ID generation
+2. Image submission with batch tracking
+3. Authentication and batch validation
+4. Image processing and enhancement
+5. Model inference and result aggregation
+6. Batch state management
+7. CSV export with batch identification
 
-## Data Flow and Storage
+## State Management Architecture
 
-This diagram illustrates how data moves through the system and is stored.
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Batch State"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["Batch ID"] -->|"Create"| B["State Object"]
+        B -->|"Track"| C["Progress Counter"]
+    end
 
-![Data Flow and Storage](./images/Data%20Flow%20and%20Storage.png)
+    subgraph "File Management"
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Create"| D["Temp CSV"]
+        D -->|"Write"| E["Results"]
+        E -->|"Generate"| F["Final CSV"]
+    end
 
-Components include:
-- **Input Sources**: File uploads, URLs, and batch processing
-- **Storage Systems**: Temporary and permanent storage
-- **Caching Layer**: Results caching and retrieval
-- **Maintenance**: Cleanup and cache invalidation
+    subgraph "Metrics"
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Calculate"| G["Valid Count"]
+        C -->|"Calculate"| H["Invalid Count"]
+        G & H -->|"Update"| I["Batch Stats"]
+    end
+
+    subgraph "Lifecycle"
+        style J fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style K fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        I -->|"Monitor"| J["Completion"]
+        J -->|"Trigger"| K["Cleanup"]
+        K -->|"Remove"| L["State & Files"]
+    end
+```
+
+State management components:
+- **Batch State**: ID management and progress tracking
+- **File Management**: Temporary and final CSV handling
+- **Metrics**: Processing statistics and counts
+- **Lifecycle**: State cleanup and resource management
 
 ## Model Architecture
 

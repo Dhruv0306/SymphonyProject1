@@ -1,0 +1,58 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Client Interaction"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["Client"] -->|"Request"| B["Start Batch"]
+        B -->|"Get UUID"| C["Submit Images"]
+    end
+
+    subgraph "Queue Management"
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Queue"| D["Image Queue"]
+        D -->|"Distribute"| E["Parallel Workers"]
+        E -->|"Process"| F["Results Queue"]
+    end
+
+    subgraph "Processing Pipeline"
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        E -->|"Process"| G["Image Enhancement"]
+        G -->|"Validate"| H["YOLO Detection"]
+        H -->|"Analyze"| I["Result Validation"]
+        I -->|"Update"| J["Batch State"]
+    end
+
+    subgraph "State & Storage"
+        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style N fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        J -->|"Cache"| K["Redis Store"]
+        F -->|"Collect"| L["Result Aggregator"]
+        L -->|"Generate"| M["CSV Export"]
+        M -->|"Download"| N["Client Response"]
+    end
+
+    subgraph "Cleanup & Monitoring"
+        style O fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style P fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style Q fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        N -->|"Trigger"| O["Cleanup Service"]
+        O -->|"Remove"| P["Temporary Files"]
+        O -->|"Clear"| Q["Cache Entries"]
+    end
+
+    %% Add error handling paths
+    style R fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#000000,font-weight:bold
+    style S fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#000000,font-weight:bold
+    E -->|"Error"| R["Error Handler"]
+    R -->|"Retry/Skip"| S["Error Logger"]
+
+    %% Style all edge labels
+    linkStyle default color:#000000,font-weight:bold

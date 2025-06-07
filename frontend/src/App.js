@@ -221,6 +221,10 @@ function App() {
               chunk.forEach(file => {
                 formData.append('files', file);
               });
+              if (batchId) {
+                formData.append('batch_id', batchId);
+              }
+
               
               const response = await axios.post(
                 `${API_BASE_URL}/api/check-logo/batch/`,
@@ -263,6 +267,9 @@ function App() {
           files.forEach(file => {
             formData.append('files', file);
           });
+          if (batchId) {
+            formData.append('batch_id', batchId);
+          }
             const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
@@ -284,6 +291,9 @@ function App() {
             const processChunk = async (chunk) => {
               const formData = new FormData();
               formData.append('paths', chunk.join(';'));
+              if (batchId) {
+                formData.append('batch_id', batchId);
+              }
               const response = await axios.post(
                 `${API_BASE_URL}/api/check-logo/batch/`,
                 formData,
@@ -313,6 +323,9 @@ function App() {
             // Original processing for smaller URL batches
           const formData = new FormData();
           formData.append('paths', urls.join(';'));
+          if (batchId) {
+            formData.append('batch_id', batchId);
+          }
             const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
@@ -1521,6 +1534,27 @@ function App() {
               <Box sx={{ mb: { xs: 2, sm: 3 } }}>
                 {renderInputSection()}
               </Box>
+
+              {mode === 'batch' && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleStartBatch}
+                    sx={{
+                      borderColor: symphonyBlue,
+                      color: symphonyBlue,
+                      '&:hover': {
+                        backgroundColor: symphonyLightBlue,
+                      },
+                      minWidth: '200px',
+                      height: '48px',
+                      fontSize: '1.1rem'
+                    }}
+                  >
+                    Start Batch
+                  </Button>
+                </Box>
+              )}
 
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                 <Button

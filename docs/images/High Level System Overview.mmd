@@ -1,10 +1,10 @@
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
 graph TD
     subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style Z fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A[Web Interface] -->|HTTP/REST| B[FastAPI Backend]
-        Z[CLI Client] -->|HTTP/REST| B
+        A["Web Interface"] -->|"HTTP/REST"| B["FastAPI Backend"]
+        Z["CLI Client"] -->|"HTTP/REST"| B
     end
 
     subgraph "Application Layer"
@@ -13,10 +13,12 @@ graph TD
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Request Handling| C[Request Router]
-        C -->|Authentication| D[Auth Middleware]
-        D -->|Validation| E[Input Validator]
-        E -->|Processing| F[Image Processor]
+        style X fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Request Handling"| C["Request Router"]
+        C -->|"Authentication"| D["Auth Middleware"]
+        D -->|"Validation"| E["Input Validator"]
+        E -->|"Processing"| F["Image Processor"]
+        C -->|"Batch Operations"| X["Batch Manager"]
     end
 
     subgraph "Model Layer"
@@ -24,29 +26,23 @@ graph TD
         style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        F -->|Model Selection| G[Model Manager]
-        G -->|Inference| H[YOLOv8s Models]
-        G -->|Inference| I[YOLOv11s Models]
-        H -->|Results| J[Result Aggregator]
-        I -->|Results| J
+        F -->|"Model Selection"| G["Model Manager"]
+        G -->|"Inference"| H["YOLOv8s Models"]
+        G -->|"Inference"| I["YOLOv11s Models"]
+        H -->|"Results"| J["Result Aggregator"]
+        I -->|"Results"| J
+        X -->|"Batch Processing"| G
     end
 
     subgraph "Storage Layer" 
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        F -->|Save| K[Temporary Storage]
-        J -->|Cache| L[Redis Cache]
-        B -->|Logs| M[Log Files]
-    end
-
-    subgraph "Monitoring" 
-        style N fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style O fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style P fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Metrics| N[Prometheus]
-        N -->|Visualization| O[Grafana]
-        B -->|Traces| P[Jaeger]
+        style N fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        F -->|"Save"| K["Temporary Storage"]
+        J -->|"Cache"| L["Redis Cache"]
+        B -->|"Logs"| M["Log Files"]
+        X -->|"State"| N["Batch State Store"]
     end
 
     %% Style all edge labels
