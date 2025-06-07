@@ -101,9 +101,10 @@ roboflow_cli.txt
 
 # Keep specific model weights
 runs/*
-!runs/detect/yolov11s_logo_detection/weights/*
-!runs/detect/yolov8s_logo_detection/weights/*
-!runs/detect/yolov8s_logo_detection2/weights/*
-!runs/detect/yolov8s_logo_detection3/weights/*
+!runs/detect/yolov8s_logo_detection/weights/
+!runs/detect/yolov8s_logo_detection2/weights/
+!runs/detect/yolov8s_logo_detection3/weights/
+!runs/detect/yolov11s_logo_detection/weights/
+!runs/detect/yolov11s3_logo_detection/weights/
 
 requestID.txt
