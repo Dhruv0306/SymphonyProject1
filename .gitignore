@@ -101,12 +101,18 @@ roboflow_cli.txt
 
 # Ignore all runs/detect except specific weight directories
 runs/detect/*
+!runs/detect/yolov11s_logo_detection/
 !runs/detect/yolov11s3_logo_detection/
+!runs/detect/yolov8s_logo_detection/
 !runs/detect/yolov8s_logo_detection2/
 !runs/detect/yolov8s_logo_detection3/
 
+runs/detect/yolov11s_logo_detection/*
+!runs/detect/yolov11s_logo_detection/weights/
 runs/detect/yolov11s3_logo_detection/*
 !runs/detect/yolov11s3_logo_detection/weights/
+runs/detect/yolov8s_logo_detection/*
+!runs/detect/yolov8s_logo_detection/weights/
 runs/detect/yolov8s_logo_detection2/*
 !runs/detect/yolov8s_logo_detection2/weights/
 runs/detect/yolov8s_logo_detection3/*
