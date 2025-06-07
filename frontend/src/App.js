@@ -263,23 +263,34 @@ function App() {
             })));
           } else {
             // Original processing for smaller batches
-          const formData = new FormData();
-          files.forEach(file => {
-            formData.append('files', file);
-          });
-          if (batchId) {
-            formData.append('batch_id', batchId);
-          }
+            const formData = new FormData();
+            files.forEach(file => {
+              formData.append('files', file);
+            });
+            if (batchId) {
+              formData.append('batch_id', batchId);
+            }
             const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          setResults(response.data.map((result, index) => ({
-            isValid: result.Is_Valid === "Valid",
-            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-            name: files[index].name
-          })));
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+            
+            // Add processing summary for small batches
+            const processEndTime = Date.now();
+            setProcessSummary({
+              totalImages: files.length,
+              totalTime: processEndTime - processStartTime,
+              averageTimePerImage: (processEndTime - processStartTime) / files.length,
+              startTime: processStartTime,
+              endTime: processEndTime
+            });
+            
+            setResults(response.data.map((result, index) => ({
+              isValid: result.Is_Valid === "Valid",
+              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+              name: files[index].name
+            })));
           }
         } else {
           // For batch URL input
@@ -314,6 +325,16 @@ function App() {
               }
             );
 
+            // Add processing summary for small URL batches
+            const processEndTime = Date.now();
+            setProcessSummary({
+              totalImages: urls.length,
+              totalTime: processEndTime - processStartTime,
+              averageTimePerImage: (processEndTime - processStartTime) / urls.length,
+              startTime: processStartTime,
+              endTime: processEndTime
+            });
+
             setResults(allResults.map((result, index) => ({
               isValid: result.Is_Valid === "Valid",
               message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
@@ -321,23 +342,34 @@ function App() {
             })));
           } else {
             // Original processing for smaller URL batches
-          const formData = new FormData();
-          formData.append('paths', urls.join(';'));
-          if (batchId) {
-            formData.append('batch_id', batchId);
-          }
+            const formData = new FormData();
+            formData.append('paths', urls.join(';'));
+            if (batchId) {
+              formData.append('batch_id', batchId);
+            }
             const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          setResults(response.data.map((result, index) => ({
-            isValid: result.Is_Valid === "Valid",
-            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-            name: urls[index]
-          })));
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+            
+            // Add processing summary for small URL batches
+            const processEndTime = Date.now();
+            setProcessSummary({
+              totalImages: urls.length,
+              totalTime: processEndTime - processStartTime,
+              averageTimePerImage: (processEndTime - processStartTime) / urls.length,
+              startTime: processStartTime,
+              endTime: processEndTime
+            });
+            
+            setResults(response.data.map((result, index) => ({
+              isValid: result.Is_Valid === "Valid",
+              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+              name: urls[index]
+            })));
+          }
         }
-      }
       }
     } catch (error) {
       console.error('Error:', error);
