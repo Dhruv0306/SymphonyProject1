@@ -96,6 +96,7 @@ visit_image_links.txt
 *.bz2
 *.wim
 *.iso
+*.xlsx
 logs.txt
 roboflow_cli.txt
 
