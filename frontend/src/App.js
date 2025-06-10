@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress } from '@mui/material';
+import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, InputLabel, Select, MenuItem, Slider } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -55,11 +55,16 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);   // Mobile drawer state
   const [progress, setProgress] = useState(null);        // Progress tracking
   const [processSummary, setProcessSummary] = useState(null); // Processing summary
-  const [batchId, setBatchId] = useState(null);  // <-- ADD THIS
+  const [batchId, setBatchId] = useState(null);          // Batch ID for tracking
+  const [batchSize, setBatchSize] = useState(50);        // Default batch size
+  const [displayValue, setDisplayValue] = useState(50);  // Display value for slider
 
   // Responsive design hooks
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Add batch size options
+  const batchSizeOptions = [10, 20, 50, 100];
 
   /**
    * Toggle mobile navigation drawer
@@ -212,163 +217,100 @@ function App() {
       } else {
         // Batch processing
         if (inputMethod === 'upload') {
-          if (files.length >= 100) {
-            // Use chunking for large batches
-            const chunks = chunkImages(files, 100);
-            
-            const processChunk = async (chunk) => {
-              const formData = new FormData();
-              chunk.forEach(file => {
-                formData.append('files', file);
-              });
-              if (batchId) {
-                formData.append('batch_id', batchId);
-              }
-
-              
-              const response = await axios.post(
-                `${API_BASE_URL}/api/check-logo/batch/`,
-                formData,
-                {
-                  headers: {
-                    'Content-Type': 'multipart/form-data',
-                  },
-                }
-              );
-              return response.data;
-            };
-
-            const allResults = await processImageChunks(
-              chunks,
-              processChunk,
-              (progressData) => {
-                setProgress(progressData);
-              }
-            );
-
-            // Store final processing summary
-            const processEndTime = Date.now();
-            setProcessSummary({
-              totalImages: files.length,
-              totalTime: processEndTime - processStartTime,
-              averageTimePerImage: (processEndTime - processStartTime) / files.length,
-              startTime: processStartTime,
-              endTime: processEndTime
-            });
-
-            setResults(allResults.map((result, index) => ({
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: files[index].name
-            })));
-          } else {
-            // Original processing for smaller batches
+          // Always use chunking with the selected batch size
+          const chunks = chunkImages(files, batchSize);
+          
+          const processChunk = async (chunk) => {
             const formData = new FormData();
-            files.forEach(file => {
+            chunk.forEach(file => {
               formData.append('files', file);
             });
             if (batchId) {
               formData.append('batch_id', batchId);
             }
-            const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            });
-            
-            // Add processing summary for small batches
-            const processEndTime = Date.now();
-            setProcessSummary({
-              totalImages: files.length,
-              totalTime: processEndTime - processStartTime,
-              averageTimePerImage: (processEndTime - processStartTime) / files.length,
-              startTime: processStartTime,
-              endTime: processEndTime
-            });
-            
-            setResults(response.data.map((result, index) => ({
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: files[index].name
-            })));
-          }
+
+            const response = await axios.post(
+              `${API_BASE_URL}/api/check-logo/batch/`,
+              formData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                },
+              }
+            );
+            return response.data;
+          };
+
+          const allResults = await processImageChunks(
+            chunks,
+            processChunk,
+            (progressData) => {
+              setProgress(progressData);
+            }
+          );
+
+          // Store final processing summary
+          const processEndTime = Date.now();
+          setProcessSummary({
+            totalImages: files.length,
+            totalTime: processEndTime - processStartTime,
+            averageTimePerImage: (processEndTime - processStartTime) / files.length,
+            startTime: processStartTime,
+            endTime: processEndTime
+          });
+
+          setResults(allResults.map((result, index) => ({
+            isValid: result.Is_Valid === "Valid",
+            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+            name: files[index].name
+          })));
         } else {
           // For batch URL input
           const urls = batchUrls.split('\n').filter(url => url.trim());
-          if (urls.length >= 100) {
-            // Use chunking for large URL batches
-            const chunks = chunkImages(urls, 100);
-            
-            const processChunk = async (chunk) => {
-              const formData = new FormData();
-              formData.append('paths', chunk.join(';'));
-              if (batchId) {
-                formData.append('batch_id', batchId);
-              }
-              const response = await axios.post(
-                `${API_BASE_URL}/api/check-logo/batch/`,
-                formData,
-                {
-                  headers: {
-                    'Content-Type': 'multipart/form-data',
-                  },
-                }
-              );
-              return response.data;
-            };
-
-            const allResults = await processImageChunks(
-              chunks,
-              processChunk,
-              (progressData) => {
-                setProgress(progressData);
-              }
-            );
-
-            // Add processing summary for small URL batches
-            const processEndTime = Date.now();
-            setProcessSummary({
-              totalImages: urls.length,
-              totalTime: processEndTime - processStartTime,
-              averageTimePerImage: (processEndTime - processStartTime) / urls.length,
-              startTime: processStartTime,
-              endTime: processEndTime
-            });
-
-            setResults(allResults.map((result, index) => ({
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: urls[index]
-            })));
-          } else {
-            // Original processing for smaller URL batches
+          // Always use chunking with the selected batch size
+          const chunks = chunkImages(urls, batchSize);
+          
+          const processChunk = async (chunk) => {
             const formData = new FormData();
-            formData.append('paths', urls.join(';'));
+            formData.append('paths', chunk.join(';'));
             if (batchId) {
               formData.append('batch_id', batchId);
             }
-            const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/`, formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            });
-            
-            // Add processing summary for small URL batches
-            const processEndTime = Date.now();
-            setProcessSummary({
-              totalImages: urls.length,
-              totalTime: processEndTime - processStartTime,
-              averageTimePerImage: (processEndTime - processStartTime) / urls.length,
-              startTime: processStartTime,
-              endTime: processEndTime
-            });
-            
-            setResults(response.data.map((result, index) => ({
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: urls[index]
-            })));
-          }
+            const response = await axios.post(
+              `${API_BASE_URL}/api/check-logo/batch/`,
+              formData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                },
+              }
+            );
+            return response.data;
+          };
+
+          const allResults = await processImageChunks(
+            chunks,
+            processChunk,
+            (progressData) => {
+              setProgress(progressData);
+            }
+          );
+
+          // Add processing summary
+          const processEndTime = Date.now();
+          setProcessSummary({
+            totalImages: urls.length,
+            totalTime: processEndTime - processStartTime,
+            averageTimePerImage: (processEndTime - processStartTime) / urls.length,
+            startTime: processStartTime,
+            endTime: processEndTime
+          });
+
+          setResults(allResults.map((result, index) => ({
+            isValid: result.Is_Valid === "Valid",
+            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+            name: urls[index]
+          })));
         }
       }
     } catch (error) {
@@ -1568,23 +1510,135 @@ function App() {
               </Box>
 
               {mode === 'batch' && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleStartBatch}
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: 2, 
+                  mb: 2,
+                  width: '100%',
+                  maxWidth: '400px',
+                  mx: 'auto'
+                }}>
+                  <Typography
+                    variant="subtitle1"
                     sx={{
-                      borderColor: symphonyBlue,
                       color: symphonyBlue,
-                      '&:hover': {
-                        backgroundColor: symphonyLightBlue,
-                      },
-                      minWidth: '200px',
-                      height: '48px',
-                      fontSize: '1.1rem'
+                      fontWeight: 500,
+                      mt: 1,
+                      textAlign: 'center',
+                      width: '100%'
                     }}
                   >
-                    Start Batch
-                  </Button>
+                    Batch Size: {displayValue} images
+                  </Typography>
+                  <Box sx={{ 
+                    width: '100%',
+                    px: 3,
+                    mt: 2,
+                    mb: 2
+                  }}>
+                    <Slider
+                      value={displayValue}
+                      onChange={(_, value) => {
+                        setDisplayValue(value);
+                        setBatchSize(value);
+                      }}
+                      min={1}
+                      max={999}
+                      step={1}
+                      marks={[
+                        { value: 1, label: '1' },
+                        { value: 250, label: '250' },
+                        { value: 500, label: '500' },
+                        { value: 999, label: '999' }
+                      ]}
+                      sx={{
+                        color: symphonyBlue,
+                        height: 8,
+                        '& .MuiSlider-thumb': {
+                          height: 24,
+                          width: 24,
+                          backgroundColor: symphonyWhite,
+                          border: `2px solid ${symphonyBlue}`,
+                          '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
+                            boxShadow: 'inherit',
+                          },
+                        },
+                        '& .MuiSlider-track': {
+                          height: 8,
+                          backgroundColor: symphonyBlue,
+                        },
+                        '& .MuiSlider-rail': {
+                          height: 8,
+                          backgroundColor: `${symphonyBlue}20`,
+                        },
+                        '& .MuiSlider-mark': {
+                          backgroundColor: symphonyBlue,
+                          height: 8,
+                        },
+                        '& .MuiSlider-markLabel': {
+                          color: symphonyGray,
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          marginTop: 4,
+                        },
+                        '& .MuiSlider-valueLabel': {
+                          backgroundColor: symphonyBlue,
+                        }
+                      }}
+                      valueLabelDisplay="auto"
+                      aria-label="Batch size slider"
+                    />
+                  </Box>
+                  <Box sx={{ 
+                    display: 'flex',
+                    gap: 2,
+                    justifyContent: 'center',
+                    width: '100%'
+                  }}>
+                    {[10, 50, 100, 250].map((value) => (
+                      <Button
+                        key={value}
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          setBatchSize(value);
+                          setDisplayValue(value);
+                        }}
+                        sx={{
+                          borderColor: symphonyBlue,
+                          color: symphonyBlue,
+                          '&:hover': {
+                            backgroundColor: symphonyLightBlue,
+                            borderColor: symphonyBlue,
+                          },
+                          minWidth: '60px'
+                        }}
+                      >
+                        {value}
+                      </Button>
+                    ))}
+                  </Box>
+                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      onClick={handleStartBatch}
+                      sx={{
+                        borderColor: symphonyBlue,
+                        color: symphonyBlue,
+                        '&:hover': {
+                          backgroundColor: symphonyLightBlue,
+                        },
+                        minWidth: '200px',
+                        height: '48px',
+                        fontSize: '1.1rem',
+                        mt: 2
+                      }}
+                    >
+                      Start Batch
+                    </Button>
+                  </Box>
                 </Box>
               )}
 

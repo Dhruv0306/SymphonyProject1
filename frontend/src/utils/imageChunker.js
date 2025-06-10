@@ -13,10 +13,10 @@
  * Used to prevent overwhelming the server with too many simultaneous uploads.
  * 
  * @param {Array} images - Array of images to be chunked
- * @param {number} chunkSize - Maximum size of each chunk (default: 100)
+ * @param {number} chunkSize - Maximum size of each chunk
  * @returns {Array} Array of image chunks
  */
-export const chunkImages = (images, chunkSize = 100) => {
+export const chunkImages = (images, chunkSize) => {
     const chunks = [];
     for (let i = 0; i < images.length; i += chunkSize) {
         chunks.push(images.slice(i, i + chunkSize));
