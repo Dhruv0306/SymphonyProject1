@@ -97,7 +97,7 @@ visit_image_links.txt
 *.wim
 *.iso
 *.xlsx
-logs.txt
+logs.txt*
 roboflow_cli.txt
 
 # Ignore all runs/detect except specific weight directories
