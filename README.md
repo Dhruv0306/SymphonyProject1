@@ -529,7 +529,7 @@ sequenceDiagram
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
+git clone https://github.com/Dhruv0306/SymphonyProject1.git
 cd usingYolo
 ```
 
