@@ -1,58 +1,72 @@
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
-graph TD
-    subgraph "Client Interaction"
-        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["Client"] -->|"Request"| B["Start Batch"]
-        B -->|"Get UUID"| C["Submit Images"]
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as "Client"
+    participant A as "API Gateway"
+    participant B as "Batch Manager"
+    participant V as "Validator"
+    participant P as "Processor"
+    participant M as "Model Pool"
+    participant E as "CSV Exporter"
+    participant S as "Storage"
+
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: "Start Batch"
+        A->>B: "Initialize Batch"
+        B->>S: "Create Batch State"
+        B-->>C: "Return Batch ID"
     end
 
-    subgraph "Queue Management"
-        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Queue"| D["Image Queue"]
-        D -->|"Distribute"| E["Parallel Workers"]
-        E -->|"Process"| F["Results Queue"]
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: "Submit Images (with Batch ID)"
+    end
+    
+    rect rgba(30, 90, 50, 0.4)
+        A->>A: "Authenticate"
+        A->>B: "Validate Batch ID"
+        A->>V: "Validate Request"
+    end
+    
+    rect rgba(90, 50, 100, 0.4)
+        V->>P: "Process Image"
+        
+        par "Image Processing"
+            P->>P: "Enhance Image"
+            P->>P: "Add Boundaries"
+            P->>P: "Normalize"
+        end
+    end
+    
+    rect rgba(130, 90, 20, 0.4) 
+        P->>M: "Request Detection"
+        
+        par "Model Processing"
+            M->>M: "YOLOv8s #1"
+            M->>M: "YOLOv8s #2"
+            M->>M: "YOLOv11s #1"
+            M->>M: "YOLOv11s #2"
+            M->>M: "YOLOv11s #3"
+        end
+    end
+    
+    rect rgba(120, 40, 50, 0.4)
+        M->>P: "Return Results"
+        P->>B: "Update Batch State"
+        P->>S: "Cache Results"
+        P->>A: "Aggregate Response"
+        A->>C: "Return Response"
     end
 
-    subgraph "Processing Pipeline"
-        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        E -->|"Process"| G["Image Enhancement"]
-        G -->|"Validate"| H["YOLO Detection"]
-        H -->|"Analyze"| I["Result Validation"]
-        I -->|"Update"| J["Batch State"]
+    rect rgba(60, 80, 110, 0.4)
+        Note over C,S: "CSV Export Flow"
+        C->>A: "Request CSV Export (with Batch ID)"
+        A->>B: "Validate Batch ID"
+        B->>E: "Fetch Batch Results"
+        E->>S: "Get Cached Results"
+        S-->>E: "Return Results"
+        E->>E: "Generate CSV"
+        Note right of E: "Add Batch ID"
+        E->>S: "Store CSV File"
+        S-->>A: "File Location"
+        A-->>C: "Download CSV"
+        Note over S: "Cleanup Temporary Files"
     end
-
-    subgraph "State & Storage"
-        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style N fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        J -->|"Cache"| K["Redis Store"]
-        F -->|"Collect"| L["Result Aggregator"]
-        L -->|"Generate"| M["CSV Export"]
-        M -->|"Download"| N["Client Response"]
-    end
-
-    subgraph "Cleanup & Monitoring"
-        style O fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style P fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style Q fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        N -->|"Trigger"| O["Cleanup Service"]
-        O -->|"Remove"| P["Temporary Files"]
-        O -->|"Clear"| Q["Cache Entries"]
-    end
-
-    %% Add error handling paths
-    style R fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#000000,font-weight:bold
-    style S fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#000000,font-weight:bold
-    E -->|"Error"| R["Error Handler"]
-    R -->|"Retry/Skip"| S["Error Logger"]
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold

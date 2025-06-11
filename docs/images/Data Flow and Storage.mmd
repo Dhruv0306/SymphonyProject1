@@ -1,57 +1,40 @@
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "Input Sources" 
+    subgraph "Input Sources"
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A4 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style X fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A1[File Upload] -->|Process| B[Input Handler]
-        A2[URL Input] -->|Process| B
+        A1["File Upload"] -->|"Process"| B["Data Processor"]
+        A2["URL Input"] -->|"Process"| B
         A3[Batch Upload] -->|Process| B
         A4[CSV Request] -->|Export| X[Export Handler]
     end
 
-    subgraph "Storage Systems" 
-        style C fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+    subgraph "Processing"
+        style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Validate"| C["Data Validator"]
+        C -->|"Transform"| D["Data Transformer"]
+    end
+
+    subgraph "Storage"
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style Y fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Temporary| C[Temp Storage]
-        B -->|Persist| D[File System]
-        
-        C -->|Cleanup| E[Storage Cleaner]
-        D -->|Archive| F[Long-term Storage]
-        
-        X -->|Generate| Y[CSV Export]
-        Y -->|Save| D
-        Y -->|Cleanup| E
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        D -->|"Cache"| E["Redis Cache"]
+        D -->|"Persist"| F["File System"]
+        D -->|"Export"| G["CSV Export"]
     end
 
-    subgraph "Caching Layer" 
-        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        G[Results Cache] -->|Read| H[Cache Reader]
-        I[Processor] -->|Write| G
-        
-        H -->|Serve| J[API Response]
-        H -->|Miss| I
-        G -->|Export| Y
-    end
-
-    subgraph "Maintenance" 
-        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        K[Scheduler] -->|Trigger| E
-        K -->|Manage| L[Cache Invalidator]
-        K -->|Cleanup| M[Export Cleaner]
-        M -->|Remove Old| Y
-        L -->|Clean| G
+    subgraph "Cleanup"
+        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        E -->|"TTL"| H["Cache Cleanup"]
+        F -->|"Schedule"| I["File Cleanup"]
     end
 
     %% Style all edge labels

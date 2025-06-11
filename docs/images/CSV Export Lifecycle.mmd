@@ -1,0 +1,38 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant B as Batch Manager
+    participant D as Data Processor
+    participant S as Storage
+    participant E as Exporter
+
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: Request CSV Export
+        A->>B: Validate Batch ID
+        B->>D: Fetch Batch Results
+    end
+
+    rect rgba(30, 90, 50, 0.4)
+        D->>S: Get Cached Results
+        S-->>D: Return Results
+        D->>E: Format Data
+    end
+
+    rect rgba(90, 50, 100, 0.4)
+        E->>E: Generate Headers
+        E->>E: Format Rows
+        E->>E: Add Metadata
+    end
+
+    rect rgba(120, 40, 50, 0.4)
+        E->>S: Save CSV File
+        S-->>A: Return File Path
+        A-->>C: Download Link
+    end
+
+    rect rgba(60, 80, 110, 0.4)
+        Note over S: Auto-cleanup after 24h
+        Note over C: Secure Download
+        Note over E: Include Batch Details
+    end 

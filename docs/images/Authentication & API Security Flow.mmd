@@ -1,0 +1,36 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Client Authentication"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A[Client Request] -->|"API Key"| B[API Gateway]
+        B -->|"Validate"| C[Auth Service]
+    end
+
+    subgraph "Security Layers"
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Check"| D[Rate Limiter]
+        D -->|"Verify"| E[CORS Filter]
+        E -->|"Scan"| F[Input Validator]
+        F -->|"Process"| G[Request Handler]
+    end
+
+    subgraph "Protection Measures"
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        G -->|"Apply"| H[XSS Protection]
+        G -->|"Verify"| I[CSRF Token]
+        G -->|"Check"| J[Resource Limits]
+    end
+
+    subgraph "Monitoring & Logging"
+        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        H & I & J -->|"Log"| K[Security Logs]
+        K -->|"Alert"| L[Security Monitor]
+    end 
