@@ -4,18 +4,20 @@
 This application provides an enterprise-grade solution for detecting Symphony logos in images using multiple YOLOv8 and YOLOv11 models. It features a FastAPI backend for robust image processing and a modern web interface for seamless user interaction.
 
 ## Table of Contents
-- [Key Features](#key-features)
-- [System Architecture](#system-architecture)
-- [Technology Stack](#technology-stack)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Running the Application](#running-the-application)
-- [Production Deployment](#production-deployment)
-- [API Documentation](#api-documentation)
-- [Development Guidelines](#development-guidelines)
-- [Security](#security)
-- [Troubleshooting](#troubleshooting)
-- [License & Support](#license--support)
+1. [Key Features](#key-features)
+2. [System Architecture](#system-architecture)
+3. [Technology Stack](#technology-stack)
+4. [Installation](#installation)
+5. [Configuration](#configuration)
+6. [Running the Application](#running-the-application)
+7. [Production Deployment](#production-deployment)
+8. [API Documentation](#api-documentation)
+9. [Security](#security)
+10. [Error Handling](#error-handling)
+11. [Logging System](#logging-system)
+12. [Development Guidelines](#development-guidelines)
+13. [Troubleshooting](#troubleshooting)
+14. [License & Support](#license--support)
 
 ## Key Features
 
@@ -67,11 +69,11 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Redis caching support
   - Prometheus/Grafana monitoring
 
-## Detailed System Architecture
+## System Architecture
 
 ### High-Level System Overview
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
     subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -117,76 +119,125 @@ graph TD
         B -->|"Logs"| M["Log Files"]
         X -->|"State"| N["Batch State Store"]
     end
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
 ```
 
-### Batch Processing Flow Diagram
+### Authentication & API Security Flow
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "Client Interaction"
+    subgraph "Client Authentication"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["Client"] -->|"1. Request"| B["Start Batch"]
-        B -->|"2. Get UUID"| C["Submit Images"]
+        A[Client Request] -->|"API Key"| B[API Gateway]
+        B -->|"Validate"| C[Auth Service]
     end
 
-    subgraph "Queue Management"
+    subgraph "Security Layers"
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"3. Queue"| D["Image Queue"]
-        D -->|"4. Distribute"| E["Parallel Workers"]
-        E -->|"5. Process"| F["Results Queue"]
+        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Check"| D[Rate Limiter]
+        D -->|"Verify"| E[CORS Filter]
+        E -->|"Scan"| F[Input Validator]
+        F -->|"Process"| G[Request Handler]
     end
 
-    subgraph "Processing Pipeline"
-        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+    subgraph "Protection Measures"
         style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        E -->|"Process"| G["Image Enhancement"]
-        G -->|"Validate"| H["YOLO Detection"]
-        H -->|"Analyze"| I["Result Validation"]
-        I -->|"Update"| J["Batch State"]
+        G -->|"Apply"| H[XSS Protection]
+        G -->|"Verify"| I[CSRF Token]
+        G -->|"Check"| J[Resource Limits]
     end
 
-    subgraph "State & Storage"
+    subgraph "Monitoring & Logging"
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style N fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        J -->|"Cache"| K["Redis Store"]
-        F -->|"6. Collect"| L["Result Aggregator"]
-        L -->|"7. Generate"| M["CSV Export"]
-        M -->|"8. Download"| N["Client Response"]
+        H & I & J -->|"Log"| K[Security Logs]
+        K -->|"Alert"| L[Security Monitor]
+    end
+```
+
+### Frontend-to-Backend Interaction Map
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+graph LR
+    subgraph "Frontend Components"
+        style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A1[Upload Component] -->|"Files"| B1[API Client]
+        A2[URL Input] -->|"URLs"| B1
+        A3[Batch Manager] -->|"Batch ID"| B1
     end
 
-    subgraph "Cleanup & Monitoring"
-        style O fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style P fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style Q fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        N -->|"9. Trigger"| O["Cleanup Service"]
-        O -->|"Remove"| P["Temporary Files"]
-        O -->|"Clear"| Q["Cache Entries"]
+    subgraph "API Layer"
+        style B1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style B2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style B3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B1 -->|"Request"| B2[FastAPI Routes]
+        B2 -->|"Process"| B3[Response Handler]
     end
 
-    %% Add error handling paths
-    style R fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#000000,font-weight:bold
-    style S fill:#b39ddb,stroke:#4527a0,stroke-width:2px,color:#000000,font-weight:bold
-    E -->|"Error"| R["Error Handler"]
-    R -->|"Retry/Skip"| S["Error Logger"]
+    subgraph "State Management"
+        style C1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style C2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        B3 -->|"Update"| C1[UI State]
+        C1 -->|"Reflect"| C2[Progress Bar]
+    end
 
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
+    subgraph "User Feedback"
+        style D1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style D2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        C1 -->|"Show"| D1[Status Messages]
+        C1 -->|"Display"| D2[Results Grid]
+    end
+```
+
+### Model Fallback Logic Flow
+*Example with 2 YOLOv8s models and 3 YOLOv11s models in parallel*
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Initial Processing"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A[Image Input] -->|"Process"| B[Primary Model YOLOv8s #1]
+    end
+
+    subgraph "Confidence Check"
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Check"| C{Confidence > 0.35?}
+        C -->|"Yes"| D[Return Result]
+    end
+
+    subgraph "First Fallback"
+        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"No"| E[YOLOv8s #2]
+        E -->|"Check"| F{Confidence > 0.35?}
+    end
+
+    subgraph "Advanced Models"
+        style G fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        F -->|"No"| G[YOLOv11s Models]
+        G -->|"Parallel"| H[Ensemble Processing]
+        H -->|"Aggregate"| I[Final Decision]
+    end
+
+    F -->|"Yes"| D
+    I -->|"Result"| D
 ```
 
 ### Batch Processing Pipeline
 ```mermaid
-%%{init:{'theme': 'dark','themeVariables': {'fontFamily': 'arial','fontSize': '22px','fontWeight': 'bold','messageFontWeight': 'bold','noteFontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as "Client"
     participant A as "API Gateway"
@@ -260,49 +311,9 @@ sequenceDiagram
     end
 ```
 
-### State Management
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
-graph TD
-    subgraph "Batch State"
-        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["Batch ID"] -->|"Create"| B["State Object"]
-        B -->|"Track"| C["Progress Counter"]
-    end
-
-    subgraph "File Management"
-        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Create"| D["Temp CSV"]
-        D -->|"Write"| E["Results"]
-        E -->|"Generate"| F["Final CSV"]
-    end
-
-    subgraph "Metrics"
-        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Calculate"| G["Valid Count"]
-        C -->|"Calculate"| H["Invalid Count"]
-        G & H -->|"Update"| I["Batch Stats"]
-    end
-
-    subgraph "Lifecycle"
-        style J fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style K fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        I -->|"Monitor"| J["Completion"]
-        J -->|"Trigger"| K["Cleanup"]
-        K -->|"Remove"| L["State & Files"]
-    end
-```
-
 ### Model Architecture
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
     subgraph "Input Processing" 
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
@@ -352,121 +363,124 @@ graph TD
         L -->|Threshold Check| M[Decision Maker]
         M -->|Final Result| N[Response Generator]
     end
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
 ```
 
 ### Error Handling and Monitoring
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph LR
     subgraph "Error Sources"
         style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A1[Input Errors] -->|Validation| B[Error Handler]
-        A2[Processing Errors] -->|Runtime| B
-        A3[Model Errors] -->|Inference| B
-        A4[System Errors] -->|Infrastructure| B
+        A1["Input Validation"] -->|"Errors"| B["Error Handler"]
+        A2["Processing"] -->|"Errors"| B
+        A3["Model Inference"] -->|"Errors"| B
+        A4["System"] -->|"Errors"| B
     end
 
-    subgraph "Error Processing" 
-        style B fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style D fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style E fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Categorize| C[Error Classifier]
-        C -->|Log| D[Error Logger]
-        C -->|Alert| E[Alert Manager]
-        C -->|Metrics| F[Metrics Collector]
+    subgraph "Error Processing"
+        style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Classification"| C["Error Classifier"]
+        C -->|"Response"| D["Error Response"]
     end
 
-    subgraph "Monitoring Stack" 
+    subgraph "Monitoring"
+        style E fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style G fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style K fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|Write| G[Log Files]
-        E -->|Notify| H[Alert System]
-        F -->|Store| I[Prometheus]
-        
-        G -->|Aggregate| J[Log Aggregator]
-        I -->|Visualize| K[Grafana]
-        
-        J & K -->|Display| L[Dashboard]
-        H -->|Notify| M[DevOps Team]
+        B -->|"Metrics"| E["Prometheus"]
+        B -->|"Logs"| F["Log Files"]
+        E & F -->|"Visualization"| G["Grafana"]
     end
 
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
+    subgraph "Alerts"
+        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        G -->|"Thresholds"| H["Alert Manager"]
+        H -->|"Notification"| I["DevOps Team"]
+    end
 ```
 
 ### Data Flow and Storage
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "Input Sources" 
+    subgraph "Input Sources"
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A4 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style X fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A1[File Upload] -->|Process| B[Input Handler]
-        A2[URL Input] -->|Process| B
-        A3[Batch Upload] -->|Process| B
-        A4[CSV Request] -->|Export| X[Export Handler]
+        A1["File Upload"] -->|"Process"| B["Data Processor"]
+        A2["URL Input"] -->|"Process"| B
     end
 
-    subgraph "Storage Systems" 
-        style C fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+    subgraph "Processing"
+        style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Validate"| C["Data Validator"]
+        C -->|"Transform"| D["Data Transformer"]
+    end
+
+    subgraph "Storage"
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style Y fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Temporary| C[Temp Storage]
-        B -->|Persist| D[File System]
-        
-        C -->|Cleanup| E[Storage Cleaner]
-        D -->|Archive| F[Long-term Storage]
-        
-        X -->|Generate| Y[CSV Export]
-        Y -->|Save| D
-        Y -->|Cleanup| E
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        D -->|"Cache"| E["Redis Cache"]
+        D -->|"Persist"| F["File System"]
+        D -->|"Export"| G["CSV Export"]
     end
 
-    subgraph "Caching Layer" 
-        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        G[Results Cache] -->|Read| H[Cache Reader]
-        I[Processor] -->|Write| G
-        
-        H -->|Serve| J[API Response]
-        H -->|Miss| I
-        G -->|Export| Y
+    subgraph "Cleanup"
+        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        E -->|"TTL"| H["Cache Cleanup"]
+        F -->|"Schedule"| I["File Cleanup"]
+    end
+```
+
+### CSV Export Lifecycle
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant B as Batch Manager
+    participant D as Data Processor
+    participant S as Storage
+    participant E as Exporter
+
+    rect rgba(40, 100, 160, 0.4)
+        C->>A: Request CSV Export
+        A->>B: Validate Batch ID
+        B->>D: Fetch Batch Results
     end
 
-    subgraph "Maintenance" 
-        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        K[Scheduler] -->|Trigger| E
-        K -->|Manage| L[Cache Invalidator]
-        K -->|Cleanup| M[Export Cleaner]
-        M -->|Remove Old| Y
-        L -->|Clean| G
+    rect rgba(30, 90, 50, 0.4)
+        D->>S: Get Cached Results
+        S-->>D: Return Results
+        D->>E: Format Data
     end
 
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
+    rect rgba(90, 50, 100, 0.4)
+        E->>E: Generate Headers
+        E->>E: Format Rows
+        E->>E: Add Metadata
+    end
+
+    rect rgba(120, 40, 50, 0.4)
+        E->>S: Save CSV File
+        S-->>A: Return File Path
+        A-->>C: Download Link
+    end
+
+    rect rgba(60, 80, 110, 0.4)
+        Note over S: Auto-cleanup after 24h
+        Note over C: Secure Download
+        Note over E: Include Batch Details
+    end
 ```
 
 ## Technology Stack
@@ -663,8 +677,10 @@ POST /api/check-logo/single/
 Content-Type: multipart/form-data
 
 Parameters:
-- file: Image file (optional)
-- image_path: Image URL (optional)
+- file: Image file (required if image_path not provided)
+- image_path: Image URL (required if file not provided)
+
+Note: Either file or image_path must be provided
 
 Response:
 {
@@ -680,9 +696,11 @@ POST /api/check-logo/batch/
 Content-Type: multipart/form-data
 
 Parameters:
-- files: Array of image files (optional)
-- paths: Semicolon-separated URLs (optional)
-- batch_id: UUID for batch tracking (optional)
+- batch_id: UUID for batch tracking (required)
+- files: Array of image files (required if paths not provided)
+- paths: Semicolon-separated URLs (required if files not provided)
+
+Note: Either files or paths must be provided along with batch_id
 
 Response:
 [
@@ -728,351 +746,77 @@ GET /metrics
 
 ## Security
 
-### Authentication & Authorization
-- API key authentication
-- CORS protection with configurable origins
-- Rate limiting per client
-- Role-based access control (optional)
+### Authentication and Authorization
+- API Key authentication
+- Rate limiting and CORS protection
+- Detailed logging and monitoring
+- Secure file handling for exports
+- Redis caching support
+- Prometheus/Grafana monitoring
 
-### Data Security
-- Secure file handling
-- Temporary file cleanup
-- Input validation and sanitization
-- Secure error messages
-- XSS protection
-- CSRF protection
+### Data Protection
+- Secure file uploads and downloads
+- Data encryption in transit and at rest
+- Access control and permissions
 
-### Infrastructure Security
-- Docker security best practices
-- Kubernetes security policies
-- Network isolation
-- Resource limits
-- Secure logging
+### Error Handling and Monitoring
+- Comprehensive error tracking and logging
+- Alerting and notification mechanisms
+- Automated error detection and response
 
 ## Error Handling
 
-The system implements comprehensive error handling for:
-- Invalid file formats
-- Corrupted images
-- Network issues
-- Model failures
-- Resource constraints
-- Concurrent processing errors
+### Common Errors
+- Input validation errors
+- Model inference errors
+- System-level errors
+
+### Error Handling Strategy
+- Automated error classification
+- Human intervention for critical errors
+- Detailed logging and monitoring
 
 ## Logging System
 
-- Rotating log files (10MB limit)
-- Detailed error tracking
-- Request/response logging
-- Model inference logging
-- Performance metrics
+### Logging Levels
+- INFO, WARNING, ERROR, CRITICAL
+
+### Logging Sources
+- FastAPI backend
+- Frontend interactions
+- Model inference
+- System-level events
 
 ## Development Guidelines
 
-1. Code Style
-   - Follow PEP 8
-   - Use type hints
-   - Document all functions
-   - Write unit tests
+### Code Quality
+- PEP 8 compliance
+- Code readability and maintainability
+- Automated testing
 
-2. Git Workflow
-   - Feature branches
-   - Pull request reviews
-   - Version tagging
-   - Changelog updates
+### Documentation
+- Comprehensive API documentation
+- Code comments and docstrings
+- Developer guidelines
 
 ## Troubleshooting
 
-1. Check logs.txt for detailed error messages
-2. Verify model weights in runs/detect/ directory
-3. Ensure proper file permissions
-4. Validate image formats (JPG/PNG)
-5. Check network connectivity
-6. Verify GPU drivers (if applicable)
+### Common Issues
+- Model inference errors
+- API connectivity issues
+- Data processing delays
+
+### Troubleshooting Steps
+- Check system logs
+- Verify API connectivity
+- Re-run the inference pipeline
 
 ## License & Support
 
 ### License
-Copyright © 2024 Symphony Limited. All rights reserved.
+- Apache License 2.0
 
 ### Support
-For technical support or feature requests:
-- Email: support@symphony.com
-- Documentation: https://docs.symphony.com
-- Issue Tracker: https://github.com/symphony/logo-detection/issues
-
-### Contributing
-Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests. 
-
-### Batch Processing Flow
-
-The system implements a robust batch processing mechanism that enables concurrent image validation with state tracking:
-
-1. **Batch Initialization**
-   - Client requests a new batch session
-   - System generates a unique UUID for the batch
-   - Creates batch state object in Redis
-   - Returns batch ID to client for subsequent requests
-
-2. **Image Submission**
-   - Client submits multiple images with batch ID
-   - Supports both file uploads and URLs
-   - Images are queued for processing
-   - Batch state is updated with total count
-
-3. **Concurrent Processing**
-   - Images are processed in parallel
-   - Each image goes through:
-     * Validation and sanitization
-     * Enhancement and normalization
-     * Boundary addition
-     * Model inference
-   - Results are cached with batch ID reference
-
-4. **State Management**
-   - Real-time progress tracking
-   - Valid/Invalid image counts
-   - Processing status updates
-   - Error handling and recovery
-   - Automatic cleanup of temporary files
-
-5. **Result Aggregation**
-   - Results are collected and organized by batch ID
-   - Statistics are computed:
-     * Total processed images
-     * Valid/Invalid counts
-     * Error counts and types
-     * Processing duration
-
-6. **CSV Export**
-   - Client requests CSV export with batch ID
-   - System validates batch completion
-   - Results are fetched from cache
-   - CSV is generated with:
-     * Image details
-     * Validation results
-     * Timestamps
-     * Error messages (if any)
-   - File is made available for download
-   - Automatic cleanup after download
-
-7. **Resource Management**
-   - Temporary files are automatically cleaned
-   - Cache entries are invalidated after configurable period
-   - Failed processing is automatically retried
-   - System resources are released properly
-
-8. **Error Handling**
-   - Invalid batch IDs are rejected
-   - Corrupted images are marked and skipped
-   - Network failures are handled gracefully
-   - Processing errors are logged and reported
-
-### State Management
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px', 'fontWeight': 'bold'}}}%%
-graph TD
-    subgraph "Batch State"
-        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["Batch ID"] -->|"Create"| B["State Object"]
-        B -->|"Track"| C["Progress Counter"]
-    end
-
-    subgraph "File Management"
-        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Create"| D["Temp CSV"]
-        D -->|"Write"| E["Results"]
-        E -->|"Generate"| F["Final CSV"]
-    end
-
-    subgraph "Metrics"
-        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Calculate"| G["Valid Count"]
-        C -->|"Calculate"| H["Invalid Count"]
-        G & H -->|"Update"| I["Batch Stats"]
-    end
-
-    subgraph "Lifecycle"
-        style J fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style K fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        I -->|"Monitor"| J["Completion"]
-        J -->|"Trigger"| K["Cleanup"]
-        K -->|"Remove"| L["State & Files"]
-    end
-```
-
-### Model Architecture
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
-graph TD
-    subgraph "Input Processing" 
-        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style D fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A[Raw Image] -->|Preprocessing| B[Enhanced Image]
-        B -->|Normalization| C[Normalized Image]
-        C -->|Batching| D[Image Batch]
-    end
-
-    subgraph "Model Pool Manager" 
-        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style I1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style I2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style J1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style J2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style J3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|Distribution| E[Load Balancer]
-        E -->|Route| F[Model Selection]
-        
-        F -->|High Confidence| G[YOLOv8s Pool]
-        F -->|Complex Cases| H[YOLOv11s Pool]
-        
-        subgraph "YOLOv8s Models"
-            G -->|Instance 1| I1[YOLOv8s #1]
-            G -->|Instance 2| I2[YOLOv8s #2]
-        end
-        
-        subgraph "YOLOv11s Models"
-            H -->|Instance 1| J1[YOLOv11s #1]
-            H -->|Instance 2| J2[YOLOv11s #2]
-            H -->|Instance 3| J3[YOLOv11s #3]
-        end
-    end
-
-    subgraph "Result Processing" 
-        style K fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style N fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        I1 & I2 & J1 & J2 & J3 -->|Results| K[Result Collector]
-        K -->|Aggregation| L[Confidence Checker]
-        L -->|Threshold Check| M[Decision Maker]
-        M -->|Final Result| N[Response Generator]
-    end
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
-```
-
-### Error Handling and Monitoring
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
-graph LR
-    subgraph "Error Sources"
-        style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style A2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style A4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A1[Input Errors] -->|Validation| B[Error Handler]
-        A2[Processing Errors] -->|Runtime| B
-        A3[Model Errors] -->|Inference| B
-        A4[System Errors] -->|Infrastructure| B
-    end
-
-    subgraph "Error Processing" 
-        style B fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style D fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style E fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Categorize| C[Error Classifier]
-        C -->|Log| D[Error Logger]
-        C -->|Alert| E[Alert Manager]
-        C -->|Metrics| F[Metrics Collector]
-    end
-
-    subgraph "Monitoring Stack" 
-        style G fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style K fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|Write| G[Log Files]
-        E -->|Notify| H[Alert System]
-        F -->|Store| I[Prometheus]
-        
-        G -->|Aggregate| J[Log Aggregator]
-        I -->|Visualize| K[Grafana]
-        
-        J & K -->|Display| L[Dashboard]
-        H -->|Notify| M[DevOps Team]
-    end
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
-```
-
-### Data Flow and Storage
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '22px'}}}%%
-graph TD
-    subgraph "Input Sources" 
-        style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A4 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style X fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A1[File Upload] -->|Process| B[Input Handler]
-        A2[URL Input] -->|Process| B
-        A3[Batch Upload] -->|Process| B
-        A4[CSV Request] -->|Export| X[Export Handler]
-    end
-
-    subgraph "Storage Systems" 
-        style C fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style Y fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|Temporary| C[Temp Storage]
-        B -->|Persist| D[File System]
-        
-        C -->|Cleanup| E[Storage Cleaner]
-        D -->|Archive| F[Long-term Storage]
-        
-        X -->|Generate| Y[CSV Export]
-        Y -->|Save| D
-        Y -->|Cleanup| E
-    end
-
-    subgraph "Caching Layer" 
-        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        G[Results Cache] -->|Read| H[Cache Reader]
-        I[Processor] -->|Write| G
-        
-        H -->|Serve| J[API Response]
-        H -->|Miss| I
-        G -->|Export| Y
-    end
-
-    subgraph "Maintenance" 
-        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        K[Scheduler] -->|Trigger| E
-        K -->|Manage| L[Cache Invalidator]
-        K -->|Cleanup| M[Export Cleaner]
-        M -->|Remove Old| Y
-        L -->|Clean| G
-    end
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold
-```
+- Email support
+- Community forums
+- Documentation and tutorials
