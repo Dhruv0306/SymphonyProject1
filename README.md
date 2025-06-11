@@ -10,14 +10,13 @@ This application provides an enterprise-grade solution for detecting Symphony lo
 4. [Installation](#installation)
 5. [Configuration](#configuration)
 6. [Running the Application](#running-the-application)
-7. [Production Deployment](#production-deployment)
-8. [API Documentation](#api-documentation)
-9. [Security](#security)
-10. [Error Handling](#error-handling)
-11. [Logging System](#logging-system)
-12. [Development Guidelines](#development-guidelines)
-13. [Troubleshooting](#troubleshooting)
-14. [License & Support](#license--support)
+7. [API Documentation](#api-documentation)
+8. [Security](#security)
+9. [Error Handling](#error-handling)
+10. [Logging System](#logging-system)
+11. [Development Guidelines](#development-guidelines)
+12. [Troubleshooting](#troubleshooting)
+13. [License & Support](#license--support)
 
 ## Key Features
 
@@ -565,16 +564,50 @@ npm run start-backend -- --backend=http://your-backend-url:8000
 npm run start-backend
 ```
 
-### Docker Installation
+### Frontend Configuration Files
 
-1. Build the Docker image:
-```bash
-docker build -t symphony-logo-detection .
+#### 1. set-backend.js
+This file manages the backend URL configuration and React development server settings.
+
+```javascript
+// Key Features:
+// - Dynamic backend URL configuration
+// - Custom frontend port configuration
+// - Network access configuration
+// - Cross-environment variable handling
+
+// Usage:
+npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000 --host=0.0.0.0
+
+// Parameters:
+// --backend=<url>  : Set custom backend URL (default: http://localhost:8000)
+// --port=<port>    : Set custom frontend port (default: 3000)
+// --host=<host>    : Set custom host IP (default: localhost)
 ```
 
-2. Run the container:
-```bash
-docker run -p 8000:8000 -v $(pwd)/data:/app/data symphony-logo-detection
+#### 2. imageChunker.js
+This utility module handles large batches of images with efficient processing and progress tracking.
+
+```javascript
+// Key Features:
+// - Splits large image batches into manageable chunks
+// - Provides precise progress tracking
+// - Handles time estimation and formatting
+// - Manages sequential processing with error handling
+
+// Core Functions:
+// - chunkImages(images, chunkSize): Splits image arrays into chunks
+// - processImageChunks(chunks, processChunk, onProgress): Processes chunks with progress tracking
+// - formatTime(milliseconds): Formats time durations
+// - calculateTimeRemaining(processed, total, elapsed): Estimates remaining time
+
+// Usage Example:
+const chunks = chunkImages(imageArray, 10);
+await processImageChunks(chunks, async (chunk) => {
+    // Process each chunk
+}, (progress) => {
+    // Handle progress updates
+});
 ```
 
 ## Configuration
@@ -614,46 +647,6 @@ uvicorn App:app --reload --host 0.0.0.0 --port 8000
 2. Access the application:
 - API Documentation: http://localhost:8000/docs
 - Alternative API docs: http://localhost:8000/redoc
-
-## Production Deployment
-
-### Using Docker Compose
-
-1. Create `docker-compose.yml`:
-```yaml
-version: '3.8'
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-    env_file:
-      - .env
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-```
-
-2. Deploy:
-```bash
-docker-compose up -d
-```
-
-### Kubernetes Deployment
-
-Basic manifests are provided in the `k8s/` directory for Kubernetes deployment.
-
-### Monitoring
-
-- Prometheus metrics available at `/metrics`
-- Grafana dashboard templates in `monitoring/`
-- Health check endpoint at `/health`
 
 ## API Documentation
 
