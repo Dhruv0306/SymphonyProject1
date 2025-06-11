@@ -8,6 +8,7 @@ Features:
 - Comprehensive error handling and logging
 - CORS support for cross-origin requests
 - Automatic API documentation
+- Rate limiting for API endpoints
 """
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -29,6 +30,13 @@ from io import BytesIO
 import tempfile
 import csv
 from datetime import datetime
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.requests import Request
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Configure rotating file logging
 # Logs are rotated when they reach 10MB, keeping up to 5 backup files
@@ -65,6 +73,10 @@ app = FastAPI(
     description="API service for detecting Symphony logos in images using YOLO models",
     version="1.0.0"
 )
+
+# Configure rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure request logging middleware
 @app.middleware("http")
@@ -261,7 +273,9 @@ async def api_explanation():
     }
 
 @app.post("/api/check-logo/single/", response_model=LogoCheckResult)
+@limiter.limit("100/minute")
 async def check_logo_single(
+    request: Request,
     file: UploadFile = File(None),
     image_path: str = Form(None),
     data: dict = None
@@ -380,10 +394,12 @@ def process_single_path(path: str) -> dict:
         }
 
 @app.post("/api/check-logo/batch/", response_model=List[LogoCheckResult])
+@limiter.limit("20/minute")
 async def check_logo_batch(
+    request: Request,
     files: Optional[List[UploadFile]] = File(None),
     paths: Optional[str] = Form(None),
-    batch_id: Optional[str] = Form(None)  # NEW PARAMETER
+    batch_id: Optional[str] = Form(None)
 ):
     """
     Accepts either multiple uploaded files or a semicolon-separated string of image paths/URLs.
@@ -510,8 +526,11 @@ async def get_last_batch_count(batch_id: str):
     return app.state.batch_counts[batch_id]
 
 @app.get("/api/check-logo/batch/export-csv")
-async def export_batch_results_csv(batch_id: str):
-
+@limiter.limit("10/minute")
+async def export_batch_results_csv(
+    request: Request,
+    batch_id: str
+):
     """
     Export the most recent batch processing results to a CSV file.
     Returns a downloadable CSV file with the results.
