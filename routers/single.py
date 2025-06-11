@@ -1,8 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from starlette.requests import Request
-from models.logo_check import LogoCheckResult
-from utils.file_ops import is_valid_image, save_temp_file, process_single_path
-from utils.response import format_response
+from utils.response import LogoDetectionResponse
+from utils.file_ops import is_valid_image, save_temp_file
 from detect_logo import check_logo
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -18,7 +17,7 @@ router = APIRouter(
     tags=["Logo Detection"]
 )
 
-@router.post("/single/", response_model=LogoCheckResult)
+@router.post("/single/", response_model=LogoDetectionResponse)
 @limiter.limit("100/minute")
 async def check_logo_single(
     request: Request,
@@ -42,8 +41,7 @@ async def check_logo_single(
             file_location = ""
             try:
                 file_location = save_temp_file(file)
-                result = check_logo(file_location)
-                return format_response(result)
+                return check_logo(file_location)
             except (ValueError, IOError) as e:
                 raise HTTPException(status_code=400, detail=str(e))
             except Exception as e:
@@ -58,8 +56,7 @@ async def check_logo_single(
 
         elif image_path:
             try:
-                result = check_logo(image_path)
-                return format_response(result)
+                return check_logo(image_path)
             except UnidentifiedImageError as e:
                 raise HTTPException(status_code=400, detail="Invalid or inaccessible image URL")
             except Exception as e:

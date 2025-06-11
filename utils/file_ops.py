@@ -2,7 +2,6 @@ import os
 import shutil
 from fastapi import UploadFile
 from detect_logo import check_logo
-from utils.response import format_response
 import logging
 
 logger = logging.getLogger(__name__)
@@ -89,16 +88,3 @@ def save_temp_file(file: UploadFile) -> str:
     except Exception as e:
         logger.error(f"Error during file saving: {str(e)}")
         raise
-
-def process_single_path(path: str) -> dict:
-    """Process a single image path/URL with logo detection"""
-    try:
-        result = check_logo(path)
-        return format_response(result)
-    except Exception as e:
-        logger.error(f"Error processing path {path}: {str(e)}")
-        return {
-            "Image_Path_or_URL": path,
-            "Is_Valid": "Invalid",
-            "Error": str(e)
-        }

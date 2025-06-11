@@ -1,8 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from starlette.requests import Request
 from typing import List, Optional
-from models.logo_check import LogoCheckResult
-from utils.file_ops import process_single_path, UPLOAD_DIR
+from typing import List, Optional
+from utils.response import LogoDetectionResponse
+from detect_logo import check_logo
+from utils.file_ops import UPLOAD_DIR
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from tqdm import tqdm
@@ -36,7 +38,7 @@ async def start_batch(request: Request):
         # Create CSV file for this batch
         csv_path = os.path.join(batch_dir, 'results.csv')
         with open(csv_path, 'w', newline='') as csv_file:
-            fieldnames = ['Image_Path_or_URL', 'Is_Valid', 'Error']
+            fieldnames = ['Image_Path_or_URL', 'Is_Valid', 'Confidence', 'Detected_By', 'Bounding_Box', 'Error']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
 
@@ -54,7 +56,7 @@ async def start_batch(request: Request):
         logger.error(f"Error starting new batch: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/check-logo/batch/", response_model=List[LogoCheckResult])
+@router.post("/check-logo/batch/", response_model=List[LogoDetectionResponse])
 @limiter.limit("20/minute")
 async def check_logo_batch(
     request: Request,
@@ -83,7 +85,7 @@ async def check_logo_batch(
         
         csv_path = metadata["csv_path"]
         csv_file = open(csv_path, 'a', newline='')
-        csv_writer = csv.DictWriter(csv_file, fieldnames=['Image_Path_or_URL', 'Is_Valid', 'Error'])
+        csv_writer = csv.DictWriter(csv_file, fieldnames=['Image_Path_or_URL', 'Is_Valid', 'Confidence', 'Detected_By', 'Bounding_Box', 'Error'])
     else:
         csv_file = None
         csv_writer = None
@@ -101,17 +103,13 @@ async def check_logo_batch(
                         file.file.seek(0)  # Reset original file pointer
 
                     # Process the file
-                    result = process_single_path(temp_file_path)
-                    result["Image_Path_or_URL"] = file.filename  # Use original filename
+                    result = check_logo(temp_file_path)
+                    result["Image_Path_or_URL"] = file.filename
                     results.append(result)
 
                     # Append result to batch CSV if batch_id is given
                     if batch_id and csv_writer:
-                        csv_writer.writerow({
-                            'Image_Path_or_URL': result['Image_Path_or_URL'],
-                            'Is_Valid': result['Is_Valid'],
-                            'Error': result.get('Error', '')
-                        })
+                        csv_writer.writerow(result)
 
                     # Update counts
                     if result["Is_Valid"] == "Valid":
@@ -128,6 +126,9 @@ async def check_logo_batch(
                     results.append({
                         "Image_Path_or_URL": file.filename,
                         "Is_Valid": "Invalid",
+                        "Confidence": None,
+                        "Detected_By": None,
+                        "Bounding_Box": None,
                         "Error": f"Error processing file: {str(e)}"
                     })
                     invalid_count += 1
@@ -137,15 +138,11 @@ async def check_logo_batch(
             image_paths = [p.strip() for p in paths.split(";") if p.strip()]
             for path in tqdm(image_paths, desc="Processing image paths"):
                 try:
-                    result = process_single_path(path)
+                    result = check_logo(path)
                     results.append(result)
                     # Append result to batch CSV if batch_id is given
                     if batch_id and csv_writer:
-                        csv_writer.writerow({
-                            'Image_Path_or_URL': result['Image_Path_or_URL'],
-                            'Is_Valid': result['Is_Valid'],
-                            'Error': result.get('Error', '')
-                        })
+                        csv_writer.writerow(result)
 
                     if result["Is_Valid"] == "Valid":
                         valid_count += 1
@@ -156,6 +153,9 @@ async def check_logo_batch(
                     results.append({
                         "Image_Path_or_URL": path,
                         "Is_Valid": "Invalid",
+                        "Confidence": None,
+                        "Detected_By": None,
+                        "Bounding_Box": None,
                         "Error": str(e)
                     })
                     invalid_count += 1

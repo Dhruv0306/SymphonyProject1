@@ -122,17 +122,17 @@ def check_logo(image_path):
                 logger.info("Image downloaded and opened successfully\n")
             except Exception as e:
                 logger.error(f"Failed to load image from URL: {str(e)}\n")
-                return {"Image Path/URL": image_path, "Is Valid": "Invalid", "Error": f"Failed to load URL: {str(e)}"}
+                return {"Image_Path_or_URL": image_path, "Is_Valid": "Invalid", "Error": f"Failed to load URL: {str(e)}"}
         else:
             if not os.path.exists(image_path):
                 logger.error(f"Image file not found: {image_path}\n")
-                return {"Image Path/URL": image_path, "Is Valid": "Invalid", "Error": "File not found"}
+                return {"Image_Path_or_URL": image_path, "Is_Valid": "Invalid", "Error": "File not found"}
             try:
                 img = Image.open(image_path).convert("RGB")
                 logger.info("Local image opened successfully\n")
             except Exception as e:
                 logger.error(f"Failed to open local image: {str(e)}\n")
-                return {"Image Path/URL": image_path, "Is Valid": "Invalid", "Error": f"Failed to open image: {str(e)}"}
+                return {"Image_Path_or_URL": image_path, "Is_Valid": "Invalid", "Error": f"Failed to open image: {str(e)}"}
 
         # Add boundary
         img_with_boundary = add_boundary(img)
@@ -149,10 +149,18 @@ def check_logo(image_path):
                         logger.info(f"Detected class: {name}")
                         if name.lower() == 'symphony':
                             logger.info("Valid logo detected, returning early.\n")
+                            box_coords = box.xyxy[0].tolist()
                             return {
-                                "Image Path/URL": image_path,
-                                "Is Valid": "Valid",
-                                "Detected By": Path(model_path).parts[-3]  # Folder name of the model
+                                "Image_Path_or_URL": image_path,
+                                "Is_Valid": "Valid",
+                                "Confidence": float(box.conf[0]),
+                                "Detected_By": Path(model_path).parts[-3],
+                                "Bounding_Box": {
+                                    "x1": int(box_coords[0]),
+                                    "y1": int(box_coords[1]),
+                                    "x2": int(box_coords[2]),
+                                    "y2": int(box_coords[3])
+                                }
                             }
             except Exception as e:
                 logger.error(f"Inference error with model {model_path}: {str(e)}\n")
@@ -160,15 +168,15 @@ def check_logo(image_path):
 
         # If no model detects symphony
         return {
-            "Image Path/URL": image_path,
-            "Is Valid": "Invalid"
+            "Image_Path_or_URL": image_path,
+            "Is_Valid": "Invalid"
         }
 
     except Exception as e:
         logger.error(f"Unexpected error processing image: {str(e)}\n")
         return {
-            "Image Path/URL": image_path,
-            "Is Valid": "Invalid",
+            "Image_Path_or_URL": image_path,
+            "Is_Valid": "Invalid",
             "Error": f"Unexpected error: {str(e)}"
         }
 
