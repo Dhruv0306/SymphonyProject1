@@ -76,9 +76,7 @@ This application provides an enterprise-grade solution for detecting Symphony lo
 graph TD
     subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style Z fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         A["Web Interface"] -->|"HTTP/REST"| B["FastAPI Backend"]
-        Z["CLI Client"] -->|"HTTP/REST"| B
     end
 
     subgraph "Application Layer"
@@ -89,7 +87,7 @@ graph TD
         style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style X fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         B -->|"Request Handling"| C["Request Router"]
-        C -->|"Authentication"| D["Auth Middleware"]
+        C -->|"Rate Limiting"| D["SlowAPI Limiter"]
         D -->|"Validation"| E["Input Validator"]
         E -->|"Processing"| F["Image Processor"]
         C -->|"Batch Operations"| X["Batch Manager"]
@@ -110,11 +108,9 @@ graph TD
 
     subgraph "Storage Layer" 
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style M fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style N fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         F -->|"Save"| K["Temporary Storage"]
-        J -->|"Cache"| L["Redis Cache"]
         B -->|"Logs"| M["Log Files"]
         X -->|"State"| N["Batch State Store"]
     end
@@ -168,43 +164,50 @@ graph LR
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style A4 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         A1[Upload Component] -->|"Files"| B1[API Client]
         A2[URL Input] -->|"URLs"| B1
         A3[Batch Manager] -->|"Batch ID"| B1
+        A4[Progress Tracker] -->|"Status"| B1
     end
 
     subgraph "API Layer"
         style B1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style B2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style B3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style B4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         B1 -->|"Request"| B2[FastAPI Routes]
-        B2 -->|"Process"| B3[Response Handler]
+        B2 -->|"Rate Limit"| B3[Request Handler]
+        B3 -->|"Process"| B4[YOLO Models]
     end
 
     subgraph "State Management"
         style C1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style C2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style C3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         B3 -->|"Update"| C1[UI State]
         C1 -->|"Reflect"| C2[Progress Bar]
+        C1 -->|"Update"| C3[Batch Status]
     end
 
     subgraph "User Feedback"
         style D1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style D3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         C1 -->|"Show"| D1[Status Messages]
         C1 -->|"Display"| D2[Results Grid]
+        C1 -->|"Export"| D3[CSV Download]
     end
 ```
 
 ### Model Fallback Logic Flow
-*Example with 2 YOLOv8s models and 3 YOLOv11s models in parallel*
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
     subgraph "Initial Processing"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A[Image Input] -->|"Process"| B[Primary Model YOLOv8s #1]
+        A[Image Input] -->|"Process"| B[YOLOv8s Model #1]
     end
 
     subgraph "Confidence Check"
@@ -214,24 +217,29 @@ graph TD
         C -->|"Yes"| D[Return Result]
     end
 
-    subgraph "First Fallback"
+    subgraph "Model Cascade"
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"No"| E[YOLOv8s #2]
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"No"| E[YOLOv8s Model #2]
         E -->|"Check"| F{Confidence > 0.35?}
+        F -->|"No"| G[YOLOv8s Model #3]
+        G -->|"Check"| H{Confidence > 0.35?}
+        H -->|"No"| I[YOLOv11s Models]
     end
 
-    subgraph "Advanced Models"
-        style G fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        F -->|"No"| G[YOLOv11s Models]
-        G -->|"Parallel"| H[Ensemble Processing]
-        H -->|"Aggregate"| I[Final Decision]
+    subgraph "Final Processing"
+        style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        I -->|"Parallel"| J[Ensemble Processing]
+        J -->|"Aggregate"| K[Final Decision]
     end
 
     F -->|"Yes"| D
-    I -->|"Result"| D
+    H -->|"Yes"| D
+    K -->|"Result"| D
 ```
 
 ### Batch Processing Pipeline
@@ -498,8 +506,8 @@ sequenceDiagram
 - React 19.1.0
 - Material-UI 7.1.0
 - Axios for API calls
-- React Dropzone
-- Cross-env for environment management
+- React Dropzone 14.3.8
+- Cross-env 7.0.3 for environment management
 - Jest for testing
 - ESLint for code quality
 
@@ -507,7 +515,7 @@ sequenceDiagram
 - 5 specialized YOLO models
   - 2x YOLOv8s instances
   - 3x YOLOv11s instances
-- Custom confidence thresholds
+- Custom confidence thresholds (0.35)
 - Model ensemble approach
 - Optimized inference pipeline
 - GPU acceleration support
@@ -543,6 +551,11 @@ source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 ```
 
+4. Create necessary directories:
+```bash
+mkdir -p temp_uploads data
+```
+
 ### Frontend Setup
 
 1. Navigate to the frontend directory:
@@ -555,59 +568,13 @@ cd frontend
 npm install
 ```
 
-3. Start the frontend with a custom backend URL:
+3. Configure the backend URL:
 ```bash
 # Using npm start-backend script with custom backend
 npm run start-backend -- --backend=http://your-backend-url:8000
 
 # Or using default backend (http://localhost:8000)
 npm run start-backend
-```
-
-### Frontend Configuration Files
-
-#### 1. set-backend.js
-This file manages the backend URL configuration and React development server settings.
-
-```javascript
-// Key Features:
-// - Dynamic backend URL configuration
-// - Custom frontend port configuration
-// - Network access configuration
-// - Cross-environment variable handling
-
-// Usage:
-npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000 --host=0.0.0.0
-
-// Parameters:
-// --backend=<url>  : Set custom backend URL (default: http://localhost:8000)
-// --port=<port>    : Set custom frontend port (default: 3000)
-// --host=<host>    : Set custom host IP (default: localhost)
-```
-
-#### 2. imageChunker.js
-This utility module handles large batches of images with efficient processing and progress tracking.
-
-```javascript
-// Key Features:
-// - Splits large image batches into manageable chunks
-// - Provides precise progress tracking
-// - Handles time estimation and formatting
-// - Manages sequential processing with error handling
-
-// Core Functions:
-// - chunkImages(images, chunkSize): Splits image arrays into chunks
-// - processImageChunks(chunks, processChunk, onProgress): Processes chunks with progress tracking
-// - formatTime(milliseconds): Formats time durations
-// - calculateTimeRemaining(processed, total, elapsed): Estimates remaining time
-
-// Usage Example:
-const chunks = chunkImages(imageArray, 10);
-await processImageChunks(chunks, async (chunk) => {
-    // Process each chunk
-}, (progress) => {
-    // Handle progress updates
-});
 ```
 
 ## Configuration
@@ -637,16 +604,91 @@ LOG_LEVEL=INFO
 LOG_ROTATION=10MB
 ```
 
+### Frontend Configuration
+
+The frontend configuration is managed through environment variables and the `set-backend.js` script:
+
+```javascript
+// set-backend.js usage:
+npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000 --host=0.0.0.0
+
+// Parameters:
+// --backend=<url>  : Set custom backend URL (default: http://localhost:8000)
+// --port=<port>    : Set custom frontend port (default: 3000)
+// --host=<host>    : Set custom host IP (default: localhost)
+```
+
+### Model Configuration
+
+The YOLO models are configured in `detect_logo.py`:
+
+```python
+MODEL_PATHS = [
+    'runs/detect/yolov8s_logo_detection/weights/best.pt',    # YOLOv8s model trained on logo dataset
+    'runs/detect/yolov8s_logo_detection2/weights/best.pt',   # Second iteration with additional data
+    'runs/detect/yolov8s_logo_detection3/weights/best.pt',   # Third iteration with refined data
+    'runs/detect/yolov11s_logo_detection/weights/best.pt',   # YOLOv11s model for comparison
+    'runs/detect/yolov11s3_logo_detection/weights/best.pt'   # YOLOv11s with optimized parameters
+]
+
+CONFIDENCE_THRESHOLD = 0.35  # Minimum confidence threshold for logo detection
+```
+
 ## Running the Application
 
 1. Start the FastAPI backend:
 ```bash
+# From the project root directory
 uvicorn App:app --reload --host 0.0.0.0 --port 8000
 ```
 
-2. Access the application:
+2. Start the React frontend:
+```bash
+# From the frontend directory
+npm run start-backend
+```
+
+3. Access the application:
+- Web Interface: http://localhost:3000
 - API Documentation: http://localhost:8000/docs
 - Alternative API docs: http://localhost:8000/redoc
+
+### Development Mode
+
+For development, you can run both the backend and frontend with hot-reloading:
+
+1. Backend (with auto-reload):
+```bash
+uvicorn App:app --reload --host 0.0.0.0 --port 8000
+```
+
+2. Frontend (with custom backend URL):
+```bash
+cd frontend
+npm run start-backend -- --backend=http://localhost:8000 --port=3000
+```
+
+### Production Mode
+
+For production deployment:
+
+1. Build the frontend:
+```bash
+cd frontend
+npm run build
+```
+
+2. Run the backend with production settings:
+```bash
+uvicorn App:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+### Health Checks
+
+The application provides health check endpoints:
+
+- Backend health: http://localhost:8000/health
+- Metrics: http://localhost:8000/metrics
 
 ## API Documentation
 
@@ -673,12 +715,18 @@ Parameters:
 - file: Image file (required if image_path not provided)
 - image_path: Image URL (required if file not provided)
 
-Note: Either file or image_path must be provided
-
 Response:
 {
     "Image_Path_or_URL": string,
-    "Is_Valid": boolean,
+    "Is_Valid": "Valid" | "Invalid",
+    "Confidence": float | null,
+    "Detected_By": string | null,
+    "Bounding_Box": {
+        "x1": int,
+        "y1": int,
+        "x2": int,
+        "y2": int
+    } | null,
     "Error": string | null
 }
 ```
@@ -691,18 +739,25 @@ Content-Type: multipart/form-data
 Parameters:
 - batch_id: UUID for batch tracking (required)
 - files: Array of image files (required if paths not provided)
-- paths: Semicolon-separated URLs (required if files not provided)
-
-Note: Either files or paths must be provided along with batch_id
+- paths: Array of image URLs (required if files not provided)
 
 Response:
-[
-    {
-        "Image_Path_or_URL": string,
-        "Is_Valid": boolean,
-        "Error": string | null
-    }
-]
+{
+    "batch_id": string,
+    "total_processed": int,
+    "valid_count": int,
+    "invalid_count": int,
+    "results": [
+        {
+            "Image_Path_or_URL": string,
+            "Is_Valid": "Valid" | "Invalid",
+            "Confidence": float | null,
+            "Detected_By": string | null,
+            "Bounding_Box": object | null,
+            "Error": string | null
+        }
+    ]
+}
 ```
 
 #### 2. Utility Endpoints
@@ -718,7 +773,7 @@ Response: CSV file
 
 ##### Get Batch Status
 ```http
-GET /check-logo/batch/getCount
+GET /api/check-logo/batch/getCount
 Parameters:
 - batch_id: string (required)
 
@@ -734,8 +789,33 @@ Response:
 
 ```http
 GET /health
+Response: Health status of the application
+
 GET /metrics
+Response: Prometheus-formatted metrics
 ```
+
+### Rate Limiting
+
+The API implements rate limiting:
+- Single image endpoint: 100 requests per minute
+- Batch processing endpoint: 20 requests per minute
+
+### Error Responses
+
+All endpoints follow a consistent error response format:
+
+```json
+{
+    "detail": "Error message describing what went wrong"
+}
+```
+
+Common HTTP status codes:
+- 200: Success
+- 400: Bad Request (invalid input)
+- 429: Too Many Requests (rate limit exceeded)
+- 500: Internal Server Error
 
 ## Security
 

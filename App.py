@@ -17,6 +17,7 @@ from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup
 from routers import single, batch, export
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
+import asyncio
 
 # Setup logging
 logger = setup_logging()
@@ -27,9 +28,6 @@ app = FastAPI(
     description="API service for detecting Symphony logos in images using YOLO models",
     version="1.0.0"
 )
-
-# Initialize scheduler
-scheduler = AsyncIOScheduler()
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -75,14 +73,14 @@ async def startup_event():
 
         # Initialize and start the scheduler
         print("Initializing scheduler...")
-        scheduler = AsyncIOScheduler()
+        app.state.scheduler = AsyncIOScheduler()
         
         # Add cleanup jobs
-        scheduler.add_job(cleanup_old_batches, 'interval', hours=1, args=[24])
-        scheduler.add_job(cleanup_temp_uploads, 'interval', minutes=30, args=[30])
+        app.state.scheduler.add_job(cleanup_old_batches, 'interval', hours=1, args=[24])
+        app.state.scheduler.add_job(cleanup_temp_uploads, 'interval', minutes=30, args=[30])
         
         # Start the scheduler
-        scheduler.start()
+        app.state.scheduler.start()
         print("Scheduler started successfully")
         logger.info("Scheduler started successfully")
         
@@ -95,11 +93,17 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup resources on application shutdown"""
-    print("\n[DEBUG] Starting application shutdown...")
-    scheduler.shutdown()
-    print("[DEBUG] Cleanup scheduler stopped")
-    logger.info("Cleanup scheduler stopped")
-    print("[DEBUG] Application shutdown complete")
+    try:
+        print("\n[DEBUG] Starting application shutdown...")
+        if hasattr(app.state, 'scheduler'):
+            app.state.scheduler.shutdown()
+            print("[DEBUG] Cleanup scheduler stopped")
+            logger.info("Cleanup scheduler stopped")
+        print("[DEBUG] Application shutdown complete")
+    except Exception as e:
+        error_msg = f"Error during shutdown: {str(e)}"
+        print(error_msg)
+        logger.error(error_msg)
 
 async def cleanup_task():
     """Run both cleanup operations and log results"""
