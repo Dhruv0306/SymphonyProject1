@@ -57,31 +57,57 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize application resources and start scheduled tasks"""
-    # Create upload directory
-    create_upload_dir()
-    
-    # Schedule cleanup tasks
-    scheduler.add_job(
-        cleanup_task,
-        'interval',
-        hours=1,
-        id='cleanup_task',
-        name='Cleanup old batches and temporary files'
-    )
-    scheduler.start()
-    logger.info("Cleanup scheduler started")
+    try:
+        print("\nStarting application initialization...")
+        
+        # Create upload directory
+        print("Creating upload directory...")
+        create_upload_dir()
+        
+        # Perform initial cleanup on startup
+        print("Starting initial cleanup process...")
+        logger.info("Performing initial cleanup on startup...")
+        batch_cleaned = cleanup_old_batches(max_age_hours=24)
+        temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
+        log_cleanup_stats(batch_cleaned, temp_cleaned)
+        print(f"Initial cleanup summary: {batch_cleaned} batches and {temp_cleaned} temp files removed")
+        logger.info(f"Initial cleanup completed: {batch_cleaned} batches and {temp_cleaned} temp files removed")
+
+        # Initialize and start the scheduler
+        print("Initializing scheduler...")
+        scheduler = AsyncIOScheduler()
+        
+        # Add cleanup jobs
+        scheduler.add_job(cleanup_old_batches, 'interval', hours=1, args=[24])
+        scheduler.add_job(cleanup_temp_uploads, 'interval', minutes=30, args=[30])
+        
+        # Start the scheduler
+        scheduler.start()
+        print("Scheduler started successfully")
+        logger.info("Scheduler started successfully")
+        
+    except Exception as e:
+        error_msg = f"Error during startup: {str(e)}"
+        print(error_msg)
+        logger.error(error_msg)
+        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup resources on application shutdown"""
+    print("\n[DEBUG] Starting application shutdown...")
     scheduler.shutdown()
+    print("[DEBUG] Cleanup scheduler stopped")
     logger.info("Cleanup scheduler stopped")
+    print("[DEBUG] Application shutdown complete")
 
 async def cleanup_task():
     """Run both cleanup operations and log results"""
+    print("\n[DEBUG] Running scheduled cleanup task...")
     batch_cleaned = cleanup_old_batches(max_age_hours=24)
     temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
     log_cleanup_stats(batch_cleaned, temp_cleaned)
+    print("[DEBUG] Scheduled cleanup task complete")
 
 # Global batch tracking
 
