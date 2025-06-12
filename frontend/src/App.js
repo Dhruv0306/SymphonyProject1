@@ -189,6 +189,18 @@ function App() {
     const processStartTime = Date.now();
 
     try {
+      let newBatchId = null;
+      
+      if (mode === 'batch') {
+        newBatchId = await handleStartBatch();
+        if (!newBatchId) {
+          setError('Failed to start batch process');
+          setLoading(false);
+          return;
+        }
+        setBatchId(newBatchId);
+      }
+
       if (mode === 'single') {
         let response;
         if (inputMethod === 'upload') {
@@ -217,7 +229,6 @@ function App() {
       } else {
         // Batch processing
         if (inputMethod === 'upload') {
-          // Always use chunking with the selected batch size
           const chunks = chunkImages(files, batchSize);
           
           const processChunk = async (chunk) => {
@@ -225,8 +236,8 @@ function App() {
             chunk.forEach(file => {
               formData.append('files', file);
             });
-            if (batchId) {
-              formData.append('batch_id', batchId);
+            if (newBatchId) {
+              formData.append('batch_id', newBatchId);
             }
 
             const response = await axios.post(
@@ -238,7 +249,7 @@ function App() {
                 },
               }
             );
-            return response.data;
+            return response.data.results || [];
           };
 
           const allResults = await processImageChunks(
@@ -267,25 +278,24 @@ function App() {
         } else {
           // For batch URL input
           const urls = batchUrls.split('\n').filter(url => url.trim());
-          // Always use chunking with the selected batch size
           const chunks = chunkImages(urls, batchSize);
           
           const processChunk = async (chunk) => {
-            const formData = new FormData();
-            formData.append('paths', chunk.join(';'));
-            if (batchId) {
-              formData.append('batch_id', batchId);
-            }
+            const data = {
+              image_paths: chunk,
+              batch_id: newBatchId
+            };
+            
             const response = await axios.post(
               `${API_BASE_URL}/api/check-logo/batch/`,
-              formData,
+              data,
               {
                 headers: {
-                  'Content-Type': 'multipart/form-data',
+                  'Content-Type': 'application/json',
                 },
               }
             );
-            return response.data;
+            return response.data.results || [];
           };
 
           const allResults = await processImageChunks(
@@ -421,7 +431,7 @@ function App() {
               >
                 <Grid container spacing={2}>
                   {previews.map((preview, index) => (
-                    <Grid item xs={6} sm={4} md={3} key={index}>
+                    <Grid xs={6} sm={4} md={3} key={index}>
                       <Paper
                         elevation={1}
                         sx={{
@@ -1052,7 +1062,7 @@ function App() {
           Processing Summary
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
                 Total Images
@@ -1062,7 +1072,7 @@ function App() {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
                 Total Time
@@ -1075,7 +1085,7 @@ function App() {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
                 Success Rate
@@ -1088,7 +1098,7 @@ function App() {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid xs={12} sm={6} md={3}>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
                 Avg. Time per Image
@@ -1216,7 +1226,7 @@ function App() {
               }}>
                 <Grid container spacing={2}>
                   {results.map((result, index) => (
-                    <Grid item xs={12} sm={6} md={4} key={index}>
+                    <Grid xs={12} sm={6} md={4} key={index}>
                       <Paper
                         sx={{
                           p: 2,
@@ -1309,10 +1319,11 @@ function App() {
     try {
       const response = await axios.post(`${API_BASE_URL}/api/start-batch`);
       setBatchId(response.data.batch_id);
-      alert(`Batch started! Batch ID: ${response.data.batch_id}`);
+      return response.data.batch_id;
     } catch (error) {
       console.error('Error starting batch:', error);
-      alert('Failed to start batch.');
+      setError(error.response?.data?.detail || 'Error starting batch process');
+      return null;
     }
   };
 
