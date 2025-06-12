@@ -1,36 +1,36 @@
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "Client Authentication"
+    subgraph "Request Processing"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A[Client Request] -->|"API Key"| B[API Gateway]
-        B -->|"Validate"| C[Auth Service]
+        A[Client Request] -->|"HTTP/REST"| B[FastAPI Gateway]
     end
 
     subgraph "Security Layers"
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Check"| D[Rate Limiter]
-        D -->|"Verify"| E[CORS Filter]
-        E -->|"Scan"| F[Input Validator]
-        F -->|"Process"| G[Request Handler]
+        B -->|"Check"| C[SlowAPI Rate Limiter]
+        C -->|"100/min single"| D[Single Image Endpoint]
+        C -->|"20/min batch"| E[Batch Processing Endpoint]
+        C -->|"Verify"| F[CORS Filter]
     end
 
-    subgraph "Protection Measures"
+    subgraph "Validation Layer"
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style J fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        G -->|"Apply"| H[XSS Protection]
-        G -->|"Verify"| I[CSRF Token]
-        G -->|"Check"| J[Resource Limits]
+        F -->|"Validate"| G[Input Validator]
+        G -->|"Check"| H[File Type Filter]
+        G -->|"Verify"| I[Size Limits]
     end
 
     subgraph "Monitoring & Logging"
+        style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        H & I & J -->|"Log"| K[Security Logs]
-        K -->|"Alert"| L[Security Monitor]
+        D & E -->|"Log"| J[Request Logs]
+        H & I -->|"Log"| K[Validation Logs]
+        J & K -->|"Monitor"| L[Health Metrics]
     end 

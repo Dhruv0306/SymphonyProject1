@@ -1,38 +1,41 @@
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as Client
-    participant A as API
+    participant A as API Gateway
     participant B as Batch Manager
     participant D as Data Processor
     participant S as Storage
-    participant E as Exporter
+    participant E as CSV Exporter
 
     rect rgba(40, 100, 160, 0.4)
-        C->>A: Request CSV Export
+        C->>A: Request CSV Export (with Batch ID)
         A->>B: Validate Batch ID
         B->>D: Fetch Batch Results
     end
 
     rect rgba(30, 90, 50, 0.4)
-        D->>S: Get Cached Results
-        S-->>D: Return Results
-        D->>E: Format Data
+        D->>S: Get Results from Data Store
+        S-->>D: Return Batch Data
+        D->>E: Process Results
     end
 
     rect rgba(90, 50, 100, 0.4)
         E->>E: Generate Headers
-        E->>E: Format Rows
+        Note right of E: Image Path, Validation Result
+        E->>E: Format Results
+        Note right of E: Add Confidence Scores
         E->>E: Add Metadata
+        Note right of E: Batch ID, Timestamp
     end
 
     rect rgba(120, 40, 50, 0.4)
         E->>S: Save CSV File
-        S-->>A: Return File Path
-        A-->>C: Download Link
+        S-->>A: Return File Location
+        A-->>C: Download CSV
     end
 
     rect rgba(60, 80, 110, 0.4)
-        Note over S: Auto-cleanup after 24h
-        Note over C: Secure Download
-        Note over E: Include Batch Details
+        Note over S: Cleanup Temporary Files
+        Note over C: Rate Limited (20/minute)
+        Note over E: Include Model Details
     end 

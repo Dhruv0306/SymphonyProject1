@@ -23,11 +23,11 @@
                 <li><a href="#getting-started" class="active"><i class="fas fa-rocket"></i> Quick Start</a></li>
                 <li><a href="#features"><i class="fas fa-star"></i> Key Features</a></li>
                 <li><a href="#models"><i class="fas fa-brain"></i> Detection Models</a></li>
+                <li><a href="#rate-limits"><i class="fas fa-tachometer-alt"></i> Rate Limits</a></li>
                 <li><a href="#single-image"><i class="fas fa-image"></i> Single Image Detection</a></li>
                 <li><a href="#batch-processing"><i class="fas fa-images"></i> Batch Processing</a></li>
                 <li><a href="#api-integration"><i class="fas fa-code"></i> API Integration</a></li>
                 <li><a href="#troubleshooting"><i class="fas fa-wrench"></i> Troubleshooting</a></li>
-                <li><a href="#support"><i class="fas fa-headset"></i> Enterprise Support</a></li>
             </ul>
         </nav>
 
@@ -48,11 +48,11 @@
                 <div class="card overview">
                     <h3>Enterprise Features</h3>
                     <ul>
-                        <li>Advanced multi-model logo detection</li>
-                        <li>High-performance batch processing</li>
-                        <li>Enterprise-grade security</li>
-                        <li>Comprehensive API integration</li>
-                        <li>Detailed performance metrics</li>
+                        <li>Cascading model architecture with 0.35 confidence threshold</li>
+                        <li>Rate-limited API endpoints for optimal performance</li>
+                        <li>Comprehensive batch processing system</li>
+                        <li>Detailed CSV export with model insights</li>
+                        <li>Real-time monitoring and metrics</li>
                     </ul>
                 </div>
 
@@ -61,7 +61,7 @@
                     <ul>
                         <li>Python 3.7 or higher</li>
                         <li>CUDA-compatible GPU (recommended)</li>
-                        <li>2GB+ RAM</li>
+                        <li>4GB+ RAM</li>
                         <li>Active internet connection</li>
                     </ul>
                 </div>
@@ -73,73 +73,73 @@
                 
                 <!-- Multi-Model Detection -->
                 <div class="card feature-card">
-                    <h3><i class="fas fa-brain"></i> Advanced Multi-Model Detection</h3>
+                    <h3><i class="fas fa-brain"></i> Cascading Model Architecture</h3>
                     <div class="feature-content">
                         <ul>
                             <li>
-                                <strong>5 Specialized YOLO Models:</strong>
+                                <strong>Progressive Detection:</strong>
                                 <ul>
-                                    <li>3 YOLOv8s variants optimized for logo detection</li>
-                                    <li>2 YOLOv11s models for enhanced accuracy</li>
-                                    <li>Model ensemble approach for improved reliability</li>
+                                    <li>Primary YOLOv8s model for fast detection</li>
+                                    <li>Secondary and tertiary YOLOv8s models for verification</li>
+                                    <li>YOLOv11s ensemble for complex cases</li>
                                 </ul>
                             </li>
                             <li>
-                                <strong>Optimized Detection Pipeline:</strong>
+                                <strong>Confidence Thresholds:</strong>
                                 <ul>
-                                    <li>0.35 confidence threshold for high accuracy</li>
-                                    <li>Early detection return for faster processing</li>
-                                    <li>Automatic model fallback mechanism</li>
+                                    <li>0.35 confidence threshold for validation</li>
+                                    <li>Automatic model progression</li>
+                                    <li>Ensemble processing for difficult cases</li>
                                 </ul>
                             </li>
                         </ul>
                     </div>
                 </div>
 
-                <!-- Processing Capabilities -->
+                <!-- Rate Limiting -->
                 <div class="card feature-card">
-                    <h3><i class="fas fa-cogs"></i> Processing Capabilities</h3>
+                    <h3><i class="fas fa-tachometer-alt"></i> Rate Limiting</h3>
                     <div class="feature-content">
                         <ul>
                             <li>
-                                <strong>Flexible Input Handling:</strong>
+                                <strong>Endpoint Limits:</strong>
                                 <ul>
-                                    <li>Direct file uploads (JPEG, PNG)</li>
-                                    <li>URL-based image processing</li>
-                                    <li>Batch processing support</li>
+                                    <li>Single image: 100 requests/minute</li>
+                                    <li>Batch processing: 20 requests/minute</li>
+                                    <li>CSV export: 20 requests/minute</li>
                                 </ul>
                             </li>
                             <li>
-                                <strong>Performance Optimization:</strong>
+                                <strong>Rate Monitoring:</strong>
                                 <ul>
-                                    <li>Concurrent batch processing</li>
-                                    <li>Automatic resource management</li>
-                                    <li>Memory-efficient processing</li>
+                                    <li>Real-time limit tracking</li>
+                                    <li>Remaining requests display</li>
+                                    <li>Reset time indicators</li>
                                 </ul>
                             </li>
                         </ul>
                     </div>
                 </div>
 
-                <!-- Enterprise Security -->
+                <!-- Security Features -->
                 <div class="card feature-card">
-                    <h3><i class="fas fa-shield-alt"></i> Enterprise Security</h3>
+                    <h3><i class="fas fa-shield-alt"></i> Security Features</h3>
                     <div class="feature-content">
                         <ul>
                             <li>
-                                <strong>Data Protection:</strong>
+                                <strong>Input Validation:</strong>
                                 <ul>
-                                    <li>Secure file handling</li>
-                                    <li>Automatic file cleanup</li>
-                                    <li>Input validation and sanitization</li>
+                                    <li>File type filtering</li>
+                                    <li>Size limit enforcement</li>
+                                    <li>Content validation</li>
                                 </ul>
                             </li>
                             <li>
-                                <strong>Access Control:</strong>
+                                <strong>Protection Measures:</strong>
                                 <ul>
                                     <li>CORS protection</li>
-                                    <li>Rate limiting</li>
-                                    <li>API authentication</li>
+                                    <li>Request validation</li>
+                                    <li>Resource limits</li>
                                 </ul>
                             </li>
                         </ul>
@@ -155,22 +155,65 @@
                     <div class="model-grid">
                         <div class="model">
                             <i class="fas fa-microchip"></i>
-                            <h4>YOLOv8s Models</h4>
-                            <p>Three specialized variants for precise logo detection</p>
+                            <h4>Primary Detection</h4>
+                            <p>YOLOv8s #1 for initial fast detection</p>
+                        </div>
+                        <div class="model">
+                            <i class="fas fa-microchip"></i>
+                            <h4>Secondary Detection</h4>
+                            <p>YOLOv8s #2 for verification</p>
+                        </div>
+                        <div class="model">
+                            <i class="fas fa-microchip"></i>
+                            <h4>Tertiary Detection</h4>
+                            <p>YOLOv8s #3 for complex cases</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-brain"></i>
-                            <h4>YOLOv11s Models</h4>
-                            <p>Two advanced models for enhanced accuracy</p>
+                            <h4>Final Detection</h4>
+                            <p>YOLOv11s ensemble processing</p>
                         </div>
                     </div>
                     <div class="model-features">
-                        <h4>Key Capabilities</h4>
+                        <h4>Detection Flow</h4>
                         <ul>
-                            <li>Confidence threshold: 0.35</li>
-                            <li>Early detection return</li>
-                            <li>Model ensemble approach</li>
-                            <li>Optimized inference pipeline</li>
+                            <li>Start with YOLOv8s #1</li>
+                            <li>If confidence < 0.35, try YOLOv8s #2</li>
+                            <li>If still < 0.35, use YOLOv8s #3</li>
+                            <li>For difficult cases, use YOLOv11s ensemble</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rate Limits Section -->
+            <section id="rate-limits" class="content-section">
+                <h2>Rate Limits</h2>
+                <div class="card rate-limits">
+                    <h3>Endpoint Limits</h3>
+                    <div class="limit-grid">
+                        <div class="limit">
+                            <i class="fas fa-image"></i>
+                            <h4>Single Image</h4>
+                            <p>100 requests per minute</p>
+                        </div>
+                        <div class="limit">
+                            <i class="fas fa-images"></i>
+                            <h4>Batch Processing</h4>
+                            <p>20 requests per minute</p>
+                        </div>
+                        <div class="limit">
+                            <i class="fas fa-file-csv"></i>
+                            <h4>CSV Export</h4>
+                            <p>20 requests per minute</p>
+                        </div>
+                    </div>
+                    <div class="limit-info">
+                        <h4>Rate Limit Headers</h4>
+                        <ul>
+                            <li>X-RateLimit-Limit: Maximum requests allowed</li>
+                            <li>X-RateLimit-Remaining: Requests remaining</li>
+                            <li>X-RateLimit-Reset: Time until limit reset</li>
                         </ul>
                     </div>
                 </div>
@@ -184,23 +227,23 @@
                     <div class="workflow-steps">
                         <div class="step">
                             <span class="step-number">1</span>
-                            <h4>Select Mode</h4>
-                            <p>Choose "Single" mode from the radio buttons</p>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">2</span>
-                            <h4>Choose Method</h4>
-                            <p>Select "Upload" or "URL" input method</p>
-                        </div>
-                        <div class="step">
-                            <span class="step-number">3</span>
                             <h4>Input Image</h4>
                             <p>Upload file or enter URL</p>
                         </div>
                         <div class="step">
+                            <span class="step-number">2</span>
+                            <h4>Validation</h4>
+                            <p>File type and size check</p>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <h4>Processing</h4>
+                            <p>Model cascade detection</p>
+                        </div>
+                        <div class="step">
                             <span class="step-number">4</span>
-                            <h4>Process</h4>
-                            <p>Click "Detect Logo" button</p>
+                            <h4>Results</h4>
+                            <p>View detection details</p>
                         </div>
                     </div>
                 </div>
@@ -214,34 +257,34 @@
                     <div class="workflow-steps">
                         <div class="step">
                             <span class="step-number">1</span>
-                            <h4>Select Mode</h4>
-                            <p>Choose "Batch" mode from the radio buttons</p>
+                            <h4>Start Batch</h4>
+                            <p>Initialize batch session</p>
                         </div>
                         <div class="step">
                             <span class="step-number">2</span>
-                            <h4>Choose Method</h4>
-                            <p>Select "Upload" for multiple files or "URL" for multiple links</p>
+                            <h4>Upload Images</h4>
+                            <p>Add files to batch</p>
                         </div>
                         <div class="step">
                             <span class="step-number">3</span>
-                            <h4>Input Images</h4>
-                            <p>Upload files or enter URLs (one per line)</p>
+                            <h4>Process</h4>
+                            <p>Run detection pipeline</p>
                         </div>
                         <div class="step">
                             <span class="step-number">4</span>
-                            <h4>Process Batch</h4>
-                            <p>Click "Process Batch" button</p>
+                            <h4>Export</h4>
+                            <p>Download CSV results</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="card batch-tips">
-                    <h3>Batch Processing Tips</h3>
+                    <h3>CSV Export Details</h3>
                     <ul>
-                        <li>Multiple files can be dragged and dropped simultaneously</li>
-                        <li>For URLs, enter each URL on a new line</li>
-                        <li>Progress indicator shows batch processing status</li>
-                        <li>Results are displayed for each image in the batch</li>
+                        <li>Image path and validation result</li>
+                        <li>Confidence scores and model used</li>
+                        <li>Bounding box coordinates</li>
+                        <li>Batch ID and timestamp</li>
                     </ul>
                 </div>
             </section>
@@ -249,232 +292,186 @@
             <!-- API Integration Section -->
             <section id="api-integration" class="content-section">
                 <h2>API Integration</h2>
-
-                <!-- API Overview -->
-                <div class="card api-card">
-                    <h3>RESTful API Endpoints</h3>
-                    <div class="api-endpoint">
-                        <h4>Single Image Validation</h4>
-                        <pre><code>POST /api/check-logo/single/
-Content-Type: multipart/form-data
-
-Parameters:
-- file: Image file (optional)
-- image_path: Image URL (optional)
-
-Response:
-{
-    "Image_Path_or_URL": "string",
-    "Is_Valid": "Valid" | "Invalid",
-    "Error": "string" (optional)
-}</code></pre>
-                    </div>
-
-                    <div class="api-endpoint">
-                        <h4>Batch Processing</h4>
-                        <pre><code>POST /api/check-logo/batch/
-Content-Type: multipart/form-data
-
-Parameters:
-- files: List of image files (optional)
-- paths: Semicolon-separated URLs (optional)
-
-Response:
-[
-    {
-        "Image_Path_or_URL": "string",
-        "Is_Valid": "Valid" | "Invalid",
-        "Error": "string" (optional)
-    }
-]</code></pre>
-                    </div>
-
-                    <div class="api-endpoint">
-                        <h4>Batch Statistics</h4>
-                        <pre><code>GET /check-logo/batch/getCount
-
-Response:
-{
-    "valid": integer,
-    "invalid": integer,
-    "total": integer
-}</code></pre>
-                    </div>
-                </div>
-
-                <!-- Integration Guide -->
-                <div class="card api-card">
-                    <h3>Integration Best Practices</h3>
-                    <div class="best-practices">
-                        <h4>Error Handling</h4>
-                        <ul>
-                            <li>Implement proper error handling for all API responses</li>
-                            <li>Check for network connectivity issues</li>
-                            <li>Handle rate limiting scenarios</li>
-                            <li>Implement proper timeout handling</li>
-                        </ul>
-
-                        <h4>Performance Optimization</h4>
-                        <ul>
-                            <li>Use batch processing for multiple images</li>
-                            <li>Implement proper retry mechanisms</li>
-                            <li>Cache API responses when appropriate</li>
-                            <li>Monitor API usage and response times</li>
-                        </ul>
-
-                        <h4>Security Considerations</h4>
-                        <ul>
-                            <li>Implement secure authentication</li>
-                            <li>Use HTTPS for all API calls</li>
-                            <li>Validate all input before sending</li>
-                            <li>Handle sensitive data appropriately</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Code Examples -->
-                <div class="card api-card">
-                    <h3>Integration Examples</h3>
-                    <div class="code-example">
-                        <h4>Python Example</h4>
-                        <pre><code>import requests
-
-def check_logo(image_path):
-    url = "http://localhost:8000/api/check-logo/single/"
-    
-    # For file upload
-    with open(image_path, 'rb') as f:
-        response = requests.post(
-            url,
-            files={'file': f}
-        )
-    
-    # For URL processing
-    response = requests.post(
-        url,
-        data={'image_path': image_url}
-    )
-    
-    return response.json()</code></pre>
-                    </div>
-
-                    <div class="code-example">
-                        <h4>Batch Processing Example</h4>
-                        <pre><code>def process_batch(image_paths):
-    url = "http://localhost:8000/api/check-logo/batch/"
-    
-    # For multiple URLs
-    paths = ";".join(image_paths)
-    response = requests.post(
-        url,
-        data={'paths': paths}
-    )
-    
-    return response.json()</code></pre>
-                    </div>
+                <div class="card api-overview">
+                    <h3>Key Endpoints</h3>
+                    <ul>
+                        <li>
+                            <strong>Single Image Detection:</strong>
+                            <code>POST /api/check-logo/single/</code>
+                        </li>
+                        <li>
+                            <strong>Start Batch Session:</strong>
+                            <code>POST /api/start-batch</code>
+                        </li>
+                        <li>
+                            <strong>Batch Processing:</strong>
+                            <code>POST /api/check-logo/batch/</code>
+                        </li>
+                        <li>
+                            <strong>CSV Export:</strong>
+                            <code>GET /api/check-logo/batch/export-csv</code>
+                        </li>
+                        <li>
+                            <strong>Batch Statistics:</strong>
+                            <code>GET /api/check-logo/batch/stats</code>
+                        </li>
+                    </ul>
                 </div>
             </section>
 
             <!-- Troubleshooting Section -->
             <section id="troubleshooting" class="content-section">
                 <h2>Troubleshooting</h2>
-                <div class="card common-issues">
-                    <h3>Common Issues</h3>
-                    <div class="issue">
-                        <h4>Connection Error</h4>
-                        <p>If you see "Cannot connect to the server. Please ensure the backend is running.":</p>
-                        <div class="error-example">
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <code>ERR_NETWORK: Cannot connect to the server</code>
-                            </div>
-                            <ul>
-                                <li>Check if the backend server is running at <code>http://localhost:8000</code></li>
-                                <li>Verify your internet connection</li>
-                                <li>Ensure no firewall is blocking the connection</li>
-                            </ul>
+                
+                <!-- Rate Limit Issues -->
+                <div class="card error-card">
+                    <h3><i class="fas fa-tachometer-alt"></i> Rate Limit Issues</h3>
+                    <div class="error-example">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <code>429 Too Many Requests: Rate limit exceeded</code>
                         </div>
-                    </div>
-
-                    <div class="issue">
-                        <h4>File Size Error</h4>
-                        <p>When uploading large files:</p>
-                        <div class="error-example">
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <code>413 Request Entity Too Large: Image file is too large</code>
-                            </div>
+                        <div class="error-details">
+                            <h4>Common Causes:</h4>
                             <ul>
-                                <li>Ensure each file is under 200MB</li>
-                                <li>Compress large images before uploading</li>
-                                <li>For batch processing, check total batch size</li>
+                                <li>Single image endpoint: Exceeded 100 requests/minute</li>
+                                <li>Batch processing: Exceeded 20 requests/minute</li>
+                                <li>CSV export: Exceeded 20 requests/minute</li>
                             </ul>
-                        </div>
-                    </div>
-
-                    <div class="issue">
-                        <h4>File Type Error</h4>
-                        <p>When uploading unsupported files:</p>
-                        <div class="error-example">
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <code>415 Unsupported Media Type: Invalid file type</code>
-                            </div>
+                            <h4>Solutions:</h4>
                             <ul>
-                                <li>Check file extension (must be .jpg, .jpeg, or .png)</li>
-                                <li>Ensure file is not corrupted</li>
-                                <li>Convert images to supported formats</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="issue">
-                        <h4>URL Processing Error</h4>
-                        <p>When using image URLs:</p>
-                        <div class="error-example">
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <code>Invalid or inaccessible image URL</code>
-                            </div>
-                            <ul>
-                                <li>Verify URL points directly to an image file</li>
-                                <li>Check if URL is publicly accessible</li>
-                                <li>Ensure URL is properly encoded</li>
+                                <li>Check X-RateLimit-Reset header for reset time</li>
+                                <li>Implement exponential backoff</li>
+                                <li>Use batch processing instead of multiple single requests</li>
+                                <li>Monitor X-RateLimit-Remaining header</li>
                             </ul>
                         </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Enterprise Support Section -->
-            <section id="support" class="content-section">
-                <h2>Enterprise Support</h2>
-                <div class="card support-options">
-                    <h3>Technical Support</h3>
-                    <div class="support-channels">
-                        <div class="channel">
-                            <i class="fas fa-envelope"></i>
-                            <h4>Email Support</h4>
-                            <p>support@symphony.com</p>
+                <!-- File Validation Issues -->
+                <div class="card error-card">
+                    <h3><i class="fas fa-file-alt"></i> File Validation Issues</h3>
+                    <div class="error-example">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <code>400 Bad Request: Invalid file format or size</code>
                         </div>
-                        <div class="channel">
-                            <i class="fas fa-globe"></i>
-                            <h4>Support Portal</h4>
-                            <p>https://support.symphony.com</p>
-                        </div>
-                        <div class="channel">
-                            <i class="fas fa-phone"></i>
-                            <h4>Enterprise Hotline</h4>
-                            <p>Available 24/7 for enterprise clients</p>
+                        <div class="error-details">
+                            <h4>Common Causes:</h4>
+                            <ul>
+                                <li>Unsupported file type (only JPG, JPEG, PNG allowed)</li>
+                                <li>File size exceeds limit (10MB per file)</li>
+                                <li>Corrupted image file</li>
+                                <li>Empty file upload</li>
+                            </ul>
+                            <h4>Solutions:</h4>
+                            <ul>
+                                <li>Verify file format before upload</li>
+                                <li>Compress large images</li>
+                                <li>Check file integrity</li>
+                                <li>Ensure proper file encoding</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
-            </section>
 
-            <footer class="documentation-footer">
-                <p>Copyright © 2024 Symphony Limited. All rights reserved.</p>
-                <p>For licensing inquiries, please contact legal@symphony.com</p>
-            </footer>
+                <!-- Model Processing Issues -->
+                <div class="card error-card">
+                    <h3><i class="fas fa-brain"></i> Model Processing Issues</h3>
+                    <div class="error-example">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <code>Low Confidence: Model cascade completed without confident detection</code>
+                        </div>
+                        <div class="error-details">
+                            <h4>Common Causes:</h4>
+                            <ul>
+                                <li>Image quality too low</li>
+                                <li>Logo too small or unclear</li>
+                                <li>Complex background interference</li>
+                                <li>Unusual logo orientation</li>
+                            </ul>
+                            <h4>Solutions:</h4>
+                            <ul>
+                                <li>Use higher quality images</li>
+                                <li>Ensure logo is clearly visible</li>
+                                <li>Minimize background noise</li>
+                                <li>Try different image angles</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Processing Issues -->
+                <div class="card error-card">
+                    <h3><i class="fas fa-tasks"></i> Batch Processing Issues</h3>
+                    <div class="error-example">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <code>Batch Processing Error: Invalid batch state or timeout</code>
+                        </div>
+                        <div class="error-details">
+                            <h4>Common Causes:</h4>
+                            <ul>
+                                <li>Invalid batch ID</li>
+                                <li>Batch session expired</li>
+                                <li>Too many files in single batch</li>
+                                <li>Network timeout during processing</li>
+                            </ul>
+                            <h4>Solutions:</h4>
+                            <ul>
+                                <li>Verify batch ID is valid</li>
+                                <li>Process batches within session timeout</li>
+                                <li>Split large batches into smaller ones</li>
+                                <li>Check network stability</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CSV Export Issues -->
+                <div class="card error-card">
+                    <h3><i class="fas fa-file-csv"></i> CSV Export Issues</h3>
+                    <div class="error-example">
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <code>Export Error: Unable to generate or download CSV</code>
+                        </div>
+                        <div class="error-details">
+                            <h4>Common Causes:</h4>
+                            <ul>
+                                <li>Batch processing not complete</li>
+                                <li>Export timeout</li>
+                                <li>Rate limit exceeded</li>
+                                <li>Invalid batch results</li>
+                            </ul>
+                            <h4>Solutions:</h4>
+                            <ul>
+                                <li>Wait for batch completion</li>
+                                <li>Check batch status before export</li>
+                                <li>Monitor rate limits</li>
+                                <li>Verify batch results exist</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Best Practices -->
+                <div class="card best-practices">
+                    <h3><i class="fas fa-check-circle"></i> Error Prevention Best Practices</h3>
+                    <ul>
+                        <li>Monitor rate limits using response headers</li>
+                        <li>Validate files before upload</li>
+                        <li>Implement proper error handling</li>
+                        <li>Use batch processing for multiple files</li>
+                        <li>Keep batch sizes manageable</li>
+                        <li>Download CSV exports promptly</li>
+                        <li>Implement proper retry logic</li>
+                        <li>Log errors for debugging</li>
+                    </ul>
+                </div>
+            </section>
         </main>
     </div>
     <script src="js/main.js"></script>
