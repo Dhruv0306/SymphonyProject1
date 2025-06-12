@@ -13,7 +13,9 @@ from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
 from utils.logger import setup_logging
 from utils.file_ops import create_upload_dir
+from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
 from routers import single, batch, export
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 
 # Setup logging
@@ -25,6 +27,9 @@ app = FastAPI(
     description="API service for detecting Symphony logos in images using YOLO models",
     version="1.0.0"
 )
+
+# Initialize scheduler
+scheduler = AsyncIOScheduler()
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -49,8 +54,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create upload directory on startup
-create_upload_dir()
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application resources and start scheduled tasks"""
+    # Create upload directory
+    create_upload_dir()
+    
+    # Schedule cleanup tasks
+    scheduler.add_job(
+        cleanup_task,
+        'interval',
+        hours=1,
+        id='cleanup_task',
+        name='Cleanup old batches and temporary files'
+    )
+    scheduler.start()
+    logger.info("Cleanup scheduler started")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup resources on application shutdown"""
+    scheduler.shutdown()
+    logger.info("Cleanup scheduler stopped")
+
+async def cleanup_task():
+    """Run both cleanup operations and log results"""
+    batch_cleaned = cleanup_old_batches(max_age_hours=24)
+    temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
+    log_cleanup_stats(batch_cleaned, temp_cleaned)
 
 # Global batch tracking
 
