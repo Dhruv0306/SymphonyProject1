@@ -129,10 +129,10 @@ def test_fallback_on_no_predictions(mock_image_open, mock_add_boundary, mock_loa
     assert result["Is_Valid"] == "Invalid"
     assert "Error" not in result
 
-@patch("detect_logo.load_models")
+@patch("detect_logo.models")
 @patch("detect_logo.add_boundary")
 @patch("PIL.Image.open")
-def test_fallback_chain(mock_image_open, mock_add_boundary, mock_load_models, setup_test_images, mock_image):
+def test_fallback_chain(mock_image_open, mock_add_boundary, mock_models_patch, setup_test_images, mock_image):
     # Mock Image.open to return a test image
     test_img = Image.new('RGB', (100, 100), color='red')
     test_img.convert = MagicMock(return_value=test_img)
@@ -176,7 +176,7 @@ def test_fallback_chain(mock_image_open, mock_add_boundary, mock_load_models, se
     mock_models.append((model5, MODEL_PATHS[4]))
     
     # Set up the mock load_models function
-    mock_load_models.return_value = mock_models
+    mock_models_patch.__iter__.return_value = iter(mock_models)
     
     result = check_logo(setup_test_images)
     logger.debug(f"Final result: {result}")
