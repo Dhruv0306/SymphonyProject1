@@ -73,45 +73,47 @@ curl -X POST "http://localhost:8000/api/check-logo/single/" \
 
 ### 2. Batch Processing
 
-#### Starting a Batch Session
+#### Start Batch
 
 ```http
 POST /api/start-batch
 ```
 
-Initializes a new batch processing session and returns a unique batch ID.
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8000/api/start-batch"
-```
+Start a new batch processing session.
 
 **Response:**
 ```json
 {
   "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-  "rate_limit": {
-    "limit": 20,
-    "remaining": 19,
-    "reset": 60
-  }
+  "message": "Batch processing session started"
 }
 ```
 
-#### Processing Images
+#### Process Batch
 
 ```http
 POST /api/check-logo/batch/
 ```
 
-Process multiple images within a batch session.
+Process multiple images within a batch session. Supports both file uploads and URL processing.
 
-**Content-Type:** `multipart/form-data` or `application/json`
+**Rate Limit:** 20 requests per minute with automatic retry and exponential backoff.
 
-**Parameters:**
-- `files[]`: Array of image files (optional)
-- `urls[]`: Array of image URLs (optional)
-- `batch_id`: UUID from start-batch endpoint (required)
+**Content Types:**
+- `multipart/form-data` for file uploads
+- `application/json` for URL processing
+
+**Parameters for File Upload:**
+- `files[]`: Array of image files
+- `batch_id`: UUID from start-batch endpoint (optional)
+
+**Parameters for URL Processing (JSON):**
+```json
+{
+  "image_paths": ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000"  // optional
+}
+```
 
 **Example (Files with Batch ID):**
 ```bash
@@ -121,10 +123,26 @@ curl -X POST "http://localhost:8000/api/check-logo/batch/" \
   -F "batch_id=550e8400-e29b-41d4-a716-446655440000"
 ```
 
+**Example (URLs with Batch ID):**
+```bash
+curl -X POST "http://localhost:8000/api/check-logo/batch/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_paths": [
+      "https://example.com/logo1.jpg",
+      "https://example.com/logo2.jpg"
+    ],
+    "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+  }'
+```
+
 **Response:**
 ```json
 {
-  "status": "success",
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+  "total_processed": 2,
+  "valid_count": 1,
+  "invalid_count": 1,
   "results": [
     {
       "Image_Path_or_URL": "logo1.jpg",
@@ -147,14 +165,23 @@ curl -X POST "http://localhost:8000/api/check-logo/batch/" \
       "Bounding_Box": null,
       "Error": "No logo detected"
     }
-  ],
-  "rate_limit": {
-    "limit": 20,
-    "remaining": 18,
-    "reset": 60
-  }
+  ]
 }
 ```
+
+**Error Responses:**
+- `400 Bad Request`: Invalid request format or missing required fields
+- `429 Too Many Requests`: Rate limit exceeded (will automatically retry with backoff)
+- `500 Internal Server Error`: Server-side processing error
+
+**Notes:**
+1. The endpoint supports both file uploads and URL processing
+2. Rate limiting is set to 20 requests per minute
+3. Automatic retry with exponential backoff is implemented for rate limit errors
+4. Batch ID is optional but recommended for tracking and resuming operations
+5. Results are stored in CSV format if a batch ID is provided
+6. Both single files/URLs and batches are supported
+7. Progress tracking is available through the batch status endpoint
 
 ### 3. Batch Results Export
 

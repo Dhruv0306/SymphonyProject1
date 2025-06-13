@@ -36,6 +36,25 @@ const symphonyDarkBlue = '#005299';  // Hover/active state
 // Sidebar width for responsive layout
 const SIDEBAR_WIDTH = 280;
 
+// Add retry utility function at the top level
+const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000) => {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error.response?.status === 429 && retries < maxRetries - 1) {
+        retries++;
+        const delay = initialDelay * Math.pow(2, retries - 1);
+        console.log(`Rate limited. Retrying in ${delay}ms... (Attempt ${retries} of ${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+};
+
 /**
  * Main application component handling logo detection functionality
  * @component
@@ -56,15 +75,15 @@ function App() {
   const [progress, setProgress] = useState(null);        // Progress tracking
   const [processSummary, setProcessSummary] = useState(null); // Processing summary
   const [batchId, setBatchId] = useState(null);          // Batch ID for tracking
-  const [batchSize, setBatchSize] = useState(50);        // Default batch size
-  const [displayValue, setDisplayValue] = useState(50);  // Display value for slider
+  const [batchSize, setBatchSize] = useState(10);        // Changed from 50 to 10
+  const [displayValue, setDisplayValue] = useState(10);  // Changed from 50 to 10
 
   // Responsive design hooks
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Add batch size options
-  const batchSizeOptions = [10, 20, 50, 100];
+  // Update the batchSizeOptions array to use smaller sizes
+  const batchSizeOptions = [5, 10, 20, 50];
 
   /**
    * Toggle mobile navigation drawer
@@ -232,24 +251,26 @@ function App() {
           const chunks = chunkImages(files, batchSize);
           
           const processChunk = async (chunk) => {
-            const formData = new FormData();
-            chunk.forEach(file => {
-              formData.append('files', file);
-            });
-            if (newBatchId) {
-              formData.append('batch_id', newBatchId);
-            }
-
-            const response = await axios.post(
-              `${API_BASE_URL}/api/check-logo/batch/`,
-              formData,
-              {
-                headers: {
-                  'Content-Type': 'multipart/form-data',
-                },
+            return await retryWithBackoff(async () => {
+              const formData = new FormData();
+              chunk.forEach(file => {
+                formData.append('files', file);
+              });
+              if (newBatchId) {
+                formData.append('batch_id', newBatchId);
               }
-            );
-            return response.data.results || [];
+
+              const response = await axios.post(
+                `${API_BASE_URL}/api/check-logo/batch/`,
+                formData,
+                {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                }
+              );
+              return response.data.results || [];
+            });
           };
 
           const allResults = await processImageChunks(
@@ -281,21 +302,30 @@ function App() {
           const chunks = chunkImages(urls, batchSize);
           
           const processChunk = async (chunk) => {
-            const data = {
-              image_paths: chunk,
-              batch_id: newBatchId
-            };
-            
-            const response = await axios.post(
-              `${API_BASE_URL}/api/check-logo/batch/`,
-              data,
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+            return await retryWithBackoff(async () => {
+              const data = {
+                image_paths: chunk.map(url => url.trim()),  // Ensure URLs are trimmed
+                batch_id: newBatchId
+              };
+              
+              const response = await axios.post(
+                `${API_BASE_URL}/api/check-logo/batch/`,
+                JSON.stringify(data),  // Explicitly stringify the JSON
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                  },
+                }
+              );
+              
+              if (!response.data || !response.data.results) {
+                console.error('Invalid response format:', response.data);
+                throw new Error('Invalid response format from server');
               }
-            );
-            return response.data.results || [];
+              
+              return response.data.results || [];
+            });
           };
 
           const allResults = await processImageChunks(
@@ -306,7 +336,7 @@ function App() {
             }
           );
 
-          // Add processing summary
+          // Store final processing summary
           const processEndTime = Date.now();
           setProcessSummary({
             totalImages: urls.length,
