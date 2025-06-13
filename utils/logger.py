@@ -1,17 +1,18 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
+
 def setup_logging():
     # Configure rotating file logging
     # Logs are rotated when they reach 10MB, keeping up to 5 backup files
-    LOG_FILE = 'logs.txt'
-    LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    LOG_FILE = "logs.txt"
+    LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
     file_handler = RotatingFileHandler(
         LOG_FILE,
-        maxBytes=10*1024*1024,  # 10MB per file
-        backupCount=5,          # Keep 5 backup files
-        encoding='utf-8'
+        maxBytes=10 * 1024 * 1024,  # 10MB per file
+        backupCount=5,  # Keep 5 backup files
+        encoding="utf-8",
     )
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
@@ -30,5 +31,5 @@ def setup_logging():
     # Suppress watchfiles logs but maintain file logging
     watchfiles_logger = logging.getLogger("watchfiles")
     watchfiles_logger.setLevel(logging.ERROR)
-    
+
     return logger
