@@ -8,34 +8,36 @@ import io
 
 client = TestClient(app)
 
+
 @pytest.fixture(scope="function")
 def setup_test_images():
     # Create test directory if it doesn't exist
     os.makedirs("tests/test_images", exist_ok=True)
-    
+
     # Create sample test images with actual image data
     test_images = ["sample1.jpg", "sample2.jpg"]
     for img_name in test_images:
         # Create a small valid image
-        img = Image.new('RGB', (100, 100), color='red')
+        img = Image.new("RGB", (100, 100), color="red")
         img_path = f"tests/test_images/{img_name}"
         img.save(img_path)
-    
+
     yield test_images
-    
+
     # Cleanup after tests
     if os.path.exists("tests/test_images"):
         shutil.rmtree("tests/test_images")
 
+
 def test_batch_multiple_files(setup_test_images):
     files = []
     file_handles = []
-    
+
     for img_name in setup_test_images:
         img_file = open(f"tests/test_images/{img_name}", "rb")
         file_handles.append(img_file)
         files.append(("files", (img_name, img_file, "image/jpeg")))
-    
+
     try:
         response = client.post("/api/check-logo/batch/", files=files)
         assert response.status_code == 200
@@ -53,6 +55,7 @@ def test_batch_multiple_files(setup_test_images):
         for fh in file_handles:
             fh.close()
 
+
 def test_batch_no_files():
     response = client.post("/api/check-logo/batch/")
     assert response.status_code == 200
@@ -61,6 +64,7 @@ def test_batch_no_files():
     assert result["valid_count"] == 0
     assert result["invalid_count"] == 0
     assert len(result["results"]) == 0
+
 
 def test_batch_single_file(setup_test_images):
     img_file = open(f"tests/test_images/{setup_test_images[0]}", "rb")
@@ -75,6 +79,7 @@ def test_batch_single_file(setup_test_images):
         assert result["results"][0]["Is_Valid"] in ["Valid", "Invalid"]
     finally:
         img_file.close()
+
 
 def test_batch_mixed_valid_invalid_files(setup_test_images):
     files = []
@@ -101,7 +106,10 @@ def test_batch_mixed_valid_invalid_files(setup_test_images):
         assert result["total_processed"] == 2
         assert len(result["results"]) == 2
         # Check that one file is processed as invalid due to being a text file
-        assert any(r["Is_Valid"] == "Invalid" and "invalid.txt" in r["Image_Path_or_URL"] for r in result["results"])
+        assert any(
+            r["Is_Valid"] == "Invalid" and "invalid.txt" in r["Image_Path_or_URL"]
+            for r in result["results"]
+        )
     finally:
         for fh in file_handles:
-            fh.close() 
+            fh.close()
