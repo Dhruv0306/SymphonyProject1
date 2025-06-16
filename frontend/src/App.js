@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, InputLabel, Select, MenuItem, Slider } from '@mui/material';
-import { useDropzone } from 'react-dropzone';
+import FileUploader from './FileUploader';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -25,6 +25,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { API_BASE_URL } from './config';
 import { chunkImages, processImageChunks } from './utils/imageChunker';
+import UploadStatus from './UploadStatus';
 
 // Theme constants for consistent branding
 const symphonyBlue = '#0066B3';     // Primary brand color
@@ -77,6 +78,7 @@ function App() {
   const [batchId, setBatchId] = useState(null);          // Batch ID for tracking
   const [batchSize, setBatchSize] = useState(10);        // Changed from 50 to 10
   const [displayValue, setDisplayValue] = useState(10);  // Changed from 50 to 10
+  const [uploadStatuses, setUploadStatuses] = useState({}); // Track upload status for each file
 
   // Responsive design hooks
   const theme = useTheme();
@@ -92,35 +94,7 @@ function App() {
     setMobileOpen(!mobileOpen);
   };
 
-  /**
-   * Handle file drop/selection
-   * @param {File[]} acceptedFiles - Array of accepted image files
-   */
-  const onDrop = (acceptedFiles) => {
-    if (mode === 'single') {
-      const selectedFile = acceptedFiles[0];
-      setFiles([selectedFile]);
-      setError(null);
-      setResults([]);
-      
-      // Create preview URL for single image
-      const previewUrl = URL.createObjectURL(selectedFile);
-      setPreview(previewUrl);
-      setPreviews([]); // Clear batch previews
-    } else {
-      setFiles(acceptedFiles);
-      setError(null);
-      setResults([]);
-      setPreview(null);
-      
-      // Create preview URLs for batch images
-      const newPreviews = acceptedFiles.map(file => ({
-        url: URL.createObjectURL(file),
-        name: file.name
-      }));
-      setPreviews(newPreviews);
-    }
-  };
+
 
   // Cleanup preview URLs to prevent memory leaks
   useEffect(() => {
@@ -136,14 +110,7 @@ function App() {
     };
   }, [preview, previews]);
 
-  // Configure dropzone with accepted file types
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png']  // Accept common image formats
-    },
-    multiple: mode === 'batch'
-  });
+
 
   // Reset previews when changing input method or mode
   useEffect(() => {
@@ -160,6 +127,7 @@ function App() {
     setImageUrl(url);
     setResults([]);
     setError(null);
+    setUploadStatuses({}); // Reset upload statuses when URL changes
     
     // Update preview for single mode
     if (mode === 'single') {
@@ -176,6 +144,7 @@ function App() {
     setBatchUrls(urls);
     setResults([]);
     setError(null);
+    setUploadStatuses({}); // Reset upload statuses when batch URLs change
 
     // Parse and preview URLs from textarea
     const urlList = urls.split('\n').filter(url => url.trim());
@@ -225,21 +194,57 @@ function App() {
         if (inputMethod === 'upload') {
           const formData = new FormData();
           formData.append('file', files[0]);
+          
+          // Set uploading status
+          setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "uploading" }));
+          
           response = await axios.post(`${API_BASE_URL}/api/check-logo/single/`, formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
           });
+          
+          // Set validating status after upload is complete
+          setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "validating" }));
+          
+          // Process the response
+          const result = await response.data;
+          
+          // Update status based on validation result
+          if (result.Is_Valid === "Valid") {
+            setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "valid" }));
+          } else {
+            setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "invalid" }));
+          }
+          
         } else {
           // For URL input
           const formData = new FormData();
           formData.append('image_path', imageUrl);
+          
+          // Set uploading status for URL
+          setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "uploading" }));
+          
           response = await axios.post(`${API_BASE_URL}/api/check-logo/single/`, formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
           });
+          
+          // Set validating status after upload is complete
+          setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "validating" }));
+          
+          // Process the response
+          const result = await response.data;
+          
+          // Update status based on validation result
+          if (result.Is_Valid === "Valid") {
+            setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "valid" }));
+          } else {
+            setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "invalid" }));
+          }
         }
+        
         setResults([{
           isValid: response.data.Is_Valid === "Valid",
           message: `Logo detection result: ${response.data.Is_Valid}${response.data.Error ? ` (${response.data.Error})` : ''}`,
@@ -253,9 +258,13 @@ function App() {
           const processChunk = async (chunk) => {
             return await retryWithBackoff(async () => {
               const formData = new FormData();
+              
+              // Set uploading status for each file in the chunk
               chunk.forEach(file => {
                 formData.append('files', file);
+                setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
               });
+              
               if (newBatchId) {
                 formData.append('batch_id', newBatchId);
               }
@@ -269,7 +278,26 @@ function App() {
                   },
                 }
               );
-              return response.data.results || [];
+              
+              // Set validating status for each file after upload
+              chunk.forEach(file => {
+                setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
+              });
+              
+              // Process results and update status
+              const results = response.data.results || [];
+              results.forEach((result, idx) => {
+                const file = chunk[idx];
+                if (file) {
+                  if (result.Is_Valid === "Valid") {
+                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "valid" }));
+                  } else {
+                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "invalid" }));
+                  }
+                }
+              });
+              
+              return results;
             });
           };
 
@@ -303,6 +331,11 @@ function App() {
           
           const processChunk = async (chunk) => {
             return await retryWithBackoff(async () => {
+              // Set uploading status for each URL in the chunk
+              chunk.forEach(url => {
+                setUploadStatuses((prev) => ({ ...prev, [url]: "uploading" }));
+              });
+              
               const data = {
                 image_paths: chunk.map(url => url.trim()),  // Ensure URLs are trimmed
                 batch_id: newBatchId
@@ -319,10 +352,32 @@ function App() {
                 }
               );
               
+              // Set validating status for each URL after upload
+              chunk.forEach(url => {
+                setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
+              });
+              
               if (!response.data || !response.data.results) {
                 console.error('Invalid response format:', response.data);
+                // Set error status for each URL
+                chunk.forEach(url => {
+                  setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
+                });
                 throw new Error('Invalid response format from server');
               }
+              
+              // Process results and update status
+              const results = response.data.results || [];
+              results.forEach((result, idx) => {
+                const url = chunk[idx];
+                if (url) {
+                  if (result.Is_Valid === "Valid") {
+                    setUploadStatuses((prev) => ({ ...prev, [url]: "valid" }));
+                  } else {
+                    setUploadStatuses((prev) => ({ ...prev, [url]: "invalid" }));
+                  }
+                }
+              });
               
               return response.data.results || [];
             });
@@ -410,15 +465,31 @@ function App() {
                     border: `1px solid ${symphonyBlue}20`,
                   }}
                 >
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                    }}
-                  />
+                  <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <img
+                      src={preview}
+                      alt="Preview"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                      }}
+                    />
+                    {files.length > 0 && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                          borderRadius: '4px',
+                          padding: '2px 4px',
+                        }}
+                      >
+                        <UploadStatus status={uploadStatuses[files[0].name]} />
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               </Box>
             </Paper>
@@ -482,24 +553,38 @@ function App() {
                             objectFit: 'contain',
                           }}
                         />
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            padding: '4px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            textAlign: 'center',
-                            borderTop: `1px solid ${symphonyBlue}20`,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {preview.name}
-                        </Typography>
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              padding: '4px',
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              textAlign: 'center',
+                              borderTop: `1px solid ${symphonyBlue}20`,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {preview.name}
+                          </Typography>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                              borderRadius: '4px',
+                              padding: '2px 4px',
+                            }}
+                          >
+                            <UploadStatus status={uploadStatuses[preview.name]} />
+                          </Box>
+                        </Box>
                       </Paper>
                     </Grid>
                   ))}
@@ -557,19 +642,35 @@ function App() {
                     border: `1px solid ${symphonyBlue}20`,
                   }}
                 >
-                  <img
-                    src={imageUrl}
-                    alt="URL Preview"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                    }}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxsaW5lIHgxPSIxOCIgeTE9IjYiIHgyPSI2IiB5Mj0iMTgiPjwvbGluZT48bGluZSB4MT0iNiIgeTE9IjYiIHgyPSIxOCIgeTI9IjE4Ij48L2xpbmU+PC9zdmc+';
-                    }}
-                  />
+                  <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <img
+                      src={imageUrl}
+                      alt="URL Preview"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                      }}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxsaW5lIHgxPSIxOCIgeTE9IjYiIHgyPSI2IiB5Mj0iMTgiPjwvbGluZT48bGluZSB4MT0iNiIgeTE9IjYiIHgyPSIxOCIgeTI9IjE4Ij48L2xpbmU+PC9zdmc+';
+                      }}
+                    />
+                    {imageUrl && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                          borderRadius: '4px',
+                          padding: '2px 4px',
+                        }}
+                      >
+                        <UploadStatus status={uploadStatuses[imageUrl]} />
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               </Box>
             </Paper>
@@ -627,22 +728,36 @@ function App() {
                         overflow: 'hidden'
                       }}
                     >
-                      <img
-                        src={url}
-                        alt={`Preview ${index + 1}`}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain'
-                        }}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'placeholder-image.png';
-                        }}
-                      />
+                      <>
+                        <img
+                          src={url}
+                          alt={`Preview ${index + 1}`}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain'
+                          }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'placeholder-image.png';
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            borderRadius: '4px',
+                            padding: '2px 4px',
+                          }}
+                        >
+                          <UploadStatus status={uploadStatuses[url]} />
+                        </Box>
+                      </>
                     </Box>
                   ))}
                 </Box>
@@ -659,79 +774,34 @@ function App() {
     if (inputMethod === 'upload') {
       return (
         <Box>
-          <Paper
-            {...getRootProps()}
-            sx={{
-              p: { xs: 2, sm: 4 },
-              textAlign: 'center',
-              cursor: 'pointer',
-              backgroundColor: isDragActive ? symphonyLightBlue : symphonyWhite,
-              border: `2px dashed ${symphonyBlue}`,
-              borderRadius: 2,
-              height: { xs: '200px', sm: '250px' },
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                backgroundColor: symphonyLightBlue,
-                borderColor: symphonyDarkBlue,
-              },
-            }}
-          >
-            <input {...getInputProps()} />
-            <FileUploadIcon 
-              sx={{ 
-                fontSize: { xs: 32, sm: 48 }, 
-                color: symphonyBlue, 
-                mb: { xs: 1, sm: 2 },
-                transition: 'color 0.3s ease',
-                '&:hover': {
-                  color: symphonyDarkBlue
-                }
-              }} 
-            />
-            <Typography 
-              variant={isMobile ? "body1" : "h6"} 
-              sx={{ 
-                color: symphonyGray,
-                fontSize: { xs: '0.9rem', sm: '1.25rem' }
-              }}
-            >
-              {isDragActive
-                ? 'Drop the file(s) here'
-                : `Drag and drop ${mode === 'single' ? 'file' : 'files'} here`}
-            </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: symphonyGray, 
-                mt: 1,
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                opacity: 0.8
-              }}
-            >
-              Limit 200MB per file • PNG, JPG, JPEG
-            </Typography>
-            <Button
-              variant="contained"
-              sx={{
-                mt: { xs: 1, sm: 2 },
-                px: { xs: 2, sm: 3 },
-                py: { xs: 0.5, sm: 1 },
-                backgroundColor: symphonyBlue,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  backgroundColor: symphonyDarkBlue,
-                  transform: 'translateY(-2px)'
-                },
-              }}
-            >
-              Browse files
-            </Button>
-          </Paper>
+          <Box sx={{ mt: 2 }}>
+            <FileUploader onFilesSelected={(acceptedFiles) => {
+              // Reset upload statuses when files change
+              setUploadStatuses({});
+              
+              if (mode === 'single') {
+                const selectedFile = acceptedFiles[0];
+                setFiles([selectedFile]);
+                setError(null);
+                setResults([]);
+
+                const previewUrl = URL.createObjectURL(selectedFile);
+                setPreview(previewUrl);
+                setPreviews([]);
+              } else {
+                setFiles(acceptedFiles);
+                setError(null);
+                setResults([]);
+                setPreview(null);
+
+                const newPreviews = acceptedFiles.map(file => ({
+                  url: URL.createObjectURL(file),
+                  name: file.name
+                }));
+                setPreviews(newPreviews);
+              }
+            }} />
+          </Box>
 
           {/* Files list with separate scroll */}
           {files.length > 0 && (
@@ -747,23 +817,35 @@ function App() {
               }}
             >
               {files.map((file, index) => (
-                <Typography 
-                  key={index} 
-                  variant="body2" 
+                <Box
+                  key={index}
                   sx={{ 
-                    color: symphonyBlue,
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    wordBreak: 'break-all',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 1,
+                    justifyContent: 'space-between',
                     mb: 1,
                     '&:last-child': { mb: 0 }
                   }}
                 >
-                  <InsertDriveFileIcon sx={{ fontSize: 'inherit' }} />
-                  {file.name}
-                </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      color: symphonyBlue,
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      wordBreak: 'break-all',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      flex: 1
+                    }}
+                  >
+                    <InsertDriveFileIcon sx={{ fontSize: 'inherit' }} />
+                    {file.name}
+                  </Typography>
+                  <Box sx={{ ml: 2 }}>
+                    <UploadStatus status={uploadStatuses[file.name]} />
+                  </Box>
+                </Box>
               ))}
             </Paper>
           )}
@@ -914,6 +996,7 @@ function App() {
               setError(null);
               setImageUrl('');
               setBatchUrls('');
+              setUploadStatuses({}); // Reset upload statuses when mode changes
             }}
             sx={{
               display: 'flex',
@@ -1496,6 +1579,7 @@ function App() {
                       setError(null);
                       setImageUrl('');
                       setBatchUrls('');
+                      setUploadStatuses({}); // Reset upload statuses when input method changes
                     }}
                     sx={{
                       justifyContent: 'center',
