@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, InputLabel, Select, MenuItem, Slider } from '@mui/material';
-import FileUploader from './FileUploader';
+import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -94,7 +94,35 @@ function App() {
     setMobileOpen(!mobileOpen);
   };
 
-
+  /**
+   * Handle file drop/selection
+   * @param {File[]} acceptedFiles - Array of accepted image files
+   */
+  const onDrop = (acceptedFiles) => {
+    if (mode === 'single') {
+      const selectedFile = acceptedFiles[0];
+      setFiles([selectedFile]);
+      setError(null);
+      setResults([]);
+      
+      // Create preview URL for single image
+      const previewUrl = URL.createObjectURL(selectedFile);
+      setPreview(previewUrl);
+      setPreviews([]); // Clear batch previews
+    } else {
+      setFiles(acceptedFiles);
+      setError(null);
+      setResults([]);
+      setPreview(null);
+      
+      // Create preview URLs for batch images
+      const newPreviews = acceptedFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        name: file.name
+      }));
+      setPreviews(newPreviews);
+    }
+  };
 
   // Cleanup preview URLs to prevent memory leaks
   useEffect(() => {
@@ -110,7 +138,14 @@ function App() {
     };
   }, [preview, previews]);
 
-
+  // Configure dropzone with accepted file types
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png']  // Accept common image formats
+    },
+    multiple: mode === 'batch'
+  });
 
   // Reset previews when changing input method or mode
   useEffect(() => {
@@ -774,6 +809,7 @@ function App() {
     if (inputMethod === 'upload') {
       return (
         <Box>
+
           <Box sx={{ mt: 2 }}>
             <FileUploader onFilesSelected={(acceptedFiles) => {
               // Reset upload statuses when files change
