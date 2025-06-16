@@ -89,9 +89,10 @@ def load_models():
 
 # Initialize models on module load
 models = load_models()
-if not models:
-    logger.error("No models loaded. Exiting.")
-    sys.exit(1)
+if __name__ == "__main__":
+    if not models:
+        logger.error("No models loaded. Exiting.")
+        sys.exit(1)
 
 
 def check_logo(image_path):
