@@ -6,7 +6,7 @@ from models.logo_check import (
     BatchUrlRequest,
     BatchProcessingResponse,
     BatchStartResponse,
-    BatchStatusResponse
+    BatchStatusResponse,
 )
 from detect_logo import check_logo
 from utils.file_ops import UPLOAD_DIR
@@ -37,20 +37,19 @@ router = APIRouter(
                         "detail": "Rate limit exceeded. Try again in 60 seconds."
                     }
                 }
-            }
+            },
         },
         500: {
             "description": "Internal Server Error",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "An unexpected error occurred"
-                    }
+                    "example": {"detail": "An unexpected error occurred"}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
+
 
 @router.post(
     "/start-batch",
@@ -65,12 +64,12 @@ router = APIRouter(
                 "application/json": {
                     "example": {
                         "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-                        "message": "Batch processing session started"
+                        "message": "Batch processing session started",
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 async def start_batch(request: Request):
     """
@@ -90,9 +89,16 @@ async def start_batch(request: Request):
         os.makedirs(batch_dir, exist_ok=True)
 
         # Create CSV file for this batch
-        csv_path = os.path.join(batch_dir, 'results.csv')
-        with open(csv_path, 'w', newline='') as csv_file:
-            fieldnames = ['Image_Path_or_URL', 'Is_Valid', 'Confidence', 'Detected_By', 'Bounding_Box', 'Error']
+        csv_path = os.path.join(batch_dir, "results.csv")
+        with open(csv_path, "w", newline="") as csv_file:
+            fieldnames = [
+                "Image_Path_or_URL",
+                "Is_Valid",
+                "Confidence",
+                "Detected_By",
+                "Bounding_Box",
+                "Error",
+            ]
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
 
@@ -100,16 +106,19 @@ async def start_batch(request: Request):
         metadata = {
             "csv_path": csv_path,
             "counts": {"valid": 0, "invalid": 0, "total": 0},
-            "status": "initialized"
+            "status": "initialized",
         }
-        with open(os.path.join(batch_dir, 'metadata.json'), 'w') as f:
+        with open(os.path.join(batch_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
 
-        return BatchStartResponse(batch_id=batch_id)
-    
+        return BatchStartResponse(
+            batch_id=batch_id, message="Batch processing session started"
+        )
+
     except Exception as e:
         logger.error(f"Error starting new batch: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post(
     "/check-logo/batch/",
@@ -136,8 +145,8 @@ async def start_batch(request: Request):
                                     "x1": 100,
                                     "y1": 150,
                                     "x2": 300,
-                                    "y2": 350
-                                }
+                                    "y2": 350,
+                                },
                             },
                             {
                                 "Image_Path_or_URL": "example2.jpg",
@@ -145,12 +154,12 @@ async def start_batch(request: Request):
                                 "Confidence": None,
                                 "Detected_By": None,
                                 "Bounding_Box": None,
-                                "Error": "No logo detected"
-                            }
-                        ]
+                                "Error": "No logo detected",
+                            },
+                        ],
                     }
                 }
-            }
+            },
         },
         400: {
             "description": "Bad Request",
@@ -160,16 +169,20 @@ async def start_batch(request: Request):
                         "detail": "Invalid request format or missing required fields"
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 @limiter.limit("20/minute")
 async def check_logo_batch(
     request: Request,
-    files: Optional[List[UploadFile]] = File(None, description="List of image files to validate"),
-    batch_id: Optional[str] = Form(None, description="Optional batch ID for tracking progress"),
-    batch_request: Optional[BatchUrlRequest] = None
+    files: Optional[List[UploadFile]] = File(
+        None, description="List of image files to validate"
+    ),
+    batch_id: Optional[str] = Form(
+        None, description="Optional batch ID for tracking progress"
+    ),
+    batch_request: Optional[BatchUrlRequest] = None,
 ):
     """
     Process multiple images for logo detection.
@@ -205,7 +218,7 @@ async def check_logo_batch(
             - results: List of individual detection results
 
     Raises:
-        HTTPException: 
+        HTTPException:
             - 400: Invalid request format
             - 429: Rate limit exceeded
             - 500: Server processing error
@@ -213,14 +226,14 @@ async def check_logo_batch(
     results = []
     valid_count = 0
     invalid_count = 0
-    
+
     try:
         # Log request details
-        content_type = request.headers.get('content-type', '')
+        content_type = request.headers.get("content-type", "")
         logger.info(f"Received batch request with content-type: {content_type}")
-        
+
         # Handle JSON request for URLs
-        if 'application/json' in content_type:
+        if "application/json" in content_type:
             if not batch_request:
                 raw_body = await request.json()
                 logger.info(f"Processing JSON request: {raw_body}")
@@ -228,14 +241,16 @@ async def check_logo_batch(
                     batch_request = BatchUrlRequest(**raw_body)
                 except Exception as e:
                     logger.error(f"Failed to parse JSON request: {str(e)}")
-                    raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
-            
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid request format: {str(e)}"
+                    )
+
             if not batch_request.image_paths:
                 raise HTTPException(status_code=400, detail="No image URLs provided")
-            
+
             logger.info(f"Processing {len(batch_request.image_paths)} URLs")
             batch_id = batch_request.batch_id
-        
+
         # Get batch_id from either form data or JSON request
         batch_id = batch_id or (batch_request.batch_id if batch_request else None)
         logger.info(f"Using batch_id: {batch_id}")
@@ -244,19 +259,31 @@ async def check_logo_batch(
         metadata = None
         csv_writer = None
         csv_file = None
-        
+
         if batch_id:
             batch_dir = os.path.join("data", batch_id)
-            metadata_path = os.path.join(batch_dir, 'metadata.json')
+            metadata_path = os.path.join(batch_dir, "metadata.json")
             if not os.path.exists(metadata_path):
-                raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid batch_id: {batch_id}"
+                )
 
-            with open(metadata_path, 'r') as f:
+            with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-            
+
             csv_path = metadata["csv_path"]
-            csv_file = open(csv_path, 'a', newline='')
-            csv_writer = csv.DictWriter(csv_file, fieldnames=['Image_Path_or_URL', 'Is_Valid', 'Confidence', 'Detected_By', 'Bounding_Box', 'Error'])
+            csv_file = open(csv_path, "a", newline="")
+            csv_writer = csv.DictWriter(
+                csv_file,
+                fieldnames=[
+                    "Image_Path_or_URL",
+                    "Is_Valid",
+                    "Confidence",
+                    "Detected_By",
+                    "Bounding_Box",
+                    "Error",
+                ],
+            )
 
         try:
             # Handle uploaded files
@@ -264,7 +291,9 @@ async def check_logo_batch(
                 logger.info(f"Processing {len(files)} uploaded files")
                 for file in tqdm(files, desc="Processing uploaded files"):
                     try:
-                        temp_file_path = os.path.join(UPLOAD_DIR, f"temp_{file.filename}")
+                        temp_file_path = os.path.join(
+                            UPLOAD_DIR, f"temp_{file.filename}"
+                        )
                         with open(temp_file_path, "wb") as buffer:
                             file.file.seek(0)
                             shutil.copyfileobj(file.file, buffer)
@@ -272,7 +301,7 @@ async def check_logo_batch(
 
                         result = check_logo(temp_file_path)
                         result["Image_Path_or_URL"] = file.filename
-                        
+
                         # Convert to Pydantic model
                         result_model = LogoCheckResult(**result)
                         results.append(result_model)
@@ -297,7 +326,7 @@ async def check_logo_batch(
                             Confidence=None,
                             Detected_By=None,
                             Bounding_Box=None,
-                            Error=f"Error processing file: {str(e)}"
+                            Error=f"Error processing file: {str(e)}",
                         )
                         results.append(error_result)
                         if csv_writer:
@@ -307,15 +336,17 @@ async def check_logo_batch(
             # Handle URL requests
             if batch_request and batch_request.image_paths:
                 logger.info(f"Processing {len(batch_request.image_paths)} URLs")
-                for url in tqdm(batch_request.image_paths, desc="Processing image URLs"):
+                for url in tqdm(
+                    batch_request.image_paths, desc="Processing image URLs"
+                ):
                     try:
                         logger.info(f"Processing URL: {url}")
                         result = check_logo(str(url))
                         logger.info(f"URL processing result: {result}")
-                        
+
                         result_model = LogoCheckResult(**result)
                         results.append(result_model)
-                        
+
                         if csv_writer:
                             csv_writer.writerow(result_model.dict())
 
@@ -331,7 +362,7 @@ async def check_logo_batch(
                             Confidence=None,
                             Detected_By=None,
                             Bounding_Box=None,
-                            Error=str(e)
+                            Error=str(e),
                         )
                         results.append(error_result)
                         if csv_writer:
@@ -344,10 +375,10 @@ async def check_logo_batch(
                 metadata["counts"]["invalid"] += invalid_count
                 metadata["counts"]["total"] += len(results)
                 metadata["status"] = "completed"
-                
+
                 batch_dir = os.path.join("data", batch_id)
-                metadata_path = os.path.join(batch_dir, 'metadata.json')
-                with open(metadata_path, 'w') as f:
+                metadata_path = os.path.join(batch_dir, "metadata.json")
+                with open(metadata_path, "w") as f:
                     json.dump(metadata, f)
 
             if csv_file:
@@ -358,33 +389,34 @@ async def check_logo_batch(
                 total_processed=len(results),
                 valid_count=valid_count,
                 invalid_count=invalid_count,
-                results=results
+                results=results,
             )
             logger.info(f"Batch processing completed. Response: {response}")
             return response
-            
+
         except Exception as e:
             if csv_file:
                 csv_file.close()
             logger.error(f"Error in batch processing: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
-            
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Unexpected error in batch processing: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get(
     "/check-logo/batch/{batch_id}/status",
     response_model=BatchStatusResponse,
     summary="Get batch processing status",
-    response_description="Current status and statistics of the batch"
+    response_description="Current status and statistics of the batch",
 )
 async def get_batch_status(batch_id: str):
     """
     Get the current status of a batch processing job.
-    
+
     Returns:
     - Batch ID
     - Current status
@@ -393,22 +425,28 @@ async def get_batch_status(batch_id: str):
     """
     try:
         batch_dir = os.path.join("data", batch_id)
-        metadata_path = os.path.join(batch_dir, 'metadata.json')
-        
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+
         if not os.path.exists(metadata_path):
             raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
-            
-        with open(metadata_path, 'r') as f:
+
+        with open(metadata_path, "r") as f:
             metadata = json.load(f)
-            
+
         total = metadata["counts"]["total"]
-        progress = 100.0 if total == 0 else (metadata["counts"]["valid"] + metadata["counts"]["invalid"]) / total * 100
-            
+        progress = (
+            100.0
+            if total == 0
+            else (metadata["counts"]["valid"] + metadata["counts"]["invalid"])
+            / total
+            * 100
+        )
+
         return BatchStatusResponse(
             batch_id=batch_id,
             status=metadata["status"],
             counts=metadata["counts"],
-            progress=progress
+            progress=progress,
         )
     except HTTPException:
         raise
