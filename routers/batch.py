@@ -111,7 +111,7 @@ async def start_batch(request: Request):
         with open(os.path.join(batch_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
 
-        return BatchStartResponse(batch_id=batch_id)
+        return BatchStartResponse(batch_id=batch_id, message="Batch processing session started")
 
     except Exception as e:
         logger.error(f"Error starting new batch: {str(e)}")
