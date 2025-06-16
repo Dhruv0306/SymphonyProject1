@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, InputLabel, Select, MenuItem, Slider } from '@mui/material';
-import { useDropzone } from 'react-dropzone';
+import FileUploader from './FileUploader';
 import axios from 'axios';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -92,35 +92,7 @@ function App() {
     setMobileOpen(!mobileOpen);
   };
 
-  /**
-   * Handle file drop/selection
-   * @param {File[]} acceptedFiles - Array of accepted image files
-   */
-  const onDrop = (acceptedFiles) => {
-    if (mode === 'single') {
-      const selectedFile = acceptedFiles[0];
-      setFiles([selectedFile]);
-      setError(null);
-      setResults([]);
-      
-      // Create preview URL for single image
-      const previewUrl = URL.createObjectURL(selectedFile);
-      setPreview(previewUrl);
-      setPreviews([]); // Clear batch previews
-    } else {
-      setFiles(acceptedFiles);
-      setError(null);
-      setResults([]);
-      setPreview(null);
-      
-      // Create preview URLs for batch images
-      const newPreviews = acceptedFiles.map(file => ({
-        url: URL.createObjectURL(file),
-        name: file.name
-      }));
-      setPreviews(newPreviews);
-    }
-  };
+
 
   // Cleanup preview URLs to prevent memory leaks
   useEffect(() => {
@@ -136,14 +108,7 @@ function App() {
     };
   }, [preview, previews]);
 
-  // Configure dropzone with accepted file types
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png']  // Accept common image formats
-    },
-    multiple: mode === 'batch'
-  });
+
 
   // Reset previews when changing input method or mode
   useEffect(() => {
@@ -659,79 +624,31 @@ function App() {
     if (inputMethod === 'upload') {
       return (
         <Box>
-          <Paper
-            {...getRootProps()}
-            sx={{
-              p: { xs: 2, sm: 4 },
-              textAlign: 'center',
-              cursor: 'pointer',
-              backgroundColor: isDragActive ? symphonyLightBlue : symphonyWhite,
-              border: `2px dashed ${symphonyBlue}`,
-              borderRadius: 2,
-              height: { xs: '200px', sm: '250px' },
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                backgroundColor: symphonyLightBlue,
-                borderColor: symphonyDarkBlue,
-              },
-            }}
-          >
-            <input {...getInputProps()} />
-            <FileUploadIcon 
-              sx={{ 
-                fontSize: { xs: 32, sm: 48 }, 
-                color: symphonyBlue, 
-                mb: { xs: 1, sm: 2 },
-                transition: 'color 0.3s ease',
-                '&:hover': {
-                  color: symphonyDarkBlue
-                }
-              }} 
-            />
-            <Typography 
-              variant={isMobile ? "body1" : "h6"} 
-              sx={{ 
-                color: symphonyGray,
-                fontSize: { xs: '0.9rem', sm: '1.25rem' }
-              }}
-            >
-              {isDragActive
-                ? 'Drop the file(s) here'
-                : `Drag and drop ${mode === 'single' ? 'file' : 'files'} here`}
-            </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: symphonyGray, 
-                mt: 1,
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                opacity: 0.8
-              }}
-            >
-              Limit 200MB per file • PNG, JPG, JPEG
-            </Typography>
-            <Button
-              variant="contained"
-              sx={{
-                mt: { xs: 1, sm: 2 },
-                px: { xs: 2, sm: 3 },
-                py: { xs: 0.5, sm: 1 },
-                backgroundColor: symphonyBlue,
-                fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  backgroundColor: symphonyDarkBlue,
-                  transform: 'translateY(-2px)'
-                },
-              }}
-            >
-              Browse files
-            </Button>
-          </Paper>
+          <Box sx={{ mt: 2 }}>
+            <FileUploader onFilesSelected={(acceptedFiles) => {
+              if (mode === 'single') {
+                const selectedFile = acceptedFiles[0];
+                setFiles([selectedFile]);
+                setError(null);
+                setResults([]);
+
+                const previewUrl = URL.createObjectURL(selectedFile);
+                setPreview(previewUrl);
+                setPreviews([]);
+              } else {
+                setFiles(acceptedFiles);
+                setError(null);
+                setResults([]);
+                setPreview(null);
+
+                const newPreviews = acceptedFiles.map(file => ({
+                  url: URL.createObjectURL(file),
+                  name: file.name
+                }));
+                setPreviews(newPreviews);
+              }
+            }} />
+          </Box>
 
           {/* Files list with separate scroll */}
           {files.length > 0 && (
