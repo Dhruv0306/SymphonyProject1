@@ -16,7 +16,9 @@ This application provides an enterprise-grade solution for detecting Symphony lo
 10. [Logging System](#logging-system)
 11. [Development Guidelines](#development-guidelines)
 12. [Troubleshooting](#troubleshooting)
-13. [License & Support](#license--support)
+13. [Code Examples](#code-examples)
+14. [Deployment](#deployment)
+15. [License & Support](#license--support)
 
 ## Key Features
 
@@ -49,8 +51,8 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Prometheus metrics integration
 
 - **Modern Frontend Interface**
-  - React-based user interface (v19.1.0)
-  - Material-UI components (v7.1.0)
+  - React-based user interface (v18.2.0)
+  - Material-UI components (v5.14.0)
   - Configurable backend URL
   - Material design components
   - Responsive layout
@@ -65,8 +67,8 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Comprehensive error tracking
   - Performance optimization features
   - Secure file handling for exports
-  - Redis caching support
-  - Prometheus/Grafana monitoring
+  - File-based caching with cleanup
+  - Detailed logging with rotation
 
 ## System Architecture
 
@@ -120,12 +122,12 @@ graph TD
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "Client Authentication"
+    subgraph "Client Request"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A[Client Request] -->|"API Key"| B[API Gateway]
-        B -->|"Validate"| C[Auth Service]
+        A[Client Request] -->|"HTTP/REST"| B[API Gateway]
+        B -->|"Process"| C[Request Handler]
     end
 
     subgraph "Security Layers"
@@ -398,17 +400,13 @@ graph LR
     subgraph "Monitoring"
         style E fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style G fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Metrics"| E["Prometheus"]
         B -->|"Logs"| F["Log Files"]
-        E & F -->|"Visualization"| G["Grafana"]
+        F -->|"Analysis"| E["Log Analysis"]
     end
 
-    subgraph "Alerts"
+    subgraph "Error Reporting"
         style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        G -->|"Thresholds"| H["Alert Manager"]
-        H -->|"Notification"| I["DevOps Team"]
+        E -->|"Report"| H["Error Reports"]
     end
 ```
 
@@ -435,7 +433,7 @@ graph TD
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|"Cache"| E["Redis Cache"]
+        D -->|"Cache"| E["File Cache"]
         D -->|"Persist"| F["File System"]
         D -->|"Export"| G["CSV Export"]
     end
@@ -443,8 +441,8 @@ graph TD
     subgraph "Cleanup"
         style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        E -->|"TTL"| H["Cache Cleanup"]
-        F -->|"Schedule"| I["File Cleanup"]
+        E -->|"Scheduled"| H["Cache Cleanup"]
+        F -->|"Scheduled"| I["File Cleanup"]
     end
 ```
 
@@ -497,16 +495,15 @@ sequenceDiagram
 - Python 3.7+
 - Ultralytics YOLOv8 and YOLOv11
 - PIL for image processing
-- Redis for caching
-- Prometheus for metrics
+- File-based caching and state management
 - Rotating file logs
 - uvicorn for ASGI server
 
 ### Frontend Stack
-- React 19.1.0
-- Material-UI 7.1.0
+- React 18.2.0
+- Material-UI 5.14.0
 - Axios for API calls
-- React Dropzone 14.3.8
+- React Dropzone 14.2.3
 - Cross-env 7.0.3 for environment management
 - Jest for testing
 - ESLint for code quality
@@ -595,7 +592,6 @@ ENABLE_GPU=True
 MAX_BATCH_SIZE=50
 
 # Security
-API_KEY_HEADER=X-API-Key
 CORS_ORIGINS=["http://localhost:3000"]
 RATE_LIMIT=100
 
@@ -683,12 +679,12 @@ npm run build
 uvicorn App:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-### Health Checks
+### API Documentation
 
-The application provides health check endpoints:
+The application provides built-in documentation:
 
-- Backend health: http://localhost:8000/health
-- Metrics: http://localhost:8000/metrics
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
 ## API Documentation
 
@@ -785,14 +781,14 @@ Response:
 }
 ```
 
-#### 3. Monitoring Endpoints
+#### 3. Status Endpoints
 
 ```http
-GET /health
-Response: Health status of the application
+GET /
+Response: Redirects to API documentation
 
-GET /metrics
-Response: Prometheus-formatted metrics
+GET /api
+Response: API summary information
 ```
 
 ### Rate Limiting
@@ -820,12 +816,12 @@ Common HTTP status codes:
 ## Security
 
 ### Authentication and Authorization
-- API Key authentication
-- Rate limiting and CORS protection
-- Detailed logging and monitoring
-- Secure file handling for exports
-- Redis caching support
-- Prometheus/Grafana monitoring
+- Rate limiting with SlowAPI
+- CORS protection for cross-origin requests
+- Detailed logging with rotation
+- Secure file handling for uploads and exports
+- File-based state management
+- Input validation and sanitization
 
 ### Data Protection
 - Secure file uploads and downloads
@@ -883,6 +879,124 @@ Common HTTP status codes:
 - Check system logs
 - Verify API connectivity
 - Re-run the inference pipeline
+
+## Code Examples
+
+Here are examples demonstrating how to use the API:
+
+```python
+# Example: Using the API to check a single image
+import requests
+
+def check_single_image(image_path, api_url="http://localhost:8000"):
+    """Check a single image for Symphony logo."""
+    endpoint = f"{api_url}/api/check-logo/single/"
+    
+    # For file upload
+    with open(image_path, "rb") as f:
+        files = {"file": f}
+        response = requests.post(endpoint, files=files)
+    
+    # Process response
+    if response.status_code == 200:
+        result = response.json()
+        print(f"Image: {result['Image_Path_or_URL']}")
+        print(f"Valid Logo: {result['Is_Valid'] == 'Valid'}")
+        if result['Confidence']:
+            print(f"Confidence: {result['Confidence']:.2f}")
+        if result['Detected_By']:
+            print(f"Detected By: {result['Detected_By']}")
+    else:
+        print(f"Error: {response.status_code} - {response.text}")
+
+# Example: Batch processing with URLs
+def process_batch_urls(url_list, api_url="http://localhost:8000"):
+    """Process multiple images via URLs."""
+    # Start a batch session
+    start_response = requests.post(f"{api_url}/api/start-batch")
+    batch_id = start_response.json()["batch_id"]
+    
+    # Submit URLs for processing
+    batch_data = {
+        "image_paths": url_list,
+        "batch_id": batch_id
+    }
+    
+    response = requests.post(
+        f"{api_url}/api/check-logo/batch/",
+        json=batch_data,
+        headers={"Content-Type": "application/json"}
+    )
+    
+    return response.json()
+```
+
+```javascript
+// Example: Frontend API client for batch processing
+const processBatchImages = async (files, batchSize = 10) => {
+  try {
+    // Start a batch session
+    const batchResponse = await axios.post(`${API_BASE_URL}/api/start-batch`);
+    const batchId = batchResponse.data.batch_id;
+    
+    // Prepare form data
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    formData.append('batch_id', batchId);
+    
+    // Process the batch
+    const response = await axios.post(
+      `${API_BASE_URL}/api/check-logo/batch/`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error processing batch:', error);
+    throw error;
+  }
+};
+```
+
+## Deployment
+
+For containerized deployment, a Docker Compose setup is provided:
+
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CONFIDENCE_THRESHOLD=0.35
+      
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+```
 
 ## License & Support
 
