@@ -4,7 +4,7 @@ FastAPI Application for Logo Detection Service
 This module initializes the FastAPI application and registers the API routers.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -14,7 +14,8 @@ from starlette.requests import Request
 from utils.logger import setup_logging
 from utils.file_ops import create_upload_dir
 from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
-from routers import single, batch, export
+from utils.ws_manager import connection_manager
+from routers import single, batch, export, admin_auth, batch_history
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 import asyncio
@@ -127,12 +128,36 @@ async def cleanup_task():
     print("[DEBUG] Scheduled cleanup task complete")
 
 
-# Global batch tracking
+# WebSocket endpoint for real-time batch progress updates
+@app.websocket("/ws/batch/{batch_id}")
+async def websocket_endpoint(websocket: WebSocket, batch_id: str):
+    """
+    WebSocket endpoint for real-time batch processing updates
+    
+    Args:
+        websocket: The WebSocket connection
+        batch_id: The ID of the batch to monitor
+    """
+    await connection_manager.connect(batch_id, websocket)
+    try:
+        while True:
+            # Keep the connection alive and wait for client messages
+            data = await websocket.receive_text()
+            # We could process client messages here if needed
+    except WebSocketDisconnect:
+        # Handle disconnection
+        connection_manager.disconnect(batch_id, websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}")
+        connection_manager.disconnect(batch_id, websocket)
+
 
 # Include routers
 app.include_router(single.router)
 app.include_router(batch.router)
 app.include_router(export.router)
+app.include_router(admin_auth.router)
+app.include_router(batch_history.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -173,6 +198,21 @@ async def api_explanation():
                 "path": "/api/check-logo/batch/export-csv",
                 "method": "GET",
                 "description": "Export the most recent batch processing results to a CSV file.",
+            },
+            {
+                "path": "/api/admin/login",
+                "method": "POST",
+                "description": "Admin login endpoint for secure dashboard access.",
+            },
+            {
+                "path": "/api/admin/batch-history",
+                "method": "GET",
+                "description": "Get history of all processed batches (admin only).",
+            },
+            {
+                "path": "/ws/batch/{batch_id}",
+                "method": "WebSocket",
+                "description": "WebSocket endpoint for real-time batch processing updates.",
             },
         ],
         "note": "For detailed request and response formats, please refer to the /docs endpoint.",
