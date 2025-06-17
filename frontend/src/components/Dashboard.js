@@ -54,11 +54,11 @@ const Dashboard = () => {
         
         if (!response.ok) {
           // Not authenticated, redirect to login
-          navigate('/admin/login');
+          navigate('/admin-login');
         }
       } catch (err) {
         console.error('Session check failed:', err);
-        navigate('/admin/login');
+        navigate('/admin-login');
       } finally {
         setCheckingSession(false);
       }
@@ -74,7 +74,7 @@ const Dashboard = () => {
         credentials: 'include'
       });
       
-      navigate('/admin/login');
+      navigate('/admin-login');
     } catch (err) {
       console.error('Logout error:', err);
     }

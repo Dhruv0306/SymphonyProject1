@@ -26,6 +26,12 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { API_BASE_URL } from './config';
 import { chunkImages, processImageChunks } from './utils/imageChunker';
 import UploadStatus from './UploadStatus';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import AdminLogin from './components/AdminLogin';
+import Dashboard from './components/Dashboard';
+import BatchHistory from './components/BatchHistory';
+
+
 
 // Theme constants for consistent branding
 const symphonyBlue = '#0066B3';     // Primary brand color
@@ -1441,396 +1447,406 @@ function App() {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar for desktop */}
-      {!isMobile && (
-        <Box
-          component="nav"
-          sx={{
-            width: SIDEBAR_WIDTH,
-            flexShrink: 0
-          }}
-        >
-          {sidebarContent}
-        </Box>
-      )}
-
-      {/* Drawer for mobile */}
-      {isMobile && (
-        <Drawer
-          variant="temporary"
-          anchor="left"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better mobile performance
-          }}
-          sx={{
-            '& .MuiDrawer-paper': {
-              width: SIDEBAR_WIDTH,
-              boxSizing: 'border-box',
-            },
-          }}
-        >
-          {sidebarContent}
-        </Drawer>
-      )}
-
-      {/* Main content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          minHeight: '100vh',
-          backgroundColor: '#f5f5f5',
-          overflow: 'auto'
-        }}
-      >
-        <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
-          {/* Mobile menu button */}
-          {isMobile && (
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <IconButton
-                color="inherit"
-                aria-label="open drawer"
-                edge="start"
-                onClick={handleDrawerToggle}
-                sx={{ 
-                  color: symphonyBlue,
-                  border: `1px solid ${symphonyBlue}20`,
-                  borderRadius: 1,
-                  p: 1
+    <Router>
+      <Routes>
+        <Route path="/" element={
+          <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+            {/* Sidebar for desktop */}
+            {!isMobile && (
+              <Box
+                component="nav"
+                sx={{
+                  width: SIDEBAR_WIDTH,
+                  flexShrink: 0
                 }}
               >
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="subtitle1" sx={{ color: symphonyGray }}>
-                Mode: {mode === 'single' ? 'Single Image' : 'Batch Processing'}
-              </Typography>
-            </Box>
-          )}
+                {sidebarContent}
+              </Box>
+            )}
 
-          <Box sx={{ 
-            width: '100%',
-            maxWidth: '1200px',
-            mx: 'auto'
-          }}>
-            <Typography 
-              variant={isMobile ? "h5" : "h4"} 
-              component="h1" 
-              sx={{ 
-                color: symphonyBlue,
-                fontWeight: 'bold',
-                mb: 1
-              }}
-            >
-              {mode === 'single' ? 'Single Image Validation' : 'Batch Image Validation'}
-            </Typography>
-            <Typography
-              variant="subtitle1"
+            {/* Drawer for mobile */}
+            {isMobile && (
+              <Drawer
+                variant="temporary"
+                anchor="left"
+                open={mobileOpen}
+                onClose={handleDrawerToggle}
+                ModalProps={{
+                  keepMounted: true, // Better mobile performance
+                }}
+                sx={{
+                  '& .MuiDrawer-paper': {
+                    width: SIDEBAR_WIDTH,
+                    boxSizing: 'border-box',
+                  },
+                }}
+              >
+                {sidebarContent}
+              </Drawer>
+            )}
+
+            {/* Main content */}
+            <Box
+              component="main"
               sx={{
-                color: symphonyGray,
-                mb: { xs: 3, sm: 4 },
-                opacity: 0.8
+                flexGrow: 1,
+                minHeight: '100vh',
+                backgroundColor: '#f5f5f5',
+                overflow: 'auto'
               }}
             >
-              Powered by YOLO Object Detection
-            </Typography>
-
-            <Paper 
-              elevation={3} 
-              sx={{ 
-                p: { xs: 2, sm: 4 },
-                mb: { xs: 3, sm: 4 },
-                backgroundColor: symphonyWhite,
-                borderRadius: 2
-              }}
-            >
-              {/* Input Method Group */}
-              <Box 
-                sx={{ 
-                  backgroundColor: symphonyLightBlue,
-                  p: { xs: 2, sm: 3 },
-                  borderRadius: 2,
-                  border: `1px solid ${symphonyBlue}20`,
-                  mb: { xs: 3, sm: 4 }
-                }}
-              >
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    color: symphonyBlue,
-                    fontWeight: 500,
-                    mb: 2,
-                    textAlign: 'center'
-                  }}
-                >
-                  Input Method
-                </Typography>
-                <FormControl component="fieldset" fullWidth>
-                  <RadioGroup
-                    row
-                    value={inputMethod}
-                    onChange={(e) => {
-                      setInputMethod(e.target.value);
-                      setFiles([]);
-                      setPreview(null);
-                      setResults([]);
-                      setError(null);
-                      setImageUrl('');
-                      setBatchUrls('');
-                      setUploadStatuses({}); // Reset upload statuses when input method changes
-                    }}
-                    sx={{
-                      justifyContent: 'center',
-                      gap: 4
-                    }}
-                  >
-                    <FormControlLabel
-                      value="upload"
-                      control={
-                        <Radio 
-                          sx={{
-                            color: symphonyBlue,
-                            '&.Mui-checked': {
-                              color: symphonyBlue,
-                            },
-                          }}
-                        />
-                      }
-                      label="Upload File"
+              <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 } }}>
+                {/* Mobile menu button */}
+                {isMobile && (
+                  <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <IconButton
+                      color="inherit"
+                      aria-label="open drawer"
+                      edge="start"
+                      onClick={handleDrawerToggle}
                       sx={{ 
-                        '& .MuiFormControlLabel-label': { 
-                          fontSize: { xs: '0.9rem', sm: '1rem' },
-                          color: symphonyGray
-                        }
+                        color: symphonyBlue,
+                        border: `1px solid ${symphonyBlue}20`,
+                        borderRadius: 1,
+                        p: 1
                       }}
-                    />
-                    <FormControlLabel
-                      value="url"
-                      control={
-                        <Radio 
-                          sx={{
-                            color: symphonyBlue,
-                            '&.Mui-checked': {
-                              color: symphonyBlue,
-                            },
-                          }}
-                        />
-                      }
-                      label="Image URL"
-                      sx={{ 
-                        '& .MuiFormControlLabel-label': { 
-                          fontSize: { xs: '0.9rem', sm: '1rem' },
-                          color: symphonyGray
-                        }
-                      }}
-                    />
-                  </RadioGroup>
-                </FormControl>
-              </Box>
+                    >
+                      <MenuIcon />
+                    </IconButton>
+                    <Typography variant="subtitle1" sx={{ color: symphonyGray }}>
+                      Mode: {mode === 'single' ? 'Single Image' : 'Batch Processing'}
+                    </Typography>
+                  </Box>
+                )}
 
-              <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-                {renderInputSection()}
-              </Box>
-
-              {mode === 'batch' && (
                 <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center', 
-                  gap: 2, 
-                  mb: 2,
                   width: '100%',
-                  maxWidth: '400px',
+                  maxWidth: '1200px',
                   mx: 'auto'
                 }}>
+                  <Typography 
+                    variant={isMobile ? "h5" : "h4"} 
+                    component="h1" 
+                    sx={{ 
+                      color: symphonyBlue,
+                      fontWeight: 'bold',
+                      mb: 1
+                    }}
+                  >
+                    {mode === 'single' ? 'Single Image Validation' : 'Batch Image Validation'}
+                  </Typography>
                   <Typography
                     variant="subtitle1"
                     sx={{
-                      color: symphonyBlue,
-                      fontWeight: 500,
-                      mt: 1,
-                      textAlign: 'center',
-                      width: '100%'
+                      color: symphonyGray,
+                      mb: { xs: 3, sm: 4 },
+                      opacity: 0.8
                     }}
                   >
-                    Batch Size: {displayValue} images
+                    Powered by YOLO Object Detection
                   </Typography>
-                  <Box sx={{ 
-                    width: '100%',
-                    px: 3,
-                    mt: 2,
-                    mb: 2
-                  }}>
-                    <Slider
-                      value={displayValue}
-                      onChange={(_, value) => {
-                        setDisplayValue(value);
-                        setBatchSize(value);
-                      }}
-                      min={1}
-                      max={999}
-                      step={1}
-                      marks={[
-                        { value: 1, label: '1' },
-                        { value: 250, label: '250' },
-                        { value: 500, label: '500' },
-                        { value: 999, label: '999' }
-                      ]}
-                      sx={{
-                        color: symphonyBlue,
-                        height: 8,
-                        '& .MuiSlider-thumb': {
-                          height: 24,
-                          width: 24,
-                          backgroundColor: symphonyWhite,
-                          border: `2px solid ${symphonyBlue}`,
-                          '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
-                            boxShadow: 'inherit',
-                          },
-                        },
-                        '& .MuiSlider-track': {
-                          height: 8,
-                          backgroundColor: symphonyBlue,
-                        },
-                        '& .MuiSlider-rail': {
-                          height: 8,
-                          backgroundColor: `${symphonyBlue}20`,
-                        },
-                        '& .MuiSlider-mark': {
-                          backgroundColor: symphonyBlue,
-                          height: 8,
-                        },
-                        '& .MuiSlider-markLabel': {
-                          color: symphonyGray,
-                          fontSize: '0.875rem',
-                          fontWeight: 500,
-                          marginTop: 4,
-                        },
-                        '& .MuiSlider-valueLabel': {
-                          backgroundColor: symphonyBlue,
-                        }
-                      }}
-                      valueLabelDisplay="auto"
-                      aria-label="Batch size slider"
-                    />
-                  </Box>
-                  <Box sx={{ 
-                    display: 'flex',
-                    gap: 2,
-                    justifyContent: 'center',
-                    width: '100%'
-                  }}>
-                    {[10, 50, 100, 250].map((value) => (
-                      <Button
-                        key={value}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => {
-                          setBatchSize(value);
-                          setDisplayValue(value);
-                        }}
-                        sx={{
-                          borderColor: symphonyBlue,
-                          color: symphonyBlue,
-                          '&:hover': {
-                            backgroundColor: symphonyLightBlue,
-                            borderColor: symphonyBlue,
-                          },
-                          minWidth: '60px'
-                        }}
-                      >
-                        {value}
-                      </Button>
-                    ))}
-                  </Box>
-                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handleStartBatch}
-                      sx={{
-                        borderColor: symphonyBlue,
-                        color: symphonyBlue,
-                        '&:hover': {
-                          backgroundColor: symphonyLightBlue,
-                        },
-                        minWidth: '200px',
-                        height: '48px',
-                        fontSize: '1.1rem',
-                        mt: 2
+
+                  <Paper 
+                    elevation={3} 
+                    sx={{ 
+                      p: { xs: 2, sm: 4 },
+                      mb: { xs: 3, sm: 4 },
+                      backgroundColor: symphonyWhite,
+                      borderRadius: 2
+                    }}
+                  >
+                    {/* Input Method Group */}
+                    <Box 
+                      sx={{ 
+                        backgroundColor: symphonyLightBlue,
+                        p: { xs: 2, sm: 3 },
+                        borderRadius: 2,
+                        border: `1px solid ${symphonyBlue}20`,
+                        mb: { xs: 3, sm: 4 }
                       }}
                     >
-                      Start Batch
-                    </Button>
-                  </Box>
-                </Box>
-              )}
+                      <Typography
+                        variant="subtitle1"
+                        sx={{
+                          color: symphonyBlue,
+                          fontWeight: 500,
+                          mb: 2,
+                          textAlign: 'center'
+                        }}
+                      >
+                        Input Method
+                      </Typography>
+                      <FormControl component="fieldset" fullWidth>
+                        <RadioGroup
+                          row
+                          value={inputMethod}
+                          onChange={(e) => {
+                            setInputMethod(e.target.value);
+                            setFiles([]);
+                            setPreview(null);
+                            setResults([]);
+                            setError(null);
+                            setImageUrl('');
+                            setBatchUrls('');
+                            setUploadStatuses({}); // Reset upload statuses when input method changes
+                          }}
+                          sx={{
+                            justifyContent: 'center',
+                            gap: 4
+                          }}
+                        >
+                          <FormControlLabel
+                            value="upload"
+                            control={
+                              <Radio 
+                                sx={{
+                                  color: symphonyBlue,
+                                  '&.Mui-checked': {
+                                    color: symphonyBlue,
+                                  },
+                                }}
+                              />
+                            }
+                            label="Upload File"
+                            sx={{ 
+                              '& .MuiFormControlLabel-label': { 
+                                fontSize: { xs: '0.9rem', sm: '1rem' },
+                                color: symphonyGray
+                              }
+                            }}
+                          />
+                          <FormControlLabel
+                            value="url"
+                            control={
+                              <Radio 
+                                sx={{
+                                  color: symphonyBlue,
+                                  '&.Mui-checked': {
+                                    color: symphonyBlue,
+                                  },
+                                }}
+                              />
+                            }
+                            label="Image URL"
+                            sx={{ 
+                              '& .MuiFormControlLabel-label': { 
+                                fontSize: { xs: '0.9rem', sm: '1rem' },
+                                color: symphonyGray
+                              }
+                            }}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+                    </Box>
 
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <Button
-                  variant="contained"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  sx={{
-                    backgroundColor: symphonyBlue,
-                    '&:hover': {
-                      backgroundColor: symphonyDarkBlue,
-                    },
-                    minWidth: '200px',
-                    height: '48px',
-                    fontSize: '1.2rem'
-                  }}
-                >
-                  {loading ? (
-                    <CircularProgress size={28} sx={{ color: symphonyWhite }} />
-                  ) : (
-                    'Process Images'
+                    <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+                      {renderInputSection()}
+                    </Box>
+
+                    {mode === 'batch' && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        gap: 2, 
+                        mb: 2,
+                        width: '100%',
+                        maxWidth: '400px',
+                        mx: 'auto'
+                      }}>
+                        <Typography
+                          variant="subtitle1"
+                          sx={{
+                            color: symphonyBlue,
+                            fontWeight: 500,
+                            mt: 1,
+                            textAlign: 'center',
+                            width: '100%'
+                          }}
+                        >
+                          Batch Size: {displayValue} images
+                        </Typography>
+                        <Box sx={{ 
+                          width: '100%',
+                          px: 3,
+                          mt: 2,
+                          mb: 2
+                        }}>
+                          <Slider
+                            value={displayValue}
+                            onChange={(_, value) => {
+                              setDisplayValue(value);
+                              setBatchSize(value);
+                            }}
+                            min={1}
+                            max={999}
+                            step={1}
+                            marks={[
+                              { value: 1, label: '1' },
+                              { value: 250, label: '250' },
+                              { value: 500, label: '500' },
+                              { value: 999, label: '999' }
+                            ]}
+                            sx={{
+                              color: symphonyBlue,
+                              height: 8,
+                              '& .MuiSlider-thumb': {
+                                height: 24,
+                                width: 24,
+                                backgroundColor: symphonyWhite,
+                                border: `2px solid ${symphonyBlue}`,
+                                '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
+                                  boxShadow: 'inherit',
+                                },
+                              },
+                              '& .MuiSlider-track': {
+                                height: 8,
+                                backgroundColor: symphonyBlue,
+                              },
+                              '& .MuiSlider-rail': {
+                                height: 8,
+                                backgroundColor: `${symphonyBlue}20`,
+                              },
+                              '& .MuiSlider-mark': {
+                                backgroundColor: symphonyBlue,
+                                height: 8,
+                              },
+                              '& .MuiSlider-markLabel': {
+                                color: symphonyGray,
+                                fontSize: '0.875rem',
+                                fontWeight: 500,
+                                marginTop: 4,
+                              },
+                              '& .MuiSlider-valueLabel': {
+                                backgroundColor: symphonyBlue,
+                              }
+                            }}
+                            valueLabelDisplay="auto"
+                            aria-label="Batch size slider"
+                          />
+                        </Box>
+                        <Box sx={{ 
+                          display: 'flex',
+                          gap: 2,
+                          justifyContent: 'center',
+                          width: '100%'
+                        }}>
+                          {[10, 50, 100, 250].map((value) => (
+                            <Button
+                              key={value}
+                              variant="outlined"
+                              size="small"
+                              onClick={() => {
+                                setBatchSize(value);
+                                setDisplayValue(value);
+                              }}
+                              sx={{
+                                borderColor: symphonyBlue,
+                                color: symphonyBlue,
+                                '&:hover': {
+                                  backgroundColor: symphonyLightBlue,
+                                  borderColor: symphonyBlue,
+                                },
+                                minWidth: '60px'
+                              }}
+                            >
+                              {value}
+                            </Button>
+                          ))}
+                        </Box>
+                        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                          <Button
+                            variant="outlined"
+                            onClick={handleStartBatch}
+                            sx={{
+                              borderColor: symphonyBlue,
+                              color: symphonyBlue,
+                              '&:hover': {
+                                backgroundColor: symphonyLightBlue,
+                              },
+                              minWidth: '200px',
+                              height: '48px',
+                              fontSize: '1.1rem',
+                              mt: 2
+                            }}
+                          >
+                            Start Batch
+                          </Button>
+                        </Box>
+                      </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                      <Button
+                        variant="contained"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        sx={{
+                          backgroundColor: symphonyBlue,
+                          '&:hover': {
+                            backgroundColor: symphonyDarkBlue,
+                          },
+                          minWidth: '200px',
+                          height: '48px',
+                          fontSize: '1.2rem'
+                        }}
+                      >
+                        {loading ? (
+                          <CircularProgress size={28} sx={{ color: symphonyWhite }} />
+                        ) : (
+                          'Process Images'
+                        )}
+                      </Button>
+                    </Box>
+                  </Paper>
+
+                  {error && (
+                    <Paper 
+                      sx={{ 
+                        p: { xs: 2, sm: 3 }, 
+                        mb: { xs: 2, sm: 3 }, 
+                        backgroundColor: '#ffebee',
+                        borderRadius: 2
+                      }}
+                    >
+                      <Typography 
+                        color="error" 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          fontSize: { xs: '0.9rem', sm: '1rem' }
+                        }}
+                      >
+                        <ErrorOutlineIcon sx={{ mr: 1 }} />
+                        {error}
+                      </Typography>
+                    </Paper>
                   )}
-                </Button>
-              </Box>
-            </Paper>
 
-            {error && (
-              <Paper 
-                sx={{ 
-                  p: { xs: 2, sm: 3 }, 
-                  mb: { xs: 2, sm: 3 }, 
-                  backgroundColor: '#ffebee',
-                  borderRadius: 2
-                }}
-              >
-                <Typography 
-                  color="error" 
-                  sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    fontSize: { xs: '0.9rem', sm: '1rem' }
-                  }}
-                >
-                  <ErrorOutlineIcon sx={{ mr: 1 }} />
-                  {error}
-                </Typography>
-              </Paper>
-            )}
+                  {renderResults()}
 
-            {renderResults()}
-
-            {results.length > 0 && (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<FileDownloadIcon />}
-                onClick={handleExportCSV}
-                sx={{ mt: 2 }}
-              >
-                Export Results to CSV
-              </Button>
-            )}
+                  {results.length > 0 && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<FileDownloadIcon />}
+                      onClick={handleExportCSV}
+                      sx={{ mt: 2 }}
+                    >
+                      Export Results to CSV
+                    </Button>
+                  )}
+                </Box>
+              </Container>
+            </Box>
           </Box>
-        </Container>
-      </Box>
-    </Box>
+          }
+        />
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/batch-history" element={<BatchHistory />} />
+      </Routes>
+    </Router>
   );
 }
 
