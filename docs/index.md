@@ -27,11 +27,12 @@ For detailed architectural information, see our [Architecture Documentation](./a
    - [Error Handling](./architecture.md#error-handling-and-monitoring)
 
 3. [API Reference](./api-reference.md)
-   - RESTful Endpoints
+   - RESTful API v2 Endpoints
    - Request/Response Formats
    - Authentication
    - Rate Limiting
    - Error Codes
+   - Analytics API
 
 4. [Detection Features](./detection-features.md)
    - Single Image Validation
@@ -71,17 +72,19 @@ For detailed architectural information, see our [Architecture Documentation](./a
 ## Key Features
 
 - **Advanced Detection Models**
-  - 5 specialized YOLO models (YOLOv8s and YOLOv11s variants)
-  - Confidence threshold: 0.35
+  - Cascading YOLO architecture (YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l)
+  - Confidence threshold: 0.40
   - Early detection return
   - Model ensemble approach
 
 - **Enterprise Integration**
-  - RESTful API architecture
+  - RESTful API v2 architecture
   - Comprehensive error handling
   - Detailed logging system
   - Production-grade security
   - CSV export capabilities
+  - Analytics dashboard
+  - Real-time monitoring
 
 - **Performance Optimization**
   - Concurrent processing
@@ -98,9 +101,10 @@ For detailed architectural information, see our [Architecture Documentation](./a
 
 - **Additional Resources**
   - [System Architecture](./architecture.md)
-  - [API Documentation](http://localhost:8000/docs)
+  - [API v2 Documentation](http://localhost:8000/docs)
   - [Security Guidelines](./security.md)
   - [Performance Metrics](./metrics.md)
+  - [Analytics Dashboard](http://localhost:8000/analytics)
 
 ## Copyright
 

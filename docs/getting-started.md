@@ -95,7 +95,7 @@ npm run start-backend
 
 4. Test with a sample image:
 ```bash
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
+curl -X POST "http://localhost:8000/api/v2/check-logo/single/" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@sample.jpg"
@@ -108,7 +108,8 @@ curl -X POST "http://localhost:8000/api/check-logo/single/" \
 API_HOST=0.0.0.0
 API_PORT=8000
 DEBUG_MODE=False
-CONFIDENCE_THRESHOLD=0.35
+CONFIDENCE_THRESHOLD=0.40
+API_VERSION=v2
 ```
 
 2. Configure logging:
@@ -121,7 +122,10 @@ LOG_ROTATION=10MB
 ```env
 API_KEY_HEADER=X-API-Key
 CORS_ORIGINS=["http://localhost:3000"]
-RATE_LIMIT=100
+RATE_LIMIT_SINGLE=150
+RATE_LIMIT_BATCH=30
+RATE_LIMIT_CSV=25
+RATE_LIMIT_ANALYTICS=50
 ```
 
 ## System Components
@@ -135,7 +139,8 @@ Our system consists of several key components:
    - Responsive interface
 
 2. **Model Layer**
-   - Multiple YOLO models for detection
+   - Cascading YOLO models (nano, small, medium, large)
+   - Progressive detection pipeline
    - See [Model Architecture](./architecture.md#model-architecture)
 
 3. **Processing Pipeline**

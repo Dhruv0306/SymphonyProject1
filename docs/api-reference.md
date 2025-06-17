@@ -13,9 +13,10 @@ X-API-Key: your-api-key-here
 
 The API uses SlowAPI for rate limiting with the following constraints:
 
-- Single image endpoint: 100 requests per minute
-- Batch processing endpoints: 20 requests per minute
-- CSV export endpoints: 20 requests per minute
+- Single image endpoint: 150 requests per minute
+- Batch processing endpoints: 30 requests per minute
+- CSV export endpoints: 25 requests per minute
+- Analytics API endpoints: 50 requests per minute
 
 Rate limit headers returned:
 - `X-RateLimit-Limit`
@@ -27,7 +28,7 @@ Rate limit headers returned:
 ### 1. Single Image Validation
 
 ```http
-POST /api/check-logo/single/
+POST /api/v2/check-logo/single/
 ```
 
 Validates a single image for Symphony logo presence.
@@ -42,13 +43,13 @@ Validates a single image for Symphony logo presence.
 
 **Example (File Upload):**
 ```bash
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
+curl -X POST "http://localhost:8000/api/v2/check-logo/single/" \
   -F "file=@logo.jpg"
 ```
 
 **Example (URL):**
 ```bash
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
+curl -X POST "http://localhost:8000/api/v2/check-logo/single/" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/logo.jpg"}'
 ```
@@ -60,7 +61,7 @@ curl -X POST "http://localhost:8000/api/check-logo/single/" \
   "status": "success",
   "has_logo": true,
   "confidence": 0.92,
-  "model_used": "YOLOv8s #1",
+  "model_used": "YOLOv8n",
   "processing_time": 0.8,
   "bounding_box": {
     "x1": 100,
@@ -76,7 +77,7 @@ curl -X POST "http://localhost:8000/api/check-logo/single/" \
 #### Start Batch
 
 ```http
-POST /api/start-batch
+POST /api/v2/start-batch
 ```
 
 Start a new batch processing session.
@@ -92,12 +93,12 @@ Start a new batch processing session.
 #### Process Batch
 
 ```http
-POST /api/check-logo/batch/
+POST /api/v2/check-logo/batch/
 ```
 
 Process multiple images within a batch session. Supports both file uploads and URL processing.
 
-**Rate Limit:** 20 requests per minute with automatic retry and exponential backoff.
+**Rate Limit:** 30 requests per minute with automatic retry and exponential backoff.
 
 **Content Types:**
 - `multipart/form-data` for file uploads
@@ -117,7 +118,7 @@ Process multiple images within a batch session. Supports both file uploads and U
 
 **Example (Files with Batch ID):**
 ```bash
-curl -X POST "http://localhost:8000/api/check-logo/batch/" \
+curl -X POST "http://localhost:8000/api/v2/check-logo/batch/" \
   -F "files[]=@logo1.jpg" \
   -F "files[]=@logo2.jpg" \
   -F "batch_id=550e8400-e29b-41d4-a716-446655440000"
@@ -125,7 +126,7 @@ curl -X POST "http://localhost:8000/api/check-logo/batch/" \
 
 **Example (URLs with Batch ID):**
 ```bash
-curl -X POST "http://localhost:8000/api/check-logo/batch/" \
+curl -X POST "http://localhost:8000/api/v2/check-logo/batch/" \
   -H "Content-Type: application/json" \
   -d '{
     "image_paths": [
@@ -148,7 +149,7 @@ curl -X POST "http://localhost:8000/api/check-logo/batch/" \
       "Image_Path_or_URL": "logo1.jpg",
       "Is_Valid": "Valid",
       "Confidence": 0.92,
-      "Detected_By": "YOLOv8s #1",
+      "Detected_By": "YOLOv8n",
       "Bounding_Box": {
         "x1": 100,
         "y1": 150,
@@ -186,7 +187,7 @@ curl -X POST "http://localhost:8000/api/check-logo/batch/" \
 ### 3. Batch Results Export
 
 ```http
-GET /api/check-logo/batch/export-csv?batch_id={batch_id}
+GET /api/v2/check-logo/batch/export-csv?batch_id={batch_id}
 ```
 
 Export the batch processing results as a CSV file.
@@ -196,7 +197,7 @@ Export the batch processing results as a CSV file.
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8000/api/check-logo/batch/export-csv?batch_id=550e8400-e29b-41d4-a716-446655440000" \
+curl -X GET "http://localhost:8000/api/v2/check-logo/batch/export-csv?batch_id=550e8400-e29b-41d4-a716-446655440000" \
   --output results.csv
 ```
 
@@ -216,7 +217,7 @@ The file is named: `logo_detection_results_{batch_id}_{timestamp}.csv`
 ### 4. Batch Statistics
 
 ```http
-GET /api/check-logo/batch/stats?batch_id={batch_id}
+GET /api/v2/check-logo/batch/stats?batch_id={batch_id}
 ```
 
 Retrieve processing statistics for a specific batch.
@@ -226,7 +227,7 @@ Retrieve processing statistics for a specific batch.
 
 **Example:**
 ```bash
-curl -X GET "http://localhost:8000/api/check-logo/batch/stats?batch_id=550e8400-e29b-41d4-a716-446655440000"
+curl -X GET "http://localhost:8000/api/v2/check-logo/batch/stats?batch_id=550e8400-e29b-41d4-a716-446655440000"
 ```
 
 **Response:**
@@ -238,15 +239,15 @@ curl -X GET "http://localhost:8000/api/check-logo/batch/stats?batch_id=550e8400-
     "invalid": 30,
     "total": 150,
     "model_usage": {
-      "YOLOv8s #1": 85,
-      "YOLOv8s #2": 20,
-      "YOLOv8s #3": 10,
-      "YOLOv11s": 5
+      "YOLOv8n": 85,
+      "YOLOv8s": 35,
+      "YOLOv8m": 20,
+      "YOLOv8l": 10
     }
   },
   "rate_limit": {
-    "limit": 20,
-    "remaining": 19,
+    "limit": 30,
+    "remaining": 29,
     "reset": 60
   }
 }
@@ -276,7 +277,7 @@ curl -X GET "http://localhost:8000/api/check-logo/batch/stats?batch_id=550e8400-
   "code": "rate_limit_exceeded",
   "message": "Rate limit exceeded. Try again later.",
   "rate_limit": {
-    "limit": 100,
+    "limit": 150,
     "reset": 60,
     "endpoint": "single"
   }
@@ -300,3 +301,110 @@ curl -X GET "http://localhost:8000/api/check-logo/batch/stats?batch_id=550e8400-
 - [System Architecture](./architecture.md)
 - [Security & Rate Limiting](./architecture.md#security-and-rate-limiting)
 - [Model Architecture](./architecture.md#model-architecture) 
+
+### 5. Analytics Dashboard
+
+```http
+GET /api/v2/analytics/dashboard
+```
+
+Retrieve analytics data for the dashboard.
+
+**Parameters:**
+- `period`: (Optional) Time period for analytics data (default: "day", options: "day", "week", "month")
+- `format`: (Optional) Response format (default: "json", options: "json", "csv")
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/api/v2/analytics/dashboard?period=week"
+```
+
+**Response:**
+```json
+{
+  "period": "week",
+  "total_processed": 12450,
+  "valid_count": 9876,
+  "invalid_count": 2574,
+  "average_confidence": 0.87,
+  "model_distribution": {
+    "YOLOv8n": 65,
+    "YOLOv8s": 22,
+    "YOLOv8m": 8,
+    "YOLOv8l": 5
+  },
+  "processing_times": {
+    "average_ms": 245,
+    "p50_ms": 220,
+    "p95_ms": 450,
+    "p99_ms": 780
+  },
+  "daily_stats": [
+    {
+      "date": "2024-05-01",
+      "processed": 1823,
+      "valid": 1456,
+      "invalid": 367
+    },
+    {
+      "date": "2024-05-02",
+      "processed": 1756,
+      "valid": 1398,
+      "invalid": 358
+    }
+    // Additional days...
+  ]
+}
+```
+
+### 6. Model Performance
+
+```http
+GET /api/v2/analytics/model-performance
+```
+
+Retrieve detailed model performance metrics.
+
+**Parameters:**
+- `model`: (Optional) Specific model to query (options: "YOLOv8n", "YOLOv8s", "YOLOv8m", "YOLOv8l")
+- `period`: (Optional) Time period for analytics data (default: "day", options: "day", "week", "month")
+
+**Example:**
+```bash
+curl -X GET "http://localhost:8000/api/v2/analytics/model-performance?model=YOLOv8n&period=week"
+```
+
+**Response:**
+```json
+{
+  "model": "YOLOv8n",
+  "period": "week",
+  "usage_count": 8125,
+  "success_rate": 0.92,
+  "average_confidence": 0.86,
+  "average_inference_time_ms": 120,
+  "confidence_distribution": {
+    "0.40-0.50": 320,
+    "0.50-0.60": 645,
+    "0.60-0.70": 1245,
+    "0.70-0.80": 2356,
+    "0.80-0.90": 2458,
+    "0.90-1.00": 1101
+  },
+  "daily_performance": [
+    {
+      "date": "2024-05-01",
+      "usage_count": 1180,
+      "success_rate": 0.93,
+      "average_confidence": 0.87
+    },
+    {
+      "date": "2024-05-02",
+      "usage_count": 1142,
+      "success_rate": 0.91,
+      "average_confidence": 0.85
+    }
+    // Additional days...
+  ]
+}
+```

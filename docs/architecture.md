@@ -14,9 +14,10 @@ The system is organized into several layers:
 ## Security and Rate Limiting
 
 The system implements robust rate limiting using SlowAPI:
-- Single image endpoint: 100 requests per minute
-- Batch processing endpoint: 20 requests per minute
-- CSV export endpoint: 20 requests per minute
+- Single image endpoint: 150 requests per minute
+- Batch processing endpoint: 30 requests per minute
+- CSV export endpoint: 25 requests per minute
+- Analytics API endpoint: 50 requests per minute
 
 Security measures include:
 - CORS protection
@@ -27,23 +28,27 @@ Security measures include:
 
 ## Model Architecture
 
-The system uses a cascading model approach:
+The system uses a cascading model approach with progressive complexity:
 
 1. Primary Detection:
-   - YOLOv8s Model #1 (Confidence threshold: 0.35)
-   - Fast initial detection attempt
+   - YOLOv8n (nano) Model (Confidence threshold: 0.40)
+   - Fast initial screening with minimal resources
+   - Optimized for speed and common cases
 
 2. Secondary Detection:
-   - YOLOv8s Model #2 (If confidence < 0.35)
-   - Different weights and parameters
+   - YOLOv8s (small) Model (If confidence < 0.40)
+   - More accurate but requires more resources
+   - Balanced speed and precision
 
 3. Tertiary Detection:
-   - YOLOv8s Model #3 (If still confidence < 0.35)
-   - Specialized for complex cases
+   - YOLOv8m (medium) Model (If still confidence < 0.40)
+   - Higher precision for complex cases
+   - Deeper feature extraction
 
 4. Final Detection:
-   - YOLOv11s Model Pool
+   - YOLOv8l (large) Model
    - Ensemble processing for difficult cases
+   - Highest accuracy with most resources
    - Aggregated confidence scoring
 
 ## Batch Processing Flow
@@ -141,6 +146,24 @@ Key performance features:
    - State cleanup
    - Resource optimization
 
+## Analytics and Monitoring
+
+The system now includes comprehensive analytics capabilities:
+
+1. **Analytics Dashboard**
+   - Real-time processing metrics
+   - Model performance statistics
+   - Resource utilization graphs
+   - Detection confidence distribution
+   - Endpoint usage analytics
+
+2. **Performance Monitoring**
+   - API response time tracking
+   - Model inference time metrics
+   - Resource consumption monitoring
+   - Error rate tracking
+   - Batch processing efficiency
+
 ## Future Enhancements
 
 1. **Planned Improvements**
@@ -148,12 +171,14 @@ Key performance features:
    - Enhanced batch processing
    - Advanced caching strategies
    - Extended export formats
+   - AI-assisted error correction
 
 2. **Scalability Plans**
    - Distributed processing
    - Cloud integration
    - Enhanced monitoring
    - Automated scaling
+   - Kubernetes deployment
 
 ## References
 
