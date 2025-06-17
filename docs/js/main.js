@@ -19,22 +19,76 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Search functionality
+    // Enhanced search functionality with highlighting
     const searchInput = document.querySelector('.search-box input');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
             const contentSections = document.querySelectorAll('.content-section');
             
+            // Reset previous highlights
+            document.querySelectorAll('.search-highlight').forEach(el => {
+                el.outerHTML = el.innerHTML;
+            });
+            
+            if (searchTerm.length < 2) {
+                contentSections.forEach(section => {
+                    section.style.display = 'block';
+                });
+                return;
+            }
+            
             contentSections.forEach(section => {
                 const text = section.textContent.toLowerCase();
                 if (text.includes(searchTerm)) {
                     section.style.display = 'block';
+                    
+                    // Highlight matching text
+                    highlightText(section, searchTerm);
                 } else {
                     section.style.display = 'none';
                 }
             });
         });
+    }
+    
+    // Function to highlight search terms
+    function highlightText(element, term) {
+        if (element.nodeType === 3) { // Text node
+            const text = element.nodeValue;
+            const lowerText = text.toLowerCase();
+            const index = lowerText.indexOf(term);
+            
+            if (index >= 0) {
+                const before = text.substring(0, index);
+                const match = text.substring(index, index + term.length);
+                const after = text.substring(index + term.length);
+                
+                const span = document.createElement('span');
+                span.className = 'search-highlight';
+                span.style.backgroundColor = 'yellow';
+                span.textContent = match;
+                
+                const fragment = document.createDocumentFragment();
+                fragment.appendChild(document.createTextNode(before));
+                fragment.appendChild(span);
+                fragment.appendChild(document.createTextNode(after));
+                
+                element.parentNode.replaceChild(fragment, element);
+                return true;
+            }
+        } else if (element.nodeType === 1) { // Element node
+            // Skip script and style elements
+            if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') {
+                return false;
+            }
+            
+            // Process child nodes
+            Array.from(element.childNodes).forEach(child => {
+                highlightText(child, term);
+            });
+        }
+        return false;
     }
 
     // Code copy functionality
@@ -117,4 +171,54 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Add version badges to API endpoints
+    document.querySelectorAll('.api-overview code').forEach(code => {
+        const text = code.textContent;
+        if (text.includes('/v2/')) {
+            const badge = document.createElement('span');
+            badge.className = 'version-badge new';
+            badge.textContent = 'v2';
+            code.appendChild(badge);
+        }
+    });
+    
+    // Initialize API method tags
+    document.querySelectorAll('.api-overview li').forEach(item => {
+        const codeText = item.querySelector('code').textContent;
+        const method = codeText.split(' ')[0];
+        
+        if (method) {
+            const methodTag = document.createElement('span');
+            methodTag.className = `api-method ${method.toLowerCase()}`;
+            methodTag.textContent = method;
+            item.insertBefore(methodTag, item.firstChild);
+        }
+    });
+    
+    // Add copy button to all code blocks
+    document.querySelectorAll('pre code').forEach(codeBlock => {
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-btn';
+        copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+        copyButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(codeBlock.textContent)
+                .then(() => {
+                    copyButton.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        copyButton.innerHTML = '<i class="fas fa-copy"></i>';
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Failed to copy code: ', err);
+                });
+        });
+        
+        // Find the parent pre element and make it relative positioned
+        const preElement = codeBlock.parentElement;
+        if (preElement && preElement.tagName === 'PRE') {
+            preElement.style.position = 'relative';
+            preElement.appendChild(copyButton);
+        }
+    });
 }); 

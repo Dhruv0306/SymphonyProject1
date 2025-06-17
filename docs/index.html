@@ -48,11 +48,12 @@
                 <div class="card overview">
                     <h3>Enterprise Features</h3>
                     <ul>
-                        <li>Cascading model architecture with 0.35 confidence threshold</li>
+                        <li>Cascading model architecture with 0.40 confidence threshold</li>
                         <li>Rate-limited API endpoints for optimal performance</li>
                         <li>Comprehensive batch processing system</li>
                         <li>Detailed CSV export with model insights</li>
-                        <li>Real-time monitoring and metrics</li>
+                        <li>Real-time monitoring and metrics dashboard</li>
+                        <li>Automated error recovery and retry mechanisms</li>
                     </ul>
                 </div>
 
@@ -156,31 +157,31 @@
                         <div class="model">
                             <i class="fas fa-microchip"></i>
                             <h4>Primary Detection</h4>
-                            <p>YOLOv8s #1 for initial fast detection</p>
+                            <p>YOLOv8n for fast initial screening</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-microchip"></i>
                             <h4>Secondary Detection</h4>
-                            <p>YOLOv8s #2 for verification</p>
+                            <p>YOLOv8s for detailed verification</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-microchip"></i>
                             <h4>Tertiary Detection</h4>
-                            <p>YOLOv8s #3 for complex cases</p>
+                            <p>YOLOv8m for complex cases</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-brain"></i>
                             <h4>Final Detection</h4>
-                            <p>YOLOv11s ensemble processing</p>
+                            <p>YOLOv8l ensemble processing</p>
                         </div>
                     </div>
                     <div class="model-features">
                         <h4>Detection Flow</h4>
                         <ul>
-                            <li>Start with YOLOv8s #1</li>
-                            <li>If confidence < 0.35, try YOLOv8s #2</li>
-                            <li>If still < 0.35, use YOLOv8s #3</li>
-                            <li>For difficult cases, use YOLOv11s ensemble</li>
+                            <li>Start with YOLOv8n (nano) for speed</li>
+                            <li>If confidence < 0.40, escalate to YOLOv8s (small)</li>
+                            <li>If still < 0.40, use YOLOv8m (medium)</li>
+                            <li>For difficult cases, use YOLOv8l (large) ensemble</li>
                         </ul>
                     </div>
                 </div>
@@ -195,17 +196,22 @@
                         <div class="limit">
                             <i class="fas fa-image"></i>
                             <h4>Single Image</h4>
-                            <p>100 requests per minute</p>
+                            <p>150 requests per minute</p>
                         </div>
                         <div class="limit">
                             <i class="fas fa-images"></i>
                             <h4>Batch Processing</h4>
-                            <p>20 requests per minute</p>
+                            <p>30 requests per minute</p>
                         </div>
                         <div class="limit">
                             <i class="fas fa-file-csv"></i>
                             <h4>CSV Export</h4>
-                            <p>20 requests per minute</p>
+                            <p>25 requests per minute</p>
+                        </div>
+                        <div class="limit">
+                            <i class="fas fa-chart-line"></i>
+                            <h4>Analytics API</h4>
+                            <p>50 requests per minute</p>
                         </div>
                     </div>
                     <div class="limit-info">
@@ -297,23 +303,31 @@
                     <ul>
                         <li>
                             <strong>Single Image Detection:</strong>
-                            <code>POST /api/check-logo/single/</code>
+                            <code>POST /api/v2/check-logo/single/</code>
                         </li>
                         <li>
                             <strong>Start Batch Session:</strong>
-                            <code>POST /api/start-batch</code>
+                            <code>POST /api/v2/start-batch</code>
                         </li>
                         <li>
                             <strong>Batch Processing:</strong>
-                            <code>POST /api/check-logo/batch/</code>
+                            <code>POST /api/v2/check-logo/batch/</code>
                         </li>
                         <li>
                             <strong>CSV Export:</strong>
-                            <code>GET /api/check-logo/batch/export-csv</code>
+                            <code>GET /api/v2/check-logo/batch/export-csv</code>
                         </li>
                         <li>
                             <strong>Batch Statistics:</strong>
-                            <code>GET /api/check-logo/batch/stats</code>
+                            <code>GET /api/v2/check-logo/batch/stats</code>
+                        </li>
+                        <li>
+                            <strong>Analytics Dashboard:</strong>
+                            <code>GET /api/v2/analytics/dashboard</code>
+                        </li>
+                        <li>
+                            <strong>Model Performance:</strong>
+                            <code>GET /api/v2/analytics/model-performance</code>
                         </li>
                     </ul>
                 </div>
