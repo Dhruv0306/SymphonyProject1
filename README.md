@@ -44,6 +44,9 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - RESTful FastAPI implementation
   - Comprehensive API documentation (Swagger & ReDoc)
   - Rate limiting and CORS protection
+  - WebSocket support for real-time updates
+  - Admin authentication and dashboard
+  - CSRF protection for secure operations
   - Detailed logging with rotation (10MB limit)
   - Swagger UI integration
   - CSV export endpoint for batch results
@@ -51,18 +54,21 @@ This application provides an enterprise-grade solution for detecting Symphony lo
   - Prometheus metrics integration
 
 - **Modern Frontend Interface**
-  - React-based user interface (v18.2.0)
-  - Material-UI components (v5.14.0)
+  - React-based user interface (v19.1.0)
+  - Material-UI components (v7.1.0)
   - Configurable backend URL
   - Material design components
   - Responsive layout
   - Drag-and-drop file upload
-  - Real-time validation feedback
+  - Real-time validation feedback via WebSockets
   - Progress tracking for batch operations
+  - Admin dashboard with batch history
 
 - **Production-Grade Infrastructure**
   - Thread-safe operations
-  - Automatic temporary file cleanup
+  - Scheduled tasks with APScheduler
+  - Automatic temporary file cleanup (30-minute intervals)
+  - Batch data cleanup (24-hour retention)
   - Configurable environment settings
   - Comprehensive error tracking
   - Performance optimization features
@@ -491,19 +497,21 @@ sequenceDiagram
 ## Technology Stack
 
 ### Backend Infrastructure
-- FastAPI (async support)
+- FastAPI 0.115.12 (async support)
 - Python 3.7+
-- Ultralytics YOLOv8 and YOLOv11
-- PIL for image processing
+- Ultralytics 8.3.151 (YOLOv8 and YOLOv11)
+- Pillow 11.2.1 for image processing
+- APScheduler 3.10.4 for scheduled tasks
+- SlowAPI 0.1.9 for rate limiting
 - File-based caching and state management
 - Rotating file logs
-- uvicorn for ASGI server
+- uvicorn 0.34.3 for ASGI server
 
 ### Frontend Stack
-- React 18.2.0
-- Material-UI 5.14.0
-- Axios for API calls
-- React Dropzone 14.2.3
+- React 19.1.0
+- Material-UI 7.1.0
+- Axios 1.9.0 for API calls
+- React Dropzone 14.3.8
 - Cross-env 7.0.3 for environment management
 - Jest for testing
 - ESLint for code quality
@@ -524,10 +532,15 @@ sequenceDiagram
 - Jest for frontend testing
 - Black for Python formatting
 - ESLint for JavaScript/TypeScript
-- Docker for containerization
-- Kubernetes manifests
 
 ## Installation
+
+### System Requirements
+
+- Python 3.7+ with pip
+- Node.js 14+ with npm
+- 4GB+ RAM recommended for model inference
+- GPU support optional but recommended for faster processing
 
 ### Backend Setup
 
@@ -781,7 +794,49 @@ Response:
 }
 ```
 
-#### 3. Status Endpoints
+#### 3. Admin Endpoints
+
+```http
+POST /api/admin/login
+Parameters:
+- username: string (required)
+- password: string (required)
+
+Response:
+{
+    "access_token": string,
+    "token_type": "bearer"
+}
+```
+
+```http
+GET /api/admin/batch-history
+Headers:
+- Authorization: Bearer <token>
+
+Response:
+{
+    "batches": [
+        {
+            "batch_id": string,
+            "timestamp": string,
+            "total_processed": int,
+            "valid_count": int,
+            "invalid_count": int
+        }
+    ]
+}
+```
+
+#### 4. WebSocket Endpoint
+
+```
+WebSocket /ws/batch/{batch_id}
+
+Purpose: Real-time batch processing updates
+```
+
+#### 5. Status Endpoints
 
 ```http
 GET /
@@ -816,6 +871,8 @@ Common HTTP status codes:
 ## Security
 
 ### Authentication and Authorization
+- Admin authentication with token-based security
+- CSRF protection with token validation
 - Rate limiting with SlowAPI
 - CORS protection for cross-origin requests
 - Detailed logging with rotation
@@ -855,6 +912,14 @@ Common HTTP status codes:
 - Frontend interactions
 - Model inference
 - System-level events
+- Security events
+- Batch processing events
+- Scheduled task execution
+
+### Log Management
+- Rotating file logs with 10MB size limit
+- Structured logging format
+- Automatic cleanup of old log files
 
 ## Development Guidelines
 
@@ -874,10 +939,16 @@ Common HTTP status codes:
 - Model inference errors
 - API connectivity issues
 - Data processing delays
+- WebSocket connection failures
+- CORS-related issues
+- Rate limiting restrictions
 
 ### Troubleshooting Steps
-- Check system logs
-- Verify API connectivity
+- Check system logs at `logs/app.log`
+- Verify API connectivity with health check endpoint
+- Ensure model files exist in the correct paths
+- Check for proper CORS configuration
+- Verify WebSocket connections
 - Re-run the inference pipeline
 
 ## Code Examples
@@ -967,36 +1038,25 @@ const processBatchImages = async (files, batchSize = 10) => {
 
 ## Deployment
 
-For containerized deployment, a Docker Compose setup is provided:
+### Server Deployment
 
-```yaml
-version: '3.8'
+For production deployment, follow these steps:
 
-services:
-  backend:
-    build: 
-      context: .
-      dockerfile: Dockerfile.backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - API_HOST=0.0.0.0
-      - API_PORT=8000
-      - CONFIDENCE_THRESHOLD=0.35
-      
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_BACKEND_URL=http://backend:8000
-    depends_on:
-      - backend
-```
+1. Set up a server with Python 3.7+ and Node.js 14+
+2. Clone the repository and install dependencies
+3. Build the frontend as described in the Production Mode section
+4. Configure environment variables for production settings
+5. Use a process manager like PM2 or Supervisor to manage the application
+6. Set up a reverse proxy with Nginx or Apache
+7. Configure SSL/TLS for secure connections
+
+### Environment Configuration
+
+For production environments, ensure these settings are properly configured:
+- Set DEBUG_MODE=False
+- Configure appropriate CORS_ORIGINS
+- Set proper rate limits
+- Enable logging with appropriate rotation settings
 
 ## License & Support
 
