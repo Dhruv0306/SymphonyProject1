@@ -47,18 +47,32 @@ const Dashboard = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // Get token from localStorage
+        const token = localStorage.getItem('auth_token');
+        
+        if (!token) {
+          navigate('/admin/login');
+          return;
+        }
+        
         const response = await fetch(`${API_BASE_URL}/api/admin/check-session`, {
           method: 'GET',
-          credentials: 'include'
+          headers: {
+            'X-Auth-Token': token
+          }
         });
         
         if (!response.ok) {
           // Not authenticated, redirect to login
-          navigate('/admin-login');
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('csrf_token');
+          navigate('/admin/login');
         }
       } catch (err) {
         console.error('Session check failed:', err);
-        navigate('/admin-login');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('csrf_token');
+        navigate('/admin/login');
       } finally {
         setCheckingSession(false);
       }
@@ -69,14 +83,32 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem('auth_token');
+      const csrfToken = localStorage.getItem('csrf_token');
+      
+      if (!token || !csrfToken) {
+        navigate('/admin/login');
+        return;
+      }
+      
       await fetch(`${API_BASE_URL}/api/admin/logout`, {
         method: 'POST',
-        credentials: 'include'
+        headers: {
+          'X-Auth-Token': token,
+          'X-CSRF-Token': csrfToken
+        }
       });
       
-      navigate('/admin-login');
+      // Clear tokens
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('csrf_token');
+      navigate('/admin/login');
     } catch (err) {
       console.error('Logout error:', err);
+      // Still redirect to login on error
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('csrf_token');
+      navigate('/admin/login');
     }
   };
 
@@ -85,9 +117,13 @@ const Dashboard = () => {
     setError(null);
     
     try {
+      const token = localStorage.getItem('auth_token');
+      
       const response = await fetch(`${API_BASE_URL}/api/start-batch`, {
         method: 'POST',
-        credentials: 'include'
+        headers: {
+          'X-Auth-Token': token
+        }
       });
       
       if (response.ok) {

@@ -33,9 +33,19 @@ const BatchHistory = () => {
   useEffect(() => {
     const fetchBatchHistory = async () => {
       try {
+        const token = localStorage.getItem('auth_token');
+        
+        if (!token) {
+          setError('Authentication required');
+          setLoading(false);
+          return;
+        }
+        
         const response = await fetch(`${API_BASE_URL}/api/admin/batch-history`, {
           method: 'GET',
-          credentials: 'include'
+          headers: {
+            'X-Auth-Token': token
+          }
         });
         
         if (response.ok) {
@@ -57,7 +67,13 @@ const BatchHistory = () => {
   }, []);
 
   const handleDownload = (downloadUrl) => {
-    window.open(`${API_BASE_URL}${downloadUrl}`, '_blank');
+    const token = localStorage.getItem('auth_token');
+    
+    // Create a temporary link with the auth token as a query parameter
+    const url = new URL(`${API_BASE_URL}${downloadUrl}`);
+    url.searchParams.append('token', token);
+    
+    window.open(url.toString(), '_blank');
   };
 
   const formatDate = (dateString) => {

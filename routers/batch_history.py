@@ -4,13 +4,17 @@ Batch History Router
 This module provides endpoints for retrieving batch processing history.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from typing import List, Dict, Optional, Any
 import os
+
 import json
 import glob
 from datetime import datetime
 import logging
+import sys
+
+from routers.batch import check_token_valid
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -18,16 +22,12 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(tags=["batch_history"])
 
-# Cookie name for admin session
-ADMIN_SESSION_COOKIE = "admin_session"
-
-def admin_required(request: Request, session: Optional[str] = Cookie(None, alias=ADMIN_SESSION_COOKIE)):
+def admin_required(token: Optional[str] = Header(None, alias="X-Auth-Token")):
     """
     Dependency to ensure the user is authenticated as admin
     
     Args:
-        request: FastAPI request object
-        session: Session cookie value
+        token: Authentication token from header
         
     Returns:
         bool: True if authenticated
@@ -35,7 +35,7 @@ def admin_required(request: Request, session: Optional[str] = Cookie(None, alias
     Raises:
         HTTPException: If not authenticated
     """
-    if not session:
+    if not token or not check_token_valid(token):
         raise HTTPException(status_code=401, detail="Admin authentication required")
     return True
 

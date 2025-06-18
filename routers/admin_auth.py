@@ -5,7 +5,7 @@ This module provides endpoints for admin authentication, including login, logout
 and session verification.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Response, Request, Form, Cookie
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, Form, Header
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from typing import Optional
 import os
@@ -13,6 +13,7 @@ import secrets
 import logging
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from utils.security import csrf_protection, login_rate_limiter, csrf_protect
 
 # Load environment variables
 load_dotenv()
@@ -26,32 +27,37 @@ router = APIRouter(tags=["admin"])
 # Session duration in seconds (from .env or default to 30 minutes)
 SESSION_DURATION = int(os.getenv("SESSION_DURATION", "1800"))
 
-# Cookie name for admin session
-ADMIN_SESSION_COOKIE = "admin_session"
-
-# Cookie secret for additional security
-COOKIE_SECRET = os.getenv("COOKIE_SECRET", secrets.token_hex(16))
+# In-memory store for valid session tokens
+valid_tokens = set() 
 
 @router.post("/api/admin/login")
-def admin_login(
-    response: Response, 
+async def admin_login(
+    request: Request,
     username: str = Form(...), 
     password: str = Form(...)
 ):
     """
-    Authenticate admin user and set session cookie
+    Authenticate admin user and return a session token
     
     Args:
-        response: FastAPI response object for setting cookies
+        request: FastAPI request object
         username: Admin username
         password: Admin password
         
     Returns:
-        dict: Login status message
+        dict: Login status message with token
         
     Raises:
         HTTPException: If credentials are invalid
     """
+    # Get client IP for rate limiting
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check rate limiting
+    if login_rate_limiter.is_rate_limited(client_ip):
+        logger.warning(f"Login rate limit exceeded for IP: {client_ip}")
+        raise HTTPException(status_code=429, detail="Too many login attempts. Please try again later.")
+    
     # Get admin credentials from environment variables
     admin_username = os.getenv("ADMIN_USERNAME")
     admin_password = os.getenv("ADMIN_PASSWORD")
@@ -65,19 +71,18 @@ def admin_login(
     if username == admin_username and password == admin_password:
         # Generate a secure token
         token = secrets.token_hex(16)
+        valid_tokens.add(token)  # Store token in memory
         
-        # Set secure cookie with the token
-        response.set_cookie(
-            key=ADMIN_SESSION_COOKIE,
-            value=token,
-            max_age=SESSION_DURATION,
-            httponly=True,
-            samesite="strict",
-            secure=os.getenv("ENVIRONMENT", "development") == "production"
-        )
+        # Generate CSRF token
+        csrf_token = csrf_protection.generate_token()
         
         logger.info(f"Admin login successful for user: {username}")
-        return {"status": "success", "message": "Login successful"}
+        return {
+            "status": "success", 
+            "message": "Login successful",
+            "token": token,
+            "csrf_token": csrf_token
+        }
     
     # Log failed login attempt
     logger.warning(f"Failed admin login attempt for user: {username}")
@@ -85,22 +90,27 @@ def admin_login(
 
 
 @router.post("/api/admin/logout")
-def admin_logout(response: Response):
+def admin_logout(
+    token: str = Header(..., alias="X-Auth-Token"),
+    csrf_token: str = Header(..., alias="X-CSRF-Token")
+):
     """
-    Log out admin user by clearing session cookie
+    Log out admin user by invalidating token
     
     Args:
-        response: FastAPI response object for clearing cookies
+        token: Authentication token
+        csrf_token: CSRF token
         
     Returns:
         dict: Logout status message
     """
-    response.delete_cookie(
-        key=ADMIN_SESSION_COOKIE,
-        httponly=True,
-        samesite="strict",
-        secure=os.getenv("ENVIRONMENT", "development") == "production"
-    )
+    # Validate CSRF token
+    if not csrf_protection.validate_token(csrf_token):
+        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+    
+    # Invalidate token
+    if token in valid_tokens:
+        valid_tokens.discard(token)
     
     logger.info("Admin logout successful")
     return {"status": "success", "message": "Logged out successfully"}
@@ -108,15 +118,13 @@ def admin_logout(response: Response):
 
 @router.get("/api/admin/check-session")
 def check_admin_session(
-    request: Request,
-    session: Optional[str] = Cookie(None, alias=ADMIN_SESSION_COOKIE)
+    token: Optional[str] = Header(None, alias="X-Auth-Token")
 ):
     """
     Check if the current session is authenticated as admin
     
     Args:
-        request: FastAPI request object
-        session: Session cookie value
+        token: Authentication token
         
     Returns:
         dict: Session status
@@ -124,7 +132,10 @@ def check_admin_session(
     Raises:
         HTTPException: If not authenticated
     """
-    if not session:
+    logger.info(f"Check-Session - Token received: {token}")
+    logger.info(f"Valid tokens: {valid_tokens}")
+    
+    if not token or token not in valid_tokens:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     return {"status": "success", "authenticated": True}

@@ -85,6 +85,7 @@ yolov8s.pt
 data/
 download/
 test/
+exports/
 download.py
 visit_images.xlsx
 visit_image_links.txt

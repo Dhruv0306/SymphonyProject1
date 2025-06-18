@@ -31,18 +31,35 @@ const AdminLogin = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // Get token from localStorage
+        const token = localStorage.getItem('auth_token');
+        
+        if (!token) {
+          setCheckingSession(false);
+          return;
+        }
+        
         const response = await fetch(`${API_BASE_URL}/api/admin/check-session`, {
           method: 'GET',
-          credentials: 'include'
+          headers: {
+            'X-Auth-Token': token
+          }
         });
         
         if (response.ok) {
           // Already authenticated, redirect to dashboard
           navigate('/admin/dashboard');
+        } else {
+          // Clear invalid token
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('csrf_token');
         }
       } catch (err) {
         // Session check failed, but we don't need to show an error
         console.error('Session check failed:', err);
+        // Clear potentially invalid tokens
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('csrf_token');
       } finally {
         setCheckingSession(false);
       }
@@ -64,11 +81,21 @@ const AdminLogin = () => {
       
       const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
         method: 'POST',
-        body: formData,
-        credentials: 'include' // Important for cookie-based auth
+        body: formData
       });
       
       if (response.ok) {
+        const data = await response.json();
+        
+        // Store tokens in localStorage
+        if (data.token) {
+          localStorage.setItem('auth_token', data.token);
+        }
+        
+        if (data.csrf_token) {
+          localStorage.setItem('csrf_token', data.csrf_token);
+        }
+        
         // Login successful, redirect to dashboard
         navigate('/admin/dashboard');
       } else {

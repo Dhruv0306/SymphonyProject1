@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Header
 from starlette.requests import Request
 from typing import List, Optional
 from models.logo_check import (
@@ -12,6 +12,17 @@ from detect_logo import check_logo
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
 from utils.emailer import send_csv_notification
+import sys
+
+# Function to check token validity without circular imports
+def check_token_valid(token: str) -> bool:
+    """Check if a token is valid by accessing the admin_auth module's valid_tokens set"""
+    # Get the admin_auth module
+    if 'routers.admin_auth' in sys.modules:
+        admin_auth = sys.modules['routers.admin_auth']
+        if hasattr(admin_auth, 'valid_tokens'):
+            return token in admin_auth.valid_tokens
+    return False
 
 # Import the connection manager instance
 from utils.ws_manager import connection_manager
@@ -79,6 +90,7 @@ router = APIRouter(
 )
 async def start_batch(
     request: Request,
+    token: Optional[str] = Header(None, alias="X-Auth-Token"),
     email_notification: Optional[str] = Form(None, description="Email address to notify when batch processing is complete")
 ):
     """
@@ -97,8 +109,15 @@ async def start_batch(
             - message: Confirmation message
     """
     try:
+        # Check if token is required (for admin dashboard)
+        if token:
+            # Use a function to check token validity to avoid circular imports
+            valid = check_token_valid(token)
+            if not valid:
+                raise HTTPException(status_code=401, detail="Authentication required")
+        
         batch_id = str(uuid.uuid4())
-        batch_dir = os.path.join("data", batch_id)
+        batch_dir = os.path.join("exports", batch_id)
         os.makedirs(batch_dir, exist_ok=True)
 
         # Create CSV file for this batch
@@ -280,7 +299,7 @@ async def check_logo_batch(
         csv_file = None
 
         if batch_id:
-            batch_dir = os.path.join("data", batch_id)
+            batch_dir = os.path.join("exports", batch_id)
             metadata_path = os.path.join(batch_dir, "metadata.json")
             if not os.path.exists(metadata_path):
                 raise HTTPException(
@@ -465,7 +484,7 @@ async def check_logo_batch(
                 # Add completion timestamp
                 metadata["completed_at"] = time.time()
                 
-                batch_dir = os.path.join("data", batch_id)
+                batch_dir = os.path.join("exports", batch_id)
                 metadata_path = os.path.join(batch_dir, "metadata.json")
                 with open(metadata_path, "w") as f:
                     json.dump(metadata, f)
@@ -542,7 +561,7 @@ async def get_batch_status(batch_id: str):
     - Progress percentage
     """
     try:
-        batch_dir = os.path.join("data", batch_id)
+        batch_dir = os.path.join("exports", batch_id)
         metadata_path = os.path.join(batch_dir, "metadata.json")
 
         if not os.path.exists(metadata_path):
