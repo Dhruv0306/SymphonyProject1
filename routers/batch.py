@@ -19,6 +19,7 @@ from models.logo_check import (
 from detect_logo import check_logo
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
+from utils.emailer import send_batch_summary_email
 import sys
 
 
@@ -100,6 +101,7 @@ router = APIRouter(
 async def start_batch(
     request: Request,
     token: Optional[str] = Header(None, alias="X-Auth-Token"),
+    email: Optional[str] = Form(None, description="Email address for batch completion notification"),
 ):
     """
     Initialize a new batch processing session.
@@ -109,6 +111,7 @@ async def start_batch(
 
     Args:
         request: The incoming request
+        email: Optional email address for batch completion notification
 
     Returns:
         BatchStartResponse: Contains the batch ID and success message
@@ -147,6 +150,7 @@ async def start_batch(
             "counts": {"valid": 0, "invalid": 0, "total": 0},
             "status": "initialized",
             "created_at": time.time(),
+            "email": email if email else None,
         }
         with open(os.path.join(batch_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
@@ -223,6 +227,9 @@ async def check_logo_batch(
     batch_id: Optional[str] = Form(
         None, description="Optional batch ID for tracking progress"
     ),
+    email: Optional[str] = Form(
+        None, description="Email address for batch completion notification"
+    ),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
     """
@@ -292,9 +299,12 @@ async def check_logo_batch(
             logger.info(f"Processing {len(batch_request.image_paths)} URLs")
             batch_id = batch_request.batch_id
 
-        # Get batch_id from either form data or JSON request
+        # Get batch_id and email from either form data or JSON request
         batch_id = batch_id or (batch_request.batch_id if batch_request else None)
+        email = email or (batch_request.email if batch_request and hasattr(batch_request, 'email') else None)
         logger.info(f"Using batch_id: {batch_id}")
+        if email:
+            logger.info(f"Email notification will be sent to: {email}")
 
         # Validate and setup batch tracking if batch_id provided
         metadata = None
@@ -311,6 +321,10 @@ async def check_logo_batch(
 
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
+                
+            # Update email in metadata if provided in this request
+            if email and not metadata.get("email"):
+                metadata["email"] = email
 
             csv_path = metadata["csv_path"]
             csv_file = open(csv_path, "a", newline="")
@@ -511,6 +525,26 @@ async def check_logo_batch(
                     "timestamp": time.time(),
                 }
                 await connection_manager.broadcast(batch_id, final_update)
+                
+                # Send email notification if email is provided in metadata
+                if "email" in metadata and metadata["email"]:
+                    try:
+                        email_to = metadata["email"]
+                        csv_path = metadata["csv_path"]
+                        
+                        # Send email notification in background
+                        background_tasks.add_task(
+                            send_batch_summary_email,
+                            email_to=email_to,
+                            batch_id=batch_id,
+                            csv_path=csv_path,
+                            valid_count=valid_count,
+                            invalid_count=invalid_count,
+                        )
+                        logger.info(f"Email notification queued for batch {batch_id} to {email_to}")
+                    except Exception as e:
+                        # Log error but don't fail the batch processing
+                        logger.error(f"Failed to queue email notification: {str(e)}")
 
             if csv_file:
                 csv_file.close()

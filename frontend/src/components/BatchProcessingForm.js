@@ -6,14 +6,16 @@ import {
   Typography,
   Alert
 } from '@mui/material';
+import EmailInput from './EmailInput';
 import { API_BASE_URL } from '../config';
 
 /**
- * Batch processing form component
+ * Batch processing form component with email notification
  */
 const BatchProcessingForm = ({ onBatchStart }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [email, setEmail] = useState('');
 
   const handleStartBatch = async () => {
     setLoading(true);
@@ -22,6 +24,11 @@ const BatchProcessingForm = ({ onBatchStart }) => {
     try {
       // Create form data for submission
       const formData = new FormData();
+      
+      // Add email if provided
+      if (email.trim()) {
+        formData.append('email', email.trim());
+      }
       
       const response = await fetch(`${API_BASE_URL}/api/start-batch`, {
         method: 'POST',
@@ -57,6 +64,11 @@ const BatchProcessingForm = ({ onBatchStart }) => {
       <Typography variant="body1" sx={{ mb: 2, textAlign: 'center' }}>
         Start a new batch processing job to monitor progress in real-time.
       </Typography>
+      
+      <EmailInput 
+        email={email}
+        setEmail={setEmail}
+      />
       
       <Button
         variant="contained"
