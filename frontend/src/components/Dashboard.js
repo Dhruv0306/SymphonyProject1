@@ -356,6 +356,13 @@ const Dashboard = () => {
                           onChange={async (e) => {
                             if (e.target.files.length === 0) return;
                             
+                            // Check if the number of files is 1000 or more
+                            if (e.target.files.length >= 1000) {
+                              alert("Please upload less than 1000 images");
+                              e.target.value = '';
+                              return;
+                            }
+                            
                             setUploadStatus('uploading');
                             const formData = new FormData();
                             for (let i = 0; i < e.target.files.length; i++) {
@@ -434,7 +441,7 @@ const Dashboard = () => {
                 </Box>
                 
                 <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: '#0066B3' }}>
                         {stats.batchesToday}
@@ -445,7 +452,7 @@ const Dashboard = () => {
                     </Paper>
                   </Grid>
                   
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: 'success.main' }}>
                         {stats.successRate}%
@@ -456,7 +463,7 @@ const Dashboard = () => {
                     </Paper>
                   </Grid>
                   
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: 'warning.main' }}>
                         {stats.processingTime}s
@@ -467,7 +474,7 @@ const Dashboard = () => {
                     </Paper>
                   </Grid>
                   
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: 'error.main' }}>
                         {stats.errorRate}%
