@@ -16,9 +16,17 @@ from utils.file_ops import create_upload_dir
 from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
 from utils.ws_manager import connection_manager
 from utils.security import csrf_protection
+
 # Import admin_auth first to avoid circular imports
 from routers import admin_auth
-from routers import single, batch, export, batch_history, dashboard_stats, dashboard_stats
+from routers import (
+    single,
+    batch,
+    export,
+    batch_history,
+    dashboard_stats,
+    dashboard_stats,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 import asyncio
@@ -44,17 +52,17 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 async def log_requests(request: Request, call_next):
     """Log all incoming HTTP requests and their responses"""
     logger.info(f"Request: {request.method} {request.url}")
-    
+
     # Debug cookies for admin endpoints
     if "/api/admin/" in str(request.url):
         logger.info(f"Request cookies: {request.cookies}")
-    
+
     response = await call_next(request)
-    
+
     logger.info(
         f"Response: {request.method} {request.url} - Status: {response.status_code}"
     )
-    
+
     return response
 
 
@@ -65,7 +73,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-CSRF-Token", "Content-Type", "Content-Disposition", "X-Total-Count"],
+    expose_headers=[
+        "X-CSRF-Token",
+        "Content-Type",
+        "Content-Disposition",
+        "X-Total-Count",
+    ],
 )
 
 
@@ -148,7 +161,7 @@ async def cleanup_task():
 async def websocket_endpoint(websocket: WebSocket, batch_id: str):
     """
     WebSocket endpoint for real-time batch processing updates
-    
+
     Args:
         websocket: The WebSocket connection
         batch_id: The ID of the batch to monitor

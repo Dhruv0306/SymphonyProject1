@@ -17,17 +17,20 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-def send_csv_notification(email_to: str, batch_id: str, csv_url: str, valid_count: int, invalid_count: int):
+
+def send_csv_notification(
+    email_to: str, batch_id: str, csv_url: str, valid_count: int, invalid_count: int
+):
     """
     Send an email notification when a batch processing job is complete
-    
+
     Args:
         email_to: The recipient's email address
         batch_id: The ID of the completed batch
         csv_url: The URL where the CSV results can be downloaded
         valid_count: Number of valid images in the batch
         invalid_count: Number of invalid images in the batch
-    
+
     Returns:
         bool: True if the email was sent successfully, False otherwise
     """
@@ -39,21 +42,28 @@ def send_csv_notification(email_to: str, batch_id: str, csv_url: str, valid_coun
         smtp_password = os.getenv("SMTP_PASSWORD")
         sender_email = os.getenv("SENDER_EMAIL")
         sender_name = os.getenv("SENDER_NAME", "Symphony Logo Detection")
-        
+
         # Check if SMTP credentials are configured
-        if not smtp_server or not smtp_username or not smtp_password or not sender_email:
-            logger.error("SMTP credentials not configured in .env file. Email notification not sent.")
+        if (
+            not smtp_server
+            or not smtp_username
+            or not smtp_password
+            or not sender_email
+        ):
+            logger.error(
+                "SMTP credentials not configured in .env file. Email notification not sent."
+            )
             return False
-        
+
         # Create the email message
         msg = EmailMessage()
         msg["Subject"] = f"Batch {batch_id} Processing Complete"
         msg["From"] = f"{sender_name} <{sender_email}>"
         msg["To"] = email_to
-        
+
         # Create the email content
         total_images = valid_count + invalid_count
-        
+
         email_content = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -84,20 +94,22 @@ def send_csv_notification(email_to: str, batch_id: str, csv_url: str, valid_coun
         </body>
         </html>
         """
-        
+
         # Set the HTML content
-        msg.set_content("Your batch processing is complete. Please download the CSV results.")
+        msg.set_content(
+            "Your batch processing is complete. Please download the CSV results."
+        )
         msg.add_alternative(email_content, subtype="html")
-        
+
         # Send the email
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(smtp_username, smtp_password)
             server.send_message(msg)
-            
+
         logger.info(f"Email notification sent to {email_to} for batch {batch_id}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Failed to send email notification: {str(e)}")
         return False
