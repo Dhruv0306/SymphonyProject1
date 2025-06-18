@@ -512,8 +512,6 @@ async def check_logo_batch(
                 }
                 await connection_manager.broadcast(batch_id, final_update)
 
-
-
             if csv_file:
                 csv_file.close()
 
