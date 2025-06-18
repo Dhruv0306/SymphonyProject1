@@ -4,7 +4,7 @@ FastAPI Application for Logo Detection Service
 This module initializes the FastAPI application and registers the API routers.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -14,7 +14,19 @@ from starlette.requests import Request
 from utils.logger import setup_logging
 from utils.file_ops import create_upload_dir
 from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
-from routers import single, batch, export
+from utils.ws_manager import connection_manager
+from utils.security import csrf_protection
+
+# Import admin_auth first to avoid circular imports
+from routers import admin_auth
+from routers import (
+    single,
+    batch,
+    export,
+    batch_history,
+    dashboard_stats,
+    dashboard_stats,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 import asyncio
@@ -40,20 +52,33 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 async def log_requests(request: Request, call_next):
     """Log all incoming HTTP requests and their responses"""
     logger.info(f"Request: {request.method} {request.url}")
+
+    # Debug cookies for admin endpoints
+    if "/api/admin/" in str(request.url):
+        logger.info(f"Request cookies: {request.cookies}")
+
     response = await call_next(request)
+
     logger.info(
         f"Response: {request.method} {request.url} - Status: {response.status_code}"
     )
+
     return response
 
 
 # Configure CORS for cross-origin requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://10.1.2.97:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "X-CSRF-Token",
+        "Content-Type",
+        "Content-Disposition",
+        "X-Total-Count",
+    ],
 )
 
 
@@ -88,6 +113,10 @@ async def startup_event():
         app.state.scheduler.add_job(cleanup_old_batches, "interval", hours=1, args=[24])
         app.state.scheduler.add_job(
             cleanup_temp_uploads, "interval", minutes=30, args=[30]
+        )
+        # Add CSRF token cleanup job
+        app.state.scheduler.add_job(
+            csrf_protection.clean_expired_tokens, "interval", minutes=15
         )
 
         # Start the scheduler
@@ -127,12 +156,37 @@ async def cleanup_task():
     print("[DEBUG] Scheduled cleanup task complete")
 
 
-# Global batch tracking
+# WebSocket endpoint for real-time batch progress updates
+@app.websocket("/ws/batch/{batch_id}")
+async def websocket_endpoint(websocket: WebSocket, batch_id: str):
+    """
+    WebSocket endpoint for real-time batch processing updates
+
+    Args:
+        websocket: The WebSocket connection
+        batch_id: The ID of the batch to monitor
+    """
+    await connection_manager.connect(batch_id, websocket)
+    try:
+        while True:
+            # Keep the connection alive and wait for client messages
+            data = await websocket.receive_text()
+            # We could process client messages here if needed
+    except WebSocketDisconnect:
+        # Handle disconnection
+        connection_manager.disconnect(batch_id, websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}")
+        connection_manager.disconnect(batch_id, websocket)
+
 
 # Include routers
 app.include_router(single.router)
 app.include_router(batch.router)
 app.include_router(export.router)
+app.include_router(admin_auth.router)
+app.include_router(batch_history.router)
+app.include_router(dashboard_stats.router)
 
 
 @app.get("/", include_in_schema=False)
@@ -173,6 +227,21 @@ async def api_explanation():
                 "path": "/api/check-logo/batch/export-csv",
                 "method": "GET",
                 "description": "Export the most recent batch processing results to a CSV file.",
+            },
+            {
+                "path": "/api/admin/login",
+                "method": "POST",
+                "description": "Admin login endpoint for secure dashboard access.",
+            },
+            {
+                "path": "/api/admin/batch-history",
+                "method": "GET",
+                "description": "Get history of all processed batches (admin only).",
+            },
+            {
+                "path": "/ws/batch/{batch_id}",
+                "method": "WebSocket",
+                "description": "WebSocket endpoint for real-time batch processing updates.",
             },
         ],
         "note": "For detailed request and response formats, please refer to the /docs endpoint.",

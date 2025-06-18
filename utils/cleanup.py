@@ -15,7 +15,7 @@ def cleanup_old_batches(max_age_hours=24):
     """
     try:
         print(f"\nStarting cleanup of old batches (older than {max_age_hours} hours)")
-        batch_dir = "data"
+        batch_dir = "exports"
         if not os.path.exists(batch_dir):
             print(f"Batch directory {batch_dir} does not exist")
             logger.warning(f"Batch directory {batch_dir} does not exist")

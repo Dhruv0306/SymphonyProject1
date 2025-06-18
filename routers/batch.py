@@ -1,4 +1,12 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    BackgroundTasks,
+    Header,
+)
 from starlette.requests import Request
 from typing import List, Optional
 from models.logo_check import (
@@ -10,6 +18,24 @@ from models.logo_check import (
 )
 from detect_logo import check_logo
 from utils.file_ops import UPLOAD_DIR
+from utils.ws_manager import ConnectionManager
+from utils.emailer import send_csv_notification
+import sys
+
+
+# Function to check token validity without circular imports
+def check_token_valid(token: str) -> bool:
+    """Check if a token is valid by accessing the admin_auth module's valid_tokens set"""
+    # Get the admin_auth module
+    if "routers.admin_auth" in sys.modules:
+        admin_auth = sys.modules["routers.admin_auth"]
+        if hasattr(admin_auth, "valid_tokens"):
+            return token in admin_auth.valid_tokens
+    return False
+
+
+# Import the connection manager instance
+from utils.ws_manager import connection_manager
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from tqdm import tqdm
@@ -20,6 +46,7 @@ import tempfile
 import csv
 import logging
 import json
+import time
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -71,12 +98,22 @@ router = APIRouter(
         }
     },
 )
-async def start_batch(request: Request):
+async def start_batch(
+    request: Request,
+    token: Optional[str] = Header(None, alias="X-Auth-Token"),
+    email_notification: Optional[str] = Form(
+        None, description="Email address to notify when batch processing is complete"
+    ),
+):
     """
     Initialize a new batch processing session.
 
     Creates necessary directories and files for batch tracking.
     Use the returned batch_id in subsequent batch processing requests.
+
+    Args:
+        request: The incoming request
+        email_notification: Optional email address to notify when batch processing is complete
 
     Returns:
         BatchStartResponse: Contains the batch ID and success message
@@ -84,8 +121,15 @@ async def start_batch(request: Request):
             - message: Confirmation message
     """
     try:
+        # Check if token is required (for admin dashboard)
+        if token:
+            # Use a function to check token validity to avoid circular imports
+            valid = check_token_valid(token)
+            if not valid:
+                raise HTTPException(status_code=401, detail="Authentication required")
+
         batch_id = str(uuid.uuid4())
-        batch_dir = os.path.join("data", batch_id)
+        batch_dir = os.path.join("exports", batch_id)
         os.makedirs(batch_dir, exist_ok=True)
 
         # Create CSV file for this batch
@@ -107,6 +151,8 @@ async def start_batch(request: Request):
             "csv_path": csv_path,
             "counts": {"valid": 0, "invalid": 0, "total": 0},
             "status": "initialized",
+            "created_at": time.time(),
+            "email_notification": email_notification if email_notification else None,
         }
         with open(os.path.join(batch_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
@@ -176,11 +222,15 @@ async def start_batch(request: Request):
 @limiter.limit("20/minute")
 async def check_logo_batch(
     request: Request,
+    background_tasks: BackgroundTasks,
     files: Optional[List[UploadFile]] = File(
         None, description="List of image files to validate"
     ),
     batch_id: Optional[str] = Form(
         None, description="Optional batch ID for tracking progress"
+    ),
+    email_notification: Optional[str] = Form(
+        None, description="Email address to notify when batch processing is complete"
     ),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
@@ -261,7 +311,7 @@ async def check_logo_batch(
         csv_file = None
 
         if batch_id:
-            batch_dir = os.path.join("data", batch_id)
+            batch_dir = os.path.join("exports", batch_id)
             metadata_path = os.path.join(batch_dir, "metadata.json")
             if not os.path.exists(metadata_path):
                 raise HTTPException(
@@ -289,6 +339,9 @@ async def check_logo_batch(
             # Handle uploaded files
             if files:
                 logger.info(f"Processing {len(files)} uploaded files")
+                total_files = len(files)
+                processed_count = 0
+
                 for file in tqdm(files, desc="Processing uploaded files"):
                     try:
                         temp_file_path = os.path.join(
@@ -318,6 +371,24 @@ async def check_logo_batch(
                         if os.path.exists(temp_file_path):
                             os.remove(temp_file_path)
 
+                        # Update progress via WebSocket if batch_id is provided
+                        processed_count += 1
+                        if batch_id:
+                            progress_data = {
+                                "processed": processed_count,
+                                "total": total_files,
+                                "valid": valid_count,
+                                "invalid": invalid_count,
+                                "percent_complete": (processed_count / total_files)
+                                * 100,
+                                "current_file": file.filename,
+                                "timestamp": time.time(),
+                            }
+                            await connection_manager.broadcast(batch_id, progress_data)
+                            logger.debug(
+                                f"WebSocket progress update sent for batch {batch_id}: {processed_count}/{total_files}"
+                            )
+
                     except Exception as e:
                         logger.error(f"Error processing file {file.filename}: {str(e)}")
                         error_result = LogoCheckResult(
@@ -333,9 +404,28 @@ async def check_logo_batch(
                             csv_writer.writerow(error_result.dict())
                         invalid_count += 1
 
+                        # Update progress via WebSocket for errors too
+                        processed_count += 1
+                        if batch_id:
+                            progress_data = {
+                                "processed": processed_count,
+                                "total": total_files,
+                                "valid": valid_count,
+                                "invalid": invalid_count,
+                                "percent_complete": (processed_count / total_files)
+                                * 100,
+                                "current_file": file.filename,
+                                "error": str(e),
+                                "timestamp": time.time(),
+                            }
+                            await connection_manager.broadcast(batch_id, progress_data)
+
             # Handle URL requests
             if batch_request and batch_request.image_paths:
                 logger.info(f"Processing {len(batch_request.image_paths)} URLs")
+                total_urls = len(batch_request.image_paths)
+                processed_count = 0
+
                 for url in tqdm(
                     batch_request.image_paths, desc="Processing image URLs"
                 ):
@@ -354,6 +444,25 @@ async def check_logo_batch(
                             valid_count += 1
                         else:
                             invalid_count += 1
+
+                        # Update progress via WebSocket if batch_id is provided
+                        processed_count += 1
+                        if batch_id:
+                            progress_data = {
+                                "processed": processed_count,
+                                "total": total_urls,
+                                "valid": valid_count,
+                                "invalid": invalid_count,
+                                "percent_complete": (processed_count / total_urls)
+                                * 100,
+                                "current_url": str(url),
+                                "timestamp": time.time(),
+                            }
+                            await connection_manager.broadcast(batch_id, progress_data)
+                            logger.debug(
+                                f"WebSocket progress update sent for batch {batch_id}: {processed_count}/{total_urls}"
+                            )
+
                     except Exception as e:
                         logger.error(f"Error processing URL {url}: {str(e)}")
                         error_result = LogoCheckResult(
@@ -369,6 +478,22 @@ async def check_logo_batch(
                             csv_writer.writerow(error_result.dict())
                         invalid_count += 1
 
+                        # Update progress via WebSocket for errors too
+                        processed_count += 1
+                        if batch_id:
+                            progress_data = {
+                                "processed": processed_count,
+                                "total": total_urls,
+                                "valid": valid_count,
+                                "invalid": invalid_count,
+                                "percent_complete": (processed_count / total_urls)
+                                * 100,
+                                "current_url": str(url),
+                                "error": str(e),
+                                "timestamp": time.time(),
+                            }
+                            await connection_manager.broadcast(batch_id, progress_data)
+
             # Update batch metadata if tracking enabled
             if batch_id and metadata:
                 metadata["counts"]["valid"] += valid_count
@@ -376,10 +501,44 @@ async def check_logo_batch(
                 metadata["counts"]["total"] += len(results)
                 metadata["status"] = "completed"
 
-                batch_dir = os.path.join("data", batch_id)
+                # Add completion timestamp
+                metadata["completed_at"] = time.time()
+
+                batch_dir = os.path.join("exports", batch_id)
                 metadata_path = os.path.join(batch_dir, "metadata.json")
                 with open(metadata_path, "w") as f:
                     json.dump(metadata, f)
+
+                # Send final WebSocket update
+                final_update = {
+                    "processed": len(results),
+                    "total": len(results),
+                    "valid": valid_count,
+                    "invalid": invalid_count,
+                    "percent_complete": 100,
+                    "status": "completed",
+                    "timestamp": time.time(),
+                }
+                await connection_manager.broadcast(batch_id, final_update)
+
+                # Send email notification if email is provided in metadata
+                if "email_notification" in metadata and metadata["email_notification"]:
+                    email_to = metadata["email_notification"]
+                    csv_url = f"/api/exports/download/{batch_id}"
+
+                    # Send email notification in background
+                    background_tasks = BackgroundTasks()
+                    background_tasks.add_task(
+                        send_csv_notification,
+                        email_to=email_to,
+                        batch_id=batch_id,
+                        csv_url=csv_url,
+                        valid_count=valid_count,
+                        invalid_count=invalid_count,
+                    )
+                    logger.info(
+                        f"Email notification queued for batch {batch_id} to {email_to}"
+                    )
 
             if csv_file:
                 csv_file.close()
@@ -424,7 +583,7 @@ async def get_batch_status(batch_id: str):
     - Progress percentage
     """
     try:
-        batch_dir = os.path.join("data", batch_id)
+        batch_dir = os.path.join("exports", batch_id)
         metadata_path = os.path.join(batch_dir, "metadata.json")
 
         if not os.path.exists(metadata_path):

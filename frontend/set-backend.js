@@ -47,6 +47,7 @@ console.log(`   Local:    ${localUrl}`);
 if (hostIP !== 'localhost') {
     console.log(`   Network:  ${networkUrl}`);
 }
+console.log(`   Admin Dashboard: ${localUrl}/admin/dashboard`);
 console.log(`\n🚀 Starting React app with backend: ${backendUrl}`);
 
 // Build the command to start the React app with environment variables
