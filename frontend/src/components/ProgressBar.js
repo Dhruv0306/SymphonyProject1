@@ -15,9 +15,8 @@ import { API_BASE_URL } from '../config';
  * 
  * @param {Object} props Component props
  * @param {string} props.batchId The batch ID to track
- * @param {number} props.total Expected total number of items
  */
-const ProgressBar = ({ batchId, total }) => {
+const ProgressBar = ({ batchId }) => {
   const [progress, setProgress] = useState({
     processed: 0,
     valid: 0,
@@ -25,7 +24,8 @@ const ProgressBar = ({ batchId, total }) => {
     percent_complete: 0,
     current_file: null,
     error: null,
-    status: 'processing'
+    status: 'processing',
+    total: 0
   });
   
   const [connected, setConnected] = useState(false);
@@ -149,7 +149,7 @@ const ProgressBar = ({ batchId, total }) => {
     }
     
     const processedPerSecond = progress.processed / elapsedTime;
-    const remaining = total - progress.processed;
+    const remaining = progress.total - progress.processed;
     const remainingSeconds = Math.floor(remaining / processedPerSecond);
     
     if (remainingSeconds < 0 || !isFinite(remainingSeconds)) {
@@ -164,7 +164,7 @@ const ProgressBar = ({ batchId, total }) => {
       <Box sx={{ width: '100%' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="h6">
-            Batch Progress: {progress.processed} / {total} Images
+            Batch Progress: {progress.processed} / {progress.total || '?'} Images
           </Typography>
           <Typography variant="h6">
             {Math.round(progress.percent_complete)}%

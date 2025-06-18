@@ -24,6 +24,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import ProgressBar from './ProgressBar';
 import BatchHistory from './BatchHistory';
 import { API_BASE_URL } from '../config';
@@ -40,6 +41,13 @@ const Dashboard = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [stats, setStats] = useState({
+    batchesToday: 0,
+    successRate: 0,
+    processingTime: 0,
+    errorRate: 0
+  });
+  const [uploadStatus, setUploadStatus] = useState(null);
   
   const navigate = useNavigate();
 
@@ -80,6 +88,45 @@ const Dashboard = () => {
     
     checkSession();
   }, [navigate]);
+  
+  // Fetch dashboard stats
+  const fetchStats = async () => {
+    if (checkingSession) return;
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      
+      const response = await fetch(`${API_BASE_URL}/api/admin/dashboard-stats`, {
+        method: 'GET',
+        headers: {
+          'X-Auth-Token': token
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          batchesToday: data.batches_today || 0,
+          successRate: data.success_rate || 0,
+          processingTime: data.avg_processing_time || 0,
+          errorRate: data.error_rate || 0
+        });
+      } else {
+        console.error('Failed to fetch dashboard stats');
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard stats:', err);
+    }
+  };
+  
+  useEffect(() => {
+    fetchStats();
+    
+    // Refresh stats every 5 minutes
+    const intervalId = setInterval(fetchStats, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [checkingSession]);
 
   const handleLogout = async () => {
     try {
@@ -267,9 +314,89 @@ const Dashboard = () => {
                       Active Batch: {activeBatch}
                     </Typography>
                     
-                    <ProgressBar batchId={activeBatch} total={100} />
+                    <ProgressBar batchId={activeBatch} />
                     
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Box sx={{ mt: 3, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
+                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                        Use this batch:
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', mb: 2 }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => {
+                            navigator.clipboard.writeText(activeBatch);
+                            alert('Batch ID copied to clipboard!');
+                          }}
+                          size="small"
+                        >
+                          Copy Batch ID
+                        </Button>
+                      </Box>
+                      
+                      <Box sx={{ mt: 2 }}>
+                        {uploadStatus && (
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              mb: 2, 
+                              color: uploadStatus === 'uploading' ? 'warning.main' : 
+                                     uploadStatus === 'Upload failed' ? 'error.main' : 'success.main'
+                            }}
+                          >
+                            {uploadStatus === 'uploading' ? 'Uploading files...' : uploadStatus}
+                          </Typography>
+                        )}
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="batch-file-upload"
+                          multiple
+                          type="file"
+                          onChange={async (e) => {
+                            if (e.target.files.length === 0) return;
+                            
+                            setUploadStatus('uploading');
+                            const formData = new FormData();
+                            for (let i = 0; i < e.target.files.length; i++) {
+                              formData.append('files', e.target.files[i]);
+                            }
+                            formData.append('batch_id', activeBatch);
+                            
+                            try {
+                              const token = localStorage.getItem('auth_token');
+                              const response = await fetch(`${API_BASE_URL}/api/check-logo/batch/`, {
+                                method: 'POST',
+                                headers: {
+                                  'X-Auth-Token': token
+                                },
+                                body: formData
+                              });
+                              
+                              if (response.ok) {
+                                const result = await response.json();
+                                setUploadStatus(`Uploaded ${result.total_processed} files (${result.valid_count} valid, ${result.invalid_count} invalid)`);
+                              } else {
+                                setUploadStatus('Upload failed');
+                              }
+                            } catch (err) {
+                              console.error('Upload error:', err);
+                              setUploadStatus('Upload failed');
+                            }
+                            
+                            // Reset the file input
+                            e.target.value = '';
+                          }}
+                        />
+                        <label htmlFor="batch-file-upload">
+                          <Button variant="contained" component="span" sx={{ bgcolor: '#0066B3' }}>
+                            Upload Images to Batch
+                          </Button>
+                        </label>
+                      </Box>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
                       <Button
                         variant="outlined"
                         onClick={() => setActiveBatch(null)}
@@ -292,15 +419,25 @@ const Dashboard = () => {
               </Paper>
               
               <Paper elevation={2} sx={{ p: 3 }}>
-                <Typography variant="h5" sx={{ mb: 2 }}>
-                  Quick Stats
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h5">
+                    Quick Stats
+                  </Typography>
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    onClick={fetchStats}
+                    startIcon={<RefreshIcon />}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
                 
                 <Grid container spacing={3}>
                   <Grid item xs={12} sm={6} md={3}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: '#0066B3' }}>
-                        24
+                        {stats.batchesToday}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Batches Today
@@ -311,7 +448,7 @@ const Dashboard = () => {
                   <Grid item xs={12} sm={6} md={3}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: 'success.main' }}>
-                        85%
+                        {stats.successRate}%
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Average Success Rate
@@ -322,7 +459,7 @@ const Dashboard = () => {
                   <Grid item xs={12} sm={6} md={3}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: 'warning.main' }}>
-                        2.5s
+                        {stats.processingTime}s
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Avg. Processing Time
@@ -333,7 +470,7 @@ const Dashboard = () => {
                   <Grid item xs={12} sm={6} md={3}>
                     <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h4" sx={{ color: 'error.main' }}>
-                        15%
+                        {stats.errorRate}%
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Error Rate

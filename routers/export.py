@@ -40,20 +40,17 @@ async def export_batch_results_csv(request: Request, batch_id: str):
     """
     try:
         batch_dir = os.path.join("exports", batch_id)
+        results_path = os.path.join(batch_dir, "results.csv")
         metadata_path = os.path.join(batch_dir, "metadata.json")
-        if not os.path.exists(metadata_path):
+        
+        if not os.path.exists(metadata_path) or not os.path.exists(results_path):
             raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
-
-        with open(metadata_path, "r") as f:
-            metadata = json.load(f)
-
-        csv_path = metadata["csv_path"]
 
         filename = f"logo_detection_results_{batch_id}.csv"
         # Ensure filename has no extra spaces
         filename = filename.strip()
         return FileResponse(
-            csv_path,
+            results_path,
             media_type="text/csv",
             filename=filename,
         )
@@ -63,13 +60,14 @@ async def export_batch_results_csv(request: Request, batch_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/exports/{filename}")
+@router.get("/api/exports/{batch_id}/{filename}")
 async def get_export_file(
+    batch_id: str,
     filename: str, 
     token: Optional[str] = Query(None)
 ):
     """
-    Get an exported file by filename.
+    Get an exported file by batch_id and filename.
     Requires authentication token as a query parameter.
     """
     try:
@@ -77,14 +75,17 @@ async def get_export_file(
         if not token or not check_token_valid(token):
             raise HTTPException(status_code=401, detail="Authentication required")
         
-        file_path = os.path.join("exports", filename)
+        file_path = os.path.join("exports", batch_id, filename)
         if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {filename}")
+            raise HTTPException(status_code=404, detail=f"File not found: {batch_id}/{filename}")
+        
+        # Use batch_id in the filename for download
+        download_filename = f"Batch_{batch_id}_{filename}"
         
         return FileResponse(
             file_path,
             media_type="text/csv",
-            filename=filename
+            filename=download_filename
         )
     except HTTPException:
         raise

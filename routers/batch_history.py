@@ -13,6 +13,7 @@ import glob
 from datetime import datetime
 import logging
 import sys
+import csv
 
 from routers.batch import check_token_valid
 
@@ -53,49 +54,50 @@ def get_batch_history(
     try:
         history = []
         
-        # Get all CSV files in the exports directory
+        # Get all batch directories in the exports directory
         export_dir = os.path.join(os.getcwd(), "exports")
-        csv_files = glob.glob(os.path.join(export_dir, "*.csv"))
+        batch_dirs = [d for d in glob.glob(os.path.join(export_dir, "*")) if os.path.isdir(d)]
         
-        for csv_file in csv_files:
-            filename = os.path.basename(csv_file)
+        for batch_dir in batch_dirs:
+            batch_id = os.path.basename(batch_dir)
+            results_file = os.path.join(batch_dir, "results.csv")
+            metadata_file = os.path.join(batch_dir, "metadata.json")
             
-            # Extract batch ID from filename (assuming format like "logo_detection_BATCH_ID_timestamp.csv")
-            parts = filename.split("_")
-            if len(parts) >= 3:
-                batch_id = parts[2]
+            if not os.path.exists(results_file):
+                continue
                 
-                # Get file stats
-                stats = os.stat(csv_file)
-                created_time = datetime.fromtimestamp(stats.st_ctime).isoformat()
-                file_size = stats.st_size
-                
-                # Try to get valid/invalid counts from a potential metadata file
-                metadata_file = os.path.join(export_dir, f"metadata_{batch_id}.json")
-                valid_count = 0
-                invalid_count = 0
-                total_count = 0
-                
-                if os.path.exists(metadata_file):
-                    try:
-                        with open(metadata_file, 'r') as f:
-                            metadata = json.load(f)
-                            valid_count = metadata.get("valid_count", 0)
-                            invalid_count = metadata.get("invalid_count", 0)
-                            total_count = metadata.get("total_count", 0)
-                    except Exception as e:
-                        logger.error(f"Error reading metadata file: {str(e)}")
-                
-                history.append({
-                    "batch_id": batch_id,
-                    "filename": filename,
-                    "created_at": created_time,
-                    "file_size": file_size,
-                    "download_url": f"/api/exports/{filename}",
-                    "valid_count": valid_count,
-                    "invalid_count": invalid_count,
-                    "total_count": total_count
-                })
+            # Get file stats
+            stats = os.stat(results_file)
+            created_time = datetime.fromtimestamp(stats.st_ctime).isoformat()
+            file_size = stats.st_size
+            
+            # Try to get valid/invalid counts from metadata file
+            valid_count = 0
+            invalid_count = 0
+            total_count = 0
+            
+            if os.path.exists(metadata_file):
+                try:
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
+                        # Get counts from the correct metadata structure
+                        if "counts" in metadata:
+                            valid_count = metadata["counts"].get("valid", 0)
+                            invalid_count = metadata["counts"].get("invalid", 0)
+                            total_count = metadata["counts"].get("total", 0)
+                except Exception as e:
+                    logger.error(f"Error reading metadata file: {str(e)}")
+            
+            history.append({
+                "batch_id": batch_id,
+                "filename": f"{batch_id}/results.csv",
+                "created_at": created_time,
+                "file_size": file_size,
+                "download_url": f"/api/exports/{batch_id}/results.csv",
+                "valid_count": valid_count,
+                "invalid_count": invalid_count,
+                "total_count": total_count
+            })
         
         # Sort by creation time (newest first)
         history.sort(key=lambda x: x["created_at"], reverse=True)
@@ -126,23 +128,19 @@ def get_batch_details(
     """
     try:
         export_dir = os.path.join(os.getcwd(), "exports")
+        batch_dir = os.path.join(export_dir, batch_id)
+        results_file = os.path.join(batch_dir, "results.csv")
+        metadata_file = os.path.join(batch_dir, "metadata.json")
         
-        # Look for CSV file with this batch ID
-        csv_files = glob.glob(os.path.join(export_dir, f"*_{batch_id}_*.csv"))
-        
-        if not csv_files:
+        if not os.path.exists(batch_dir) or not os.path.exists(results_file):
             raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
-            
-        csv_file = csv_files[0]
-        filename = os.path.basename(csv_file)
         
         # Get file stats
-        stats = os.stat(csv_file)
+        stats = os.stat(results_file)
         created_time = datetime.fromtimestamp(stats.st_ctime).isoformat()
         file_size = stats.st_size
         
         # Try to get additional metadata
-        metadata_file = os.path.join(export_dir, f"metadata_{batch_id}.json")
         metadata = {}
         
         if os.path.exists(metadata_file):
@@ -152,12 +150,25 @@ def get_batch_details(
             except Exception as e:
                 logger.error(f"Error reading metadata file: {str(e)}")
         
+        # Extract valid/invalid counts from metadata for frontend display
+        valid_count = 0
+        invalid_count = 0
+        total_count = 0
+        
+        if "counts" in metadata:
+            valid_count = metadata["counts"].get("valid", 0)
+            invalid_count = metadata["counts"].get("invalid", 0)
+            total_count = metadata["counts"].get("total", 0)
+            
         return {
             "batch_id": batch_id,
-            "filename": filename,
+            "filename": f"{batch_id}/results.csv",
             "created_at": created_time,
             "file_size": file_size,
-            "download_url": f"/api/exports/{filename}",
+            "download_url": f"/api/exports/{batch_id}/results.csv",
+            "valid_count": valid_count,
+            "invalid_count": invalid_count,
+            "total_count": total_count,
             "metadata": metadata
         }
         
@@ -166,3 +177,63 @@ def get_batch_details(
     except Exception as e:
         logger.error(f"Error retrieving batch details: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving batch details: {str(e)}")
+
+
+@router.get("/api/admin/batch/{batch_id}/preview")
+def get_batch_preview(
+    batch_id: str,
+    _: bool = Depends(admin_required)
+) -> Dict[str, Any]:
+    """
+    Get a preview of the first 5 entries in the batch results
+    
+    Args:
+        batch_id: The ID of the batch to retrieve
+        
+    Returns:
+        Dict: Preview data with up to 5 entries
+        
+    Raises:
+        HTTPException: If batch not found
+    """
+    try:
+        export_dir = os.path.join(os.getcwd(), "exports")
+        batch_dir = os.path.join(export_dir, batch_id)
+        results_file = os.path.join(batch_dir, "results.csv")
+        
+        if not os.path.exists(batch_dir) or not os.path.exists(results_file):
+            raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+        
+        # Read the first 5 entries from the CSV file
+        preview_data = []
+        try:
+            with open(results_file, 'r') as f:
+                csv_reader = csv.DictReader(f)
+                for i, row in enumerate(csv_reader):
+                    if i >= 5:  # Only get the first 5 rows
+                        break
+                    
+                    # Convert string representations of objects to actual objects
+                    if 'Bounding_Box' in row and row['Bounding_Box'] and row['Bounding_Box'].lower() != 'none':
+                        try:
+                            # Handle potential JSON string
+                            if row['Bounding_Box'].startswith('{'):
+                                row['Bounding_Box'] = json.loads(row['Bounding_Box'])
+                        except:
+                            pass  # Keep as string if parsing fails
+                    
+                    preview_data.append(row)
+        except Exception as e:
+            logger.error(f"Error reading CSV file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error reading CSV file: {str(e)}")
+            
+        return {
+            "batch_id": batch_id,
+            "preview": preview_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving batch preview: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving batch preview: {str(e)}")

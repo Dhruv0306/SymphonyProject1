@@ -18,7 +18,7 @@ from utils.ws_manager import connection_manager
 from utils.security import csrf_protection
 # Import admin_auth first to avoid circular imports
 from routers import admin_auth
-from routers import single, batch, export, batch_history
+from routers import single, batch, export, batch_history, dashboard_stats, dashboard_stats
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 import asyncio
@@ -173,6 +173,7 @@ app.include_router(batch.router)
 app.include_router(export.router)
 app.include_router(admin_auth.router)
 app.include_router(batch_history.router)
+app.include_router(dashboard_stats.router)
 
 
 @app.get("/", include_in_schema=False)

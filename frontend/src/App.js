@@ -14,8 +14,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminLogin from './components/AdminLogin';
 import Dashboard from './components/Dashboard';
 import BatchHistory from './components/BatchHistory';
-import MainUploaderLayout from './components/MainUploaderLayout';
-
+import FileUploader from './FileUploader';
 
 
 // Theme constants for consistent branding
@@ -32,7 +31,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<MainUploaderLayout />}/>
+        <Route path="/" element={<FileUploader />}/>
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<Dashboard />} />
         <Route path="/admin/batch-history" element={<BatchHistory />} />
