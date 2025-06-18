@@ -19,7 +19,6 @@ from models.logo_check import (
 from detect_logo import check_logo
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
-from utils.emailer import send_csv_notification
 import sys
 
 
@@ -101,9 +100,6 @@ router = APIRouter(
 async def start_batch(
     request: Request,
     token: Optional[str] = Header(None, alias="X-Auth-Token"),
-    email_notification: Optional[str] = Form(
-        None, description="Email address to notify when batch processing is complete"
-    ),
 ):
     """
     Initialize a new batch processing session.
@@ -113,7 +109,6 @@ async def start_batch(
 
     Args:
         request: The incoming request
-        email_notification: Optional email address to notify when batch processing is complete
 
     Returns:
         BatchStartResponse: Contains the batch ID and success message
@@ -152,7 +147,6 @@ async def start_batch(
             "counts": {"valid": 0, "invalid": 0, "total": 0},
             "status": "initialized",
             "created_at": time.time(),
-            "email_notification": email_notification if email_notification else None,
         }
         with open(os.path.join(batch_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
@@ -228,9 +222,6 @@ async def check_logo_batch(
     ),
     batch_id: Optional[str] = Form(
         None, description="Optional batch ID for tracking progress"
-    ),
-    email_notification: Optional[str] = Form(
-        None, description="Email address to notify when batch processing is complete"
     ),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
@@ -520,25 +511,6 @@ async def check_logo_batch(
                     "timestamp": time.time(),
                 }
                 await connection_manager.broadcast(batch_id, final_update)
-
-                # Send email notification if email is provided in metadata
-                if "email_notification" in metadata and metadata["email_notification"]:
-                    email_to = metadata["email_notification"]
-                    csv_url = f"/api/exports/download/{batch_id}"
-
-                    # Send email notification in background
-                    background_tasks = BackgroundTasks()
-                    background_tasks.add_task(
-                        send_csv_notification,
-                        email_to=email_to,
-                        batch_id=batch_id,
-                        csv_url=csv_url,
-                        valid_count=valid_count,
-                        invalid_count=invalid_count,
-                    )
-                    logger.info(
-                        f"Email notification queued for batch {batch_id} to {email_to}"
-                    )
 
             if csv_file:
                 csv_file.close()

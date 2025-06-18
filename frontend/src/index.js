@@ -1,12 +1,7 @@
 /**
  * Application Entry Point
- * 
- * Initializes the React application and sets up the root component.
- * Includes performance monitoring through web vitals and custom analytics.
- * 
- * Updated to support the latest YOLO model architecture and API v2 endpoints.
  */
-
+import './disableWarnings'; // Import first to disable warnings
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -24,7 +19,7 @@ const theme = createTheme({
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#005299', // Darker blue for hover states
+      main: '#005299',
       light: '#4B7FB3',
       dark: '#003A6B',
       contrastText: '#FFFFFF',
@@ -43,43 +38,8 @@ const theme = createTheme({
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#333333', // Symphony Gray
+      primary: '#333333',
       secondary: '#666666',
-    },
-  },
-  typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-    h1: {
-      fontSize: '2rem',
-      fontWeight: 600,
-    },
-    h2: {
-      fontSize: '1.75rem',
-      fontWeight: 600,
-    },
-    h3: {
-      fontSize: '1.5rem',
-      fontWeight: 600,
-    },
-    h4: {
-      fontSize: '1.25rem',
-      fontWeight: 600,
-    },
-    h5: {
-      fontSize: '1.1rem',
-      fontWeight: 600,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 600,
     },
   },
   shape: {
@@ -111,7 +71,7 @@ const theme = createTheme({
 // Create root element for React application
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-// Render the application with ThemeProvider and StrictMode
+// Render the application with ThemeProvider
 root.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
@@ -120,26 +80,5 @@ root.render(
   </React.StrictMode>
 );
 
-// Initialize performance monitoring with custom analytics
-reportWebVitals(({ name, delta, id }) => {
-  // Send metrics to custom analytics endpoint
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      fetch('/api/v2/analytics/metrics', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          metric: name,
-          value: delta,
-          id: id,
-          userAgent: navigator.userAgent,
-          timestamp: Date.now(),
-        }),
-      });
-    } catch (error) {
-      console.error('Failed to send metrics:', error);
-    }
-  }
-});
+// Initialize performance monitoring
+reportWebVitals();
