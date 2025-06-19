@@ -94,6 +94,11 @@ class BatchUrlRequest(BaseModel):
         description="Optional batch ID for tracking progress",
         example="550e8400-e29b-41d4-a716-446655440000",
     )
+    email: Optional[str] = Field(
+        None,
+        description="Email address for batch completion notification",
+        example="user@example.com",
+    )
 
     class Config:
         schema_extra = {
@@ -103,6 +108,7 @@ class BatchUrlRequest(BaseModel):
                     "https://example.com/image2.jpg",
                 ],
                 "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+                "email": "user@example.com",
             }
         }
 
