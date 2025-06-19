@@ -9,8 +9,13 @@ from fastapi import WebSocket
 from typing import Dict, List, Any
 import json
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
+
+# Global batch storage and timeout management
+batches = {}
+timeouts = {}
 
 
 class ConnectionManager:
@@ -104,6 +109,32 @@ class ConnectionManager:
                 return self.client_connections.get(client_id)
         return None
 
+
+async def auto_expire_batch(batch_id, timeout=1800):
+    """Auto-expire batch after timeout period"""
+    await asyncio.sleep(timeout)
+    if batch_id in batches:
+        print(f"Batch {batch_id} expired due to inactivity")
+        clear_batch(batch_id)
+
+def init_batch(client_id, batch_id, total):
+    """Initialize a new batch with timeout"""
+    batches[batch_id] = {
+        "client_id": client_id,
+        "processed": 0,
+        "valid": 0,
+        "invalid": 0,
+        "total": total,
+        "results": []
+    }
+    timeouts[batch_id] = asyncio.create_task(auto_expire_batch(batch_id))
+
+def clear_batch(batch_id):
+    """Clear batch and cancel its timeout"""
+    batches.pop(batch_id, None)
+    if batch_id in timeouts:
+        timeouts[batch_id].cancel()
+        del timeouts[batch_id]
 
 # Create a singleton instance of the connection manager
 connection_manager = ConnectionManager()
