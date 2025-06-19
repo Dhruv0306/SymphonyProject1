@@ -526,25 +526,7 @@ async def check_logo_batch(
                 }
                 await connection_manager.broadcast(batch_id, final_update)
                 
-                # Send email notification if email is provided in metadata
-                if "email" in metadata and metadata["email"]:
-                    try:
-                        email_to = metadata["email"]
-                        csv_path = metadata["csv_path"]
-                        
-                        # Send email notification in background
-                        background_tasks.add_task(
-                            send_batch_summary_email,
-                            email_to=email_to,
-                            batch_id=batch_id,
-                            csv_path=csv_path,
-                            valid_count=valid_count,
-                            invalid_count=invalid_count,
-                        )
-                        logger.info(f"Email notification queued for batch {batch_id} to {email_to}")
-                    except Exception as e:
-                        # Log error but don't fail the batch processing
-                        logger.error(f"Failed to queue email notification: {str(e)}")
+
 
             if csv_file:
                 csv_file.close()
@@ -569,6 +551,55 @@ async def check_logo_batch(
         raise
     except Exception as e:
         logger.error(f"Unexpected error in batch processing: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/check-logo/batch/{batch_id}/complete",
+    summary="Mark batch as complete and send email notification",
+    response_description="Batch completion confirmation",
+)
+async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
+    """
+    Mark a batch as complete and send email notification if configured
+    """
+    try:
+        batch_dir = os.path.join("exports", batch_id)
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+        
+        if not os.path.exists(metadata_path):
+            raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+        
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        
+        # Send email notification if email is provided in metadata
+        if "email" in metadata and metadata["email"]:
+            try:
+                email_to = metadata["email"]
+                csv_path = metadata["csv_path"]
+                valid_count = metadata["counts"]["valid"]
+                invalid_count = metadata["counts"]["invalid"]
+                
+                # Send email notification in background
+                background_tasks.add_task(
+                    send_batch_summary_email,
+                    email_to=email_to,
+                    batch_id=batch_id,
+                    csv_path=csv_path,
+                    valid_count=valid_count,
+                    invalid_count=invalid_count,
+                )
+                logger.info(f"Email notification queued for batch {batch_id} to {email_to}")
+            except Exception as e:
+                # Log error but don't fail the batch completion
+                logger.error(f"Failed to queue email notification: {str(e)}")
+        
+        return {"message": "Batch completed successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error completing batch: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

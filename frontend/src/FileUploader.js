@@ -14,6 +14,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { API_BASE_URL } from './config';
 import { chunkImages, processImageChunks } from './utils/imageChunker';
 import UploadStatus from './UploadStatus';
+import EmailInput from './components/EmailInput';
 
 // Theme constants for consistent branding
 const symphonyBlue = '#0066B3';     // Primary brand color
@@ -63,6 +64,7 @@ const FileUploader = ({ onFilesSelected }) => {
   const [batchSize, setBatchSize] = useState(10);        // Changed from 50 to 10
   const [displayValue, setDisplayValue] = useState(10);  // Changed from 50 to 10
   const [uploadStatuses, setUploadStatuses] = useState({}); // Track upload status for each file
+  const [emailNotification, setEmailNotification] = useState(''); // Email for notifications
 
   // Responsive design hooks
   const theme = useTheme();
@@ -337,6 +339,15 @@ const FileUploader = ({ onFilesSelected }) => {
             message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
             name: files[index].name
           })));
+
+          // Complete batch and send email notification
+          if (newBatchId) {
+            try {
+              await axios.post(`${API_BASE_URL}/api/check-logo/batch/${newBatchId}/complete`);
+            } catch (error) {
+              console.error('Error completing batch:', error);
+            }
+          }
         } else {
           // For batch URL input
           const urls = batchUrls.split('\n').filter(url => url.trim());
@@ -419,6 +430,15 @@ const FileUploader = ({ onFilesSelected }) => {
             message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
             name: urls[index]
           })));
+
+          // Complete batch and send email notification
+          if (newBatchId) {
+            try {
+              await axios.post(`${API_BASE_URL}/api/check-logo/batch/${newBatchId}/complete`);
+            } catch (error) {
+              console.error('Error completing batch:', error);
+            }
+          }
         }
       }
     } catch (error) {
@@ -431,7 +451,14 @@ const FileUploader = ({ onFilesSelected }) => {
 
   const handleStartBatch = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/start-batch`);
+      const formData = new FormData();
+      
+      // Add email if provided
+      if (emailNotification.trim()) {
+        formData.append('email', emailNotification.trim());
+      }
+      
+      const response = await axios.post(`${API_BASE_URL}/api/start-batch`, formData);
       setBatchId(response.data.batch_id);
       return response.data.batch_id;
     } catch (error) {
@@ -1677,6 +1704,11 @@ const FileUploader = ({ onFilesSelected }) => {
                   maxWidth: '400px',
                   mx: 'auto'
                 }}>
+                  <EmailInput 
+                    email={emailNotification}
+                    setEmail={setEmailNotification}
+                  />
+                  
                   <Typography
                     variant="subtitle1"
                     sx={{
