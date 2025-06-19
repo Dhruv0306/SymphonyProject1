@@ -66,20 +66,23 @@ const calculateTimeRemaining = (processedImages, totalImages, elapsedTime) => {
 };
 
 /**
- * Processes image chunks sequentially with progress tracking.
+ * Processes image chunks sequentially with progress tracking and retry logic.
  * Provides detailed progress information including:
  * - Number of processed images
  * - Current chunk progress
  * - Time elapsed and remaining
  * - Completion percentage
+ * - Failed chunk tracking for retry
  * 
  * @param {Array} chunks - Array of image chunks to process
  * @param {Function} processChunk - Function to process each chunk
  * @param {Function} onProgress - Callback for progress updates
+ * @param {Function} onChunkFailed - Callback for failed chunks (optional)
  * @returns {Promise<Array>} Combined results from all chunks
  */
-export const processImageChunks = async (chunks, processChunk, onProgress) => {
+export const processImageChunks = async (chunks, processChunk, onProgress, onChunkFailed) => {
     const results = [];
+    const failedChunks = [];
     let processedImages = 0;
     const totalImages = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     const startTime = Date.now();
@@ -87,7 +90,7 @@ export const processImageChunks = async (chunks, processChunk, onProgress) => {
     for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         try {
-            const chunkResults = await processChunk(chunk);
+            const chunkResults = await processChunk(chunk, i);
             results.push(...chunkResults);
             
             processedImages += chunk.length;
@@ -103,14 +106,74 @@ export const processImageChunks = async (chunks, processChunk, onProgress) => {
                     percentComplete: (processedImages / totalImages) * 100,
                     elapsedTime: formatTime(elapsedTime),
                     estimatedTimeRemaining: calculateTimeRemaining(processedImages, totalImages, elapsedTime),
-                    startTime
+                    startTime,
+                    failedChunks: failedChunks.length
                 });
             }
         } catch (error) {
             console.error(`Error processing chunk ${i + 1}:`, error);
-            throw error;
+            
+            // Track failed chunk
+            const failedChunk = {
+                index: i,
+                chunk: chunk,
+                error: error.message || 'Unknown error',
+                timestamp: Date.now()
+            };
+            failedChunks.push(failedChunk);
+            
+            // Notify about failed chunk
+            if (onChunkFailed) {
+                onChunkFailed(failedChunk);
+            }
+            
+            // Continue processing other chunks instead of stopping
+            console.log(`Continuing with remaining chunks after chunk ${i + 1} failed`);
         }
     }
 
-    return results;
+    return { results, failedChunks };
+};
+
+/**
+ * Retry processing of failed chunks
+ * 
+ * @param {Array} failedChunks - Array of failed chunk objects
+ * @param {Function} processChunk - Function to process each chunk
+ * @param {Function} onProgress - Callback for progress updates
+ * @returns {Promise<Object>} Results and remaining failed chunks
+ */
+export const retryFailedChunks = async (failedChunks, processChunk, onProgress) => {
+    const results = [];
+    const stillFailedChunks = [];
+    let processedChunks = 0;
+    const totalChunks = failedChunks.length;
+
+    for (const failedChunk of failedChunks) {
+        try {
+            console.log(`Retrying chunk ${failedChunk.index + 1}...`);
+            const chunkResults = await processChunk(failedChunk.chunk, failedChunk.index);
+            results.push(...chunkResults);
+            
+            processedChunks++;
+            if (onProgress) {
+                onProgress({
+                    processedChunks,
+                    totalChunks,
+                    currentChunk: failedChunk.index + 1,
+                    percentComplete: (processedChunks / totalChunks) * 100,
+                    isRetry: true
+                });
+            }
+        } catch (error) {
+            console.error(`Retry failed for chunk ${failedChunk.index + 1}:`, error);
+            stillFailedChunks.push({
+                ...failedChunk,
+                retryError: error.message || 'Retry failed',
+                retryTimestamp: Date.now()
+            });
+        }
+    }
+
+    return { results, failedChunks: stillFailedChunks };
 }; 

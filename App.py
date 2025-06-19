@@ -26,6 +26,7 @@ from routers import (
     batch_history,
     dashboard_stats,
     dashboard_stats,
+    websocket,
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
@@ -187,6 +188,7 @@ app.include_router(export.router)
 app.include_router(admin_auth.router)
 app.include_router(batch_history.router)
 app.include_router(dashboard_stats.router)
+app.include_router(websocket.router)
 
 
 @app.get("/", include_in_schema=False)

@@ -19,10 +19,14 @@ class ConnectionManager:
 
     Attributes:
         active_connections: Dictionary mapping batch IDs to lists of active WebSocket connections
+        client_connections: Dictionary mapping client IDs to WebSocket connections
+        client_batch_map: Dictionary mapping client IDs to lists of batch IDs
     """
 
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.client_connections: Dict[str, WebSocket] = {}
+        self.client_batch_map: Dict[str, List[str]] = {}
 
     async def connect(self, batch_id: str, websocket: WebSocket):
         """
@@ -74,6 +78,31 @@ class ConnectionManager:
             logger.debug(
                 f"Broadcast message to {len(self.active_connections[batch_id])} connections for batch {batch_id}"
             )
+
+    def connect_client(self, client_id: str, websocket: WebSocket):
+        """Store client WebSocket connection"""
+        self.client_connections[client_id] = websocket
+        self.client_batch_map.setdefault(client_id, [])
+        logger.info(f"Client {client_id} connected")
+
+    def disconnect_client(self, client_id: str):
+        """Remove client WebSocket connection"""
+        self.client_connections.pop(client_id, None)
+        self.client_batch_map.pop(client_id, None)
+        logger.info(f"Client {client_id} disconnected")
+
+    def associate_batch(self, client_id: str, batch_id: str):
+        """Associate a batch with a client"""
+        if client_id in self.client_batch_map:
+            self.client_batch_map[client_id].append(batch_id)
+            logger.info(f"Associated batch {batch_id} with client {client_id}")
+
+    def get_client_websocket_by_batch(self, batch_id: str) -> WebSocket:
+        """Get client WebSocket by batch ID"""
+        for client_id, batches in self.client_batch_map.items():
+            if batch_id in batches:
+                return self.client_connections.get(client_id)
+        return None
 
 
 # Create a singleton instance of the connection manager
