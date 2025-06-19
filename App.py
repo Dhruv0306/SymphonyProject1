@@ -125,6 +125,14 @@ async def startup_event():
         print("Scheduler started successfully")
         logger.info("Scheduler started successfully")
 
+        # Start WebSocket timeout monitor
+        async def monitor_websockets():
+            while True:
+                connection_manager.prune_stale_connections()
+                await asyncio.sleep(30)
+
+        asyncio.create_task(monitor_websockets())
+
     except Exception as e:
         error_msg = f"Error during startup: {str(e)}"
         print(error_msg)

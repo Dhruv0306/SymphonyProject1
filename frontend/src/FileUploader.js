@@ -163,6 +163,18 @@ const FileUploader = ({ onFilesSelected }) => {
     };
   }, []);
 
+  // WebSocket heartbeat effect
+  useEffect(() => {
+    const clientId = getClientId();
+    const heartbeatInterval = setInterval(() => {
+      if (websocket?.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({ event: "heartbeat", client_id: clientId }));
+      }
+    }, 30000); // every 30s
+
+    return () => clearInterval(heartbeatInterval);
+  }, [websocket]);
+
   /**
    * Toggle mobile navigation drawer
    */

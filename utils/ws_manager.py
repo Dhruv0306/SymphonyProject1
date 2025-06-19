@@ -10,6 +10,7 @@ from typing import Dict, List, Any
 import json
 import logging
 import asyncio
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,14 @@ class ConnectionManager:
         active_connections: Dictionary mapping batch IDs to lists of active WebSocket connections
         client_connections: Dictionary mapping client IDs to WebSocket connections
         client_batch_map: Dictionary mapping client IDs to lists of batch IDs
+        client_last_seen: Dictionary tracking last heartbeat from each client
     """
 
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self.client_connections: Dict[str, WebSocket] = {}
         self.client_batch_map: Dict[str, List[str]] = {}
+        self.client_last_seen: Dict[str, datetime] = {}
 
     async def connect(self, batch_id: str, websocket: WebSocket):
         """
@@ -108,6 +111,30 @@ class ConnectionManager:
             if batch_id in batches:
                 return self.client_connections.get(client_id)
         return None
+
+    def mark_alive(self, client_id: str):
+        """Mark client as alive with current timestamp"""
+        self.client_last_seen[client_id] = datetime.utcnow()
+        logger.debug(
+            f"Client {client_id} marked alive at {self.client_last_seen[client_id]}"
+        )
+
+    def prune_stale_connections(self, timeout_secs=90):
+        """Remove inactive WebSocket connections"""
+        now = datetime.utcnow()
+        stale_clients = []
+
+        for client_id, last_seen in self.client_last_seen.items():
+            if (now - last_seen).total_seconds() > timeout_secs:
+                stale_clients.append(client_id)
+
+        for client_id in stale_clients:
+            ws = self.client_connections.pop(client_id, None)
+            self.client_last_seen.pop(client_id, None)
+            self.client_batch_map.pop(client_id, None)
+            if ws:
+                asyncio.create_task(ws.close())
+                logger.info(f"Pruned stale WebSocket for client {client_id}")
 
 
 async def auto_expire_batch(batch_id, timeout=1800):
