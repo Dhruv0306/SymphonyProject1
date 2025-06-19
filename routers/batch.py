@@ -101,7 +101,9 @@ router = APIRouter(
 async def start_batch(
     request: Request,
     token: Optional[str] = Header(None, alias="X-Auth-Token"),
-    email: Optional[str] = Form(None, description="Email address for batch completion notification"),
+    email: Optional[str] = Form(
+        None, description="Email address for batch completion notification"
+    ),
 ):
     """
     Initialize a new batch processing session.
@@ -301,7 +303,11 @@ async def check_logo_batch(
 
         # Get batch_id and email from either form data or JSON request
         batch_id = batch_id or (batch_request.batch_id if batch_request else None)
-        email = email or (batch_request.email if batch_request and hasattr(batch_request, 'email') else None)
+        email = email or (
+            batch_request.email
+            if batch_request and hasattr(batch_request, "email")
+            else None
+        )
         logger.info(f"Using batch_id: {batch_id}")
         if email:
             logger.info(f"Email notification will be sent to: {email}")
@@ -321,7 +327,7 @@ async def check_logo_batch(
 
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-                
+
             # Update email in metadata if provided in this request
             if email and not metadata.get("email"):
                 metadata["email"] = email
@@ -525,8 +531,6 @@ async def check_logo_batch(
                     "timestamp": time.time(),
                 }
                 await connection_manager.broadcast(batch_id, final_update)
-                
-
 
             if csv_file:
                 csv_file.close()
@@ -566,13 +570,13 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
     try:
         batch_dir = os.path.join("exports", batch_id)
         metadata_path = os.path.join(batch_dir, "metadata.json")
-        
+
         if not os.path.exists(metadata_path):
             raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
-        
+
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
-        
+
         # Send email notification if email is provided in metadata
         if "email" in metadata and metadata["email"]:
             try:
@@ -580,7 +584,7 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
                 csv_path = metadata["csv_path"]
                 valid_count = metadata["counts"]["valid"]
                 invalid_count = metadata["counts"]["invalid"]
-                
+
                 # Send email notification in background
                 background_tasks.add_task(
                     send_batch_summary_email,
@@ -590,11 +594,13 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
                     valid_count=valid_count,
                     invalid_count=invalid_count,
                 )
-                logger.info(f"Email notification queued for batch {batch_id} to {email_to}")
+                logger.info(
+                    f"Email notification queued for batch {batch_id} to {email_to}"
+                )
             except Exception as e:
                 # Log error but don't fail the batch completion
                 logger.error(f"Failed to queue email notification: {str(e)}")
-        
+
         return {"message": "Batch completed successfully"}
     except HTTPException:
         raise

@@ -21,18 +21,20 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-def send_batch_summary_email(email_to: str, batch_id: str, csv_path: str, 
-                           valid_count: int, invalid_count: int):
+
+def send_batch_summary_email(
+    email_to: str, batch_id: str, csv_path: str, valid_count: int, invalid_count: int
+):
     """
     Send an email with batch processing summary and CSV attachment
-    
+
     Args:
         email_to: The recipient's email address
         batch_id: The ID of the completed batch
         csv_path: Path to the CSV file to attach
         valid_count: Number of valid images in the batch
         invalid_count: Number of invalid images in the batch
-        
+
     Returns:
         bool: True if the email was sent successfully, False otherwise
     """
@@ -46,8 +48,15 @@ def send_batch_summary_email(email_to: str, batch_id: str, csv_path: str,
         sender_name = os.getenv("SENDER_NAME", "Symphony Logo Detection")
 
         # Check if SMTP credentials are configured
-        if not smtp_server or not smtp_username or not smtp_password or not sender_email:
-            logger.error("SMTP credentials not configured in .env file. Email notification not sent.")
+        if (
+            not smtp_server
+            or not smtp_username
+            or not smtp_password
+            or not sender_email
+        ):
+            logger.error(
+                "SMTP credentials not configured in .env file. Email notification not sent."
+            )
             return False
 
         # Create the email message
@@ -90,13 +99,13 @@ def send_batch_summary_email(email_to: str, batch_id: str, csv_path: str,
 
         # Set the HTML content
         msg.attach(MIMEText(email_content, "html"))
-        
+
         # Attach the CSV file
         if os.path.exists(csv_path):
             with open(csv_path, "rb") as attachment:
                 part = MIMEBase("application", "octet-stream")
                 part.set_payload(attachment.read())
-            
+
             # Encode and add header
             encoders.encode_base64(part)
             part.add_header(
