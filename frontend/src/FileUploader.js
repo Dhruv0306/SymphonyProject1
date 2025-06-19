@@ -1,5 +1,5 @@
 // src/FileUploader.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Container, Typography, Paper, Button, CircularProgress, Radio, RadioGroup, FormControlLabel, FormControl, TextField, Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, Slider } from '@mui/material';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import axios from 'axios';
@@ -12,9 +12,10 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MenuIcon from '@mui/icons-material/Menu';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { API_BASE_URL } from './config';
-import { chunkImages, processImageChunks } from './utils/imageChunker';
+import { chunkImages, processImageChunks, retryFailedChunks } from './utils/imageChunker';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
+import { getClientId } from './utils/clientId';
 
 // Theme constants for consistent branding
 const symphonyBlue = '#0066B3';     // Primary brand color
@@ -26,19 +27,29 @@ const symphonyDarkBlue = '#005299';  // Hover/active state
 // Sidebar width for responsive layout
 const SIDEBAR_WIDTH = 280;
 
-// Add retry utility function at the top level
-const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000) => {
+// Enhanced retry utility function with better error handling
+const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000, chunkIndex = null) => {
   let retries = 0;
   while (retries < maxRetries) {
     try {
       return await fn();
     } catch (error) {
-      if (error.response?.status === 429 && retries < maxRetries - 1) {
-        retries++;
+      retries++;
+      const isRetryableError = 
+        error.response?.status === 429 || // Rate limit
+        error.response?.status >= 500 || // Server errors
+        error.code === 'NETWORK_ERROR' || // Network issues
+        !error.response; // Network timeout/connection issues
+      
+      if (isRetryableError && retries < maxRetries) {
         const delay = initialDelay * Math.pow(2, retries - 1);
-        console.log(`Rate limited. Retrying in ${delay}ms... (Attempt ${retries} of ${maxRetries})`);
+        const chunkInfo = chunkIndex !== null ? ` (Chunk ${chunkIndex + 1})` : '';
+        console.log(`Upload failed${chunkInfo}. Retrying in ${delay}ms... (Attempt ${retries} of ${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
+        // Log final failure
+        const chunkInfo = chunkIndex !== null ? ` for chunk ${chunkIndex + 1}` : '';
+        console.error(`Upload failed${chunkInfo} after ${retries} attempts:`, error);
         throw error;
       }
     }
@@ -64,6 +75,10 @@ const FileUploader = ({ onFilesSelected }) => {
   const [batchSize, setBatchSize] = useState(10);        // Changed from 50 to 10
   const [displayValue, setDisplayValue] = useState(10);  // Changed from 50 to 10
   const [uploadStatuses, setUploadStatuses] = useState({}); // Track upload status for each file
+  const [websocket, setWebsocket] = useState(null); // WebSocket connection
+  const processStartTimeRef = useRef(null); // Track process start time
+  const [failedChunks, setFailedChunks] = useState([]); // Track failed chunks for retry
+  const [retryInProgress, setRetryInProgress] = useState(false); // Track retry state
   const [emailNotification, setEmailNotification] = useState(''); // Email for notifications
 
   // Responsive design hooks
@@ -72,6 +87,81 @@ const FileUploader = ({ onFilesSelected }) => {
 
   // Update the batchSizeOptions array to use smaller sizes
   const batchSizeOptions = [5, 10, 20, 50];
+
+  // Format time utility function
+  const formatTime = (milliseconds) => {
+    const totalSeconds = milliseconds / 1000;
+    const hours = totalSeconds / 3600;
+    const minutes = (totalSeconds % 3600) / 60;
+    const seconds = totalSeconds % 60;
+
+    if (hours >= 1) {
+      return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
+    } else if (minutes >= 1) {
+      return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
+    } else {
+      return `${seconds.toFixed(1)}s`;
+    }
+  };
+
+  // WebSocket connection effect
+  useEffect(() => {
+    const clientId = getClientId();
+    const wsUrl = `ws://localhost:8000/ws/${clientId}`;
+    
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setWebsocket(ws);
+    };
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('WebSocket message:', data);
+      
+      if (data.event === 'progress') {
+        const currentTime = Date.now();
+        const elapsedTime = processStartTimeRef.current ? currentTime - processStartTimeRef.current : 0;
+        const estimatedTimeRemaining = (data.processed > 0 && elapsedTime > 0) ? 
+          ((data.total - data.processed) * elapsedTime) / data.processed : 0;
+        
+        setProgress({
+          processedImages: data.processed,
+          totalImages: data.total,
+          currentChunk: (data.chunk_index || 0) + 1,
+          totalChunks: data.total_chunks || 1,
+          percent: data.percentage,
+          elapsedTime: elapsedTime > 0 ? formatTime(elapsedTime) : '0s',
+          estimatedTimeRemaining: estimatedTimeRemaining > 0 ? formatTime(estimatedTimeRemaining) : 'Calculating...'
+        });
+      } else if (data.event === 'complete') {
+        setProgress(null);
+        setProcessSummary({
+          totalImages: data.total,
+          validCount: data.valid,
+          invalidCount: data.invalid
+        });
+      }
+    };
+    
+    ws.onclose = (event) => {
+      if (event.wasClean) {
+        console.log('WebSocket disconnected cleanly');
+      }
+      setWebsocket(null);
+    };
+    
+    ws.onerror = (error) => {
+      console.log('WebSocket connection error (normal in dev mode)');
+    };
+    
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, []);
 
   /**
    * Toggle mobile navigation drawer
@@ -189,7 +279,8 @@ const FileUploader = ({ onFilesSelected }) => {
     }
 
     setLoading(true);
-    const processStartTime = Date.now();
+    const startTime = Date.now();
+    processStartTimeRef.current = startTime;
 
     try {
       let newBatchId = null;
@@ -270,9 +361,10 @@ const FileUploader = ({ onFilesSelected }) => {
         if (inputMethod === 'upload') {
           const chunks = chunkImages(files, batchSize);
 
-          const processChunk = async (chunk) => {
+          const processChunk = async (chunk, chunkIndex) => {
             return await retryWithBackoff(async () => {
               const formData = new FormData();
+              const clientId = getClientId();
 
               // Set uploading status for each file in the chunk
               chunk.forEach(file => {
@@ -280,9 +372,12 @@ const FileUploader = ({ onFilesSelected }) => {
                 setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
               });
 
-              if (newBatchId) {
-                formData.append('batch_id', newBatchId);
-              }
+              // Add chunk metadata
+              formData.append('client_id', clientId);
+              formData.append('batch_id', newBatchId);
+              formData.append('chunk_index', chunkIndex);
+              formData.append('total_chunks', chunks.length);
+              formData.append('total_files', files.length);
 
               const response = await axios.post(
                 `${API_BASE_URL}/api/check-logo/batch/`,
@@ -293,6 +388,11 @@ const FileUploader = ({ onFilesSelected }) => {
                   },
                 }
               );
+
+              // Check for chunk-level errors
+              if (response.data.chunk_status === 'error') {
+                throw new Error(response.data.message || 'Chunk processing failed');
+              }
 
               // Set validating status for each file after upload
               chunk.forEach(file => {
@@ -313,25 +413,36 @@ const FileUploader = ({ onFilesSelected }) => {
               });
 
               return results;
-            });
+            }, 3, 1000, chunkIndex);
           };
 
-          const allResults = await processImageChunks(
+          const { results: allResults, failedChunks } = await processImageChunks(
             chunks,
-            processChunk,
+            (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
             (progressData) => {
               setProgress(progressData);
+            },
+            (failedChunk) => {
+              console.log(`Chunk ${failedChunk.index + 1} failed:`, failedChunk.error);
+              setFailedChunks(prev => [...prev, failedChunk]);
             }
           );
+
+          // Store failed chunks for potential retry
+          if (failedChunks.length > 0) {
+            setFailedChunks(failedChunks);
+            console.log(`${failedChunks.length} chunks failed and can be retried`);
+          }
 
           // Store final processing summary
           const processEndTime = Date.now();
           setProcessSummary({
             totalImages: files.length,
-            totalTime: processEndTime - processStartTime,
-            averageTimePerImage: (processEndTime - processStartTime) / files.length,
-            startTime: processStartTime,
-            endTime: processEndTime
+            totalTime: processEndTime - startTime,
+            averageTimePerImage: (processEndTime - startTime) / files.length,
+            startTime: startTime,
+            endTime: processEndTime,
+            failedChunks: failedChunks.length
           });
 
           setResults(allResults.map((result, index) => ({
@@ -353,7 +464,7 @@ const FileUploader = ({ onFilesSelected }) => {
           const urls = batchUrls.split('\n').filter(url => url.trim());
           const chunks = chunkImages(urls, batchSize);
 
-          const processChunk = async (chunk) => {
+          const processChunk = async (chunk, chunkIndex) => {
             return await retryWithBackoff(async () => {
               // Set uploading status for each URL in the chunk
               chunk.forEach(url => {
@@ -361,8 +472,12 @@ const FileUploader = ({ onFilesSelected }) => {
               });
 
               const data = {
-                image_paths: chunk.map(url => url.trim()),  // Ensure URLs are trimmed
-                batch_id: newBatchId
+                image_paths: chunk.map(url => url.trim()),
+                batch_id: newBatchId,
+                chunk_index: chunkIndex,
+                total_chunks: chunks.length,
+                total_files: urls.length,
+                client_id: getClientId()
               };
 
               const response = await axios.post(
@@ -375,6 +490,15 @@ const FileUploader = ({ onFilesSelected }) => {
                   },
                 }
               );
+
+              // Check for chunk-level errors
+              if (response.data.chunk_status === 'error') {
+                // Set error status for each URL in failed chunk
+                chunk.forEach(url => {
+                  setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
+                });
+                throw new Error(response.data.message || 'Chunk processing failed');
+              }
 
               // Set validating status for each URL after upload
               chunk.forEach(url => {
@@ -404,25 +528,36 @@ const FileUploader = ({ onFilesSelected }) => {
               });
 
               return response.data.results || [];
-            });
+            }, 3, 1000, chunkIndex);
           };
 
-          const allResults = await processImageChunks(
+          const { results: allResults, failedChunks } = await processImageChunks(
             chunks,
-            processChunk,
+            (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
             (progressData) => {
               setProgress(progressData);
+            },
+            (failedChunk) => {
+              console.log(`Chunk ${failedChunk.index + 1} failed:`, failedChunk.error);
+              setFailedChunks(prev => [...prev, failedChunk]);
             }
           );
+
+          // Store failed chunks for potential retry
+          if (failedChunks.length > 0) {
+            setFailedChunks(failedChunks);
+            console.log(`${failedChunks.length} chunks failed and can be retried`);
+          }
 
           // Store final processing summary
           const processEndTime = Date.now();
           setProcessSummary({
             totalImages: urls.length,
-            totalTime: processEndTime - processStartTime,
-            averageTimePerImage: (processEndTime - processStartTime) / urls.length,
-            startTime: processStartTime,
-            endTime: processEndTime
+            totalTime: processEndTime - startTime,
+            averageTimePerImage: (processEndTime - startTime) / urls.length,
+            startTime: startTime,
+            endTime: processEndTime,
+            failedChunks: failedChunks.length
           });
 
           setResults(allResults.map((result, index) => ({
@@ -449,6 +584,160 @@ const FileUploader = ({ onFilesSelected }) => {
     }
   };
 
+  const handleRetryFailedChunks = async () => {
+    if (failedChunks.length === 0) {
+      setError('No failed chunks to retry');
+      return;
+    }
+
+    setRetryInProgress(true);
+    setError(null);
+    
+    try {
+      console.log(`Retrying ${failedChunks.length} failed chunks...`);
+      
+      // Create process chunk function based on input method
+      const processChunk = inputMethod === 'upload' 
+        ? async (chunk, chunkIndex) => {
+            return await retryWithBackoff(async () => {
+              const formData = new FormData();
+              const clientId = getClientId();
+
+              chunk.forEach(file => {
+                formData.append('files', file);
+                setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
+              });
+
+              formData.append('client_id', clientId);
+              formData.append('batch_id', batchId);
+              formData.append('chunk_index', chunkIndex);
+              formData.append('total_chunks', failedChunks.length);
+              formData.append('total_files', chunk.length);
+
+              const response = await axios.post(
+                `${API_BASE_URL}/api/check-logo/batch/${batchId}/retry-chunk`,
+                formData,
+                {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                }
+              );
+
+              if (response.data.chunk_status === 'error') {
+                throw new Error(response.data.message || 'Chunk retry failed');
+              }
+
+              chunk.forEach(file => {
+                setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
+              });
+
+              const results = response.data.results || [];
+              results.forEach((result, idx) => {
+                const file = chunk[idx];
+                if (file) {
+                  if (result.Is_Valid === "Valid") {
+                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "valid" }));
+                  } else {
+                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "invalid" }));
+                  }
+                }
+              });
+
+              return results;
+            }, 3, 1000, chunkIndex);
+          }
+        : async (chunk, chunkIndex) => {
+            return await retryWithBackoff(async () => {
+              chunk.forEach(url => {
+                setUploadStatuses((prev) => ({ ...prev, [url]: "uploading" }));
+              });
+
+              const data = {
+                image_paths: chunk.map(url => url.trim()),
+                batch_id: batchId,
+                chunk_index: chunkIndex,
+                total_chunks: failedChunks.length,
+                total_files: chunk.length,
+                client_id: getClientId()
+              };
+
+              const response = await axios.post(
+                `${API_BASE_URL}/api/check-logo/batch/${batchId}/retry-chunk`,
+                JSON.stringify(data),
+                {
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                  },
+                }
+              );
+
+              if (response.data.chunk_status === 'error') {
+                chunk.forEach(url => {
+                  setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
+                });
+                throw new Error(response.data.message || 'Chunk retry failed');
+              }
+
+              chunk.forEach(url => {
+                setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
+              });
+
+              const results = response.data.results || [];
+              results.forEach((result, idx) => {
+                const url = chunk[idx];
+                if (url) {
+                  if (result.Is_Valid === "Valid") {
+                    setUploadStatuses((prev) => ({ ...prev, [url]: "valid" }));
+                  } else {
+                    setUploadStatuses((prev) => ({ ...prev, [url]: "invalid" }));
+                  }
+                }
+              });
+
+              return response.data.results || [];
+            }, 3, 1000, chunkIndex);
+          };
+
+      const { results: retryResults, failedChunks: stillFailedChunks } = await retryFailedChunks(
+        failedChunks,
+        processChunk,
+        (progressData) => {
+          setProgress({
+            ...progressData,
+            isRetry: true,
+            retryProgress: `Retrying chunk ${progressData.currentChunk} of ${progressData.totalChunks}`
+          });
+        }
+      );
+
+      // Update results with retry results
+      const newResults = retryResults.map((result, index) => ({
+        isValid: result.Is_Valid === "Valid",
+        message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''} (Retried)`,
+        name: inputMethod === 'upload' ? result.Image_Path_or_URL : result.Image_Path_or_URL
+      }));
+
+      setResults(prev => [...prev, ...newResults]);
+      setFailedChunks(stillFailedChunks);
+
+      if (stillFailedChunks.length === 0) {
+        setError(null);
+        console.log('All failed chunks successfully retried!');
+      } else {
+        setError(`${stillFailedChunks.length} chunks still failed after retry. You can try again.`);
+      }
+
+    } catch (error) {
+      console.error('Error during retry:', error);
+      setError(`Retry failed: ${error.message}`);
+    } finally {
+      setRetryInProgress(false);
+      setProgress(null);
+    }
+  };
+
   const handleStartBatch = async () => {
     try {
       const formData = new FormData();
@@ -457,6 +746,8 @@ const FileUploader = ({ onFilesSelected }) => {
       if (emailNotification.trim()) {
         formData.append('email', emailNotification.trim());
       }
+      const clientId = getClientId();
+      formData.append('client_id', clientId);
       
       const response = await axios.post(`${API_BASE_URL}/api/start-batch`, formData);
       setBatchId(response.data.batch_id);
@@ -1156,46 +1447,66 @@ const FileUploader = ({ onFilesSelected }) => {
     </Box>
   );
 
-  // Update progress display component with larger sizes
+  // Update progress display component with larger sizes and retry support
   const ProgressDisplay = ({ progress }) => {
     if (!progress) return null;
 
+    const isRetry = progress.isRetry;
+    const progressColor = isRetry ? 'orange' : symphonyBlue;
+
     return (
       <Box sx={{ width: '100%', mt: 3, mb: 3 }}>
+        {isRetry && (
+          <Typography variant="h6" color="warning.main" align="center" sx={{ fontSize: '1.4rem', mb: 2 }}>
+            🔄 Retrying Failed Chunks
+          </Typography>
+        )}
+        
         <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-          Processing images: {progress.processedImages} / {progress.totalImages}
+          {isRetry ? progress.retryProgress : `Processing images: ${progress.processedImages} / ${progress.totalImages}`}
         </Typography>
-        <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-          Chunk: {progress.currentChunk} / {progress.totalChunks}
-        </Typography>
+        
+        {!isRetry && (
+          <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+            Chunk: {progress.currentChunk} / {progress.totalChunks}
+          </Typography>
+        )}
 
         {/* Time information with larger text */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 6, my: 2 }}>
-          <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-            Time elapsed: {progress.elapsedTime}
+        {!isRetry && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 6, my: 2 }}>
+            <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+              Time elapsed: {progress.elapsedTime}
+            </Typography>
+            <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
+              Est. time remaining: {progress.estimatedTimeRemaining}
+            </Typography>
+          </Box>
+        )}
+
+        {progress.failedChunks > 0 && !isRetry && (
+          <Typography variant="h6" color="warning.main" align="center" sx={{ fontSize: '1.2rem', mb: 2 }}>
+            ⚠️ {progress.failedChunks} chunks failed (can be retried)
           </Typography>
-          <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-            Est. time remaining: {progress.estimatedTimeRemaining}
-          </Typography>
-        </Box>
+        )}
 
         <LinearProgress
           variant="determinate"
-          value={progress.percentComplete}
+          value={progress.percent || progress.percentComplete || 0}
           sx={{
             mt: 2,
             mb: 2,
             height: 12,
             borderRadius: 6,
-            backgroundColor: 'rgba(0, 102, 179, 0.1)',
+            backgroundColor: `rgba(${isRetry ? '255, 165, 0' : '0, 102, 179'}, 0.1)`,
             '& .MuiLinearProgress-bar': {
-              backgroundColor: symphonyBlue,
+              backgroundColor: progressColor,
               borderRadius: 6,
             }
           }}
         />
         <Typography variant="h6" color="text.secondary" align="center" sx={{ fontWeight: 500, fontSize: '1.4rem' }}>
-          {Math.round(progress.percentComplete)}% complete
+          {Math.round(progress.percent || progress.percentComplete || 0)}% complete
         </Typography>
       </Box>
     );
@@ -1206,22 +1517,23 @@ const FileUploader = ({ onFilesSelected }) => {
     if (!summary) return null;
 
     const formatTime = (ms) => {
+      if (!ms || isNaN(ms) || ms <= 0) return '0s';
       const totalSeconds = ms / 1000;
       const hours = totalSeconds / 3600;
       const minutes = (totalSeconds % 3600) / 60;
       const seconds = totalSeconds % 60;
 
       if (hours >= 1) {
-        return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(3)}s`;
+        return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
       } else if (minutes >= 1) {
-        return `${Math.trunc(minutes)}m ${seconds.toFixed(3)}s`;
+        return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
       } else {
-        return `${seconds.toFixed(3)}s`;
+        return `${seconds.toFixed(1)}s`;
       }
     };
 
     const validCount = results.filter(r => r.isValid).length;
-    const successRate = (validCount / results.length) * 100;
+    const successRate = results.length > 0 ? (validCount / results.length) * 100 : 0;
 
     return (
       <Paper sx={{
@@ -1253,7 +1565,7 @@ const FileUploader = ({ onFilesSelected }) => {
                 {formatTime(summary.totalTime)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Processing speed: {(summary.totalImages / (summary.totalTime / 1000)).toFixed(2)} images/sec
+                Processing speed: {summary.totalTime > 0 ? (summary.totalImages / (summary.totalTime / 1000)).toFixed(2) : '0'} images/sec
               </Typography>
             </Box>
           </Grid>
@@ -1279,10 +1591,25 @@ const FileUploader = ({ onFilesSelected }) => {
                 {formatTime(summary.averageTimePerImage)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Min: {formatTime(summary.totalTime / summary.totalImages)}
+                Min: {summary.totalImages > 0 ? formatTime(summary.totalTime / summary.totalImages) : '0s'}
               </Typography>
             </Box>
           </Grid>
+          {summary.failedChunks > 0 && (
+            <Grid xs={12} sm={6} md={3}>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Failed Chunks
+                </Typography>
+                <Typography variant="h4" sx={{ color: 'warning.main' }}>
+                  {summary.failedChunks}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Available for retry
+                </Typography>
+              </Box>
+            </Grid>
+          )}
         </Grid>
       </Paper>
     );
@@ -1461,7 +1788,7 @@ const FileUploader = ({ onFilesSelected }) => {
 
     try {
       // Make the request to the export endpoint with batch_id
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/check-logo/batch/export-csv?batch_id=${batchId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/check-logo/batch/export-csv?batch_id=${batchId}`, {
         method: 'GET',
       });
 
@@ -1881,15 +2208,42 @@ const FileUploader = ({ onFilesSelected }) => {
             {renderResults()}
 
             {results.length > 0 && (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<FileDownloadIcon />}
-                onClick={handleExportCSV}
-                sx={{ mt: 2 }}
-              >
-                Export Results to CSV
-              </Button>
+              <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<FileDownloadIcon />}
+                  onClick={handleExportCSV}
+                >
+                  Export Results to CSV
+                </Button>
+                
+                {failedChunks.length > 0 && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    onClick={handleRetryFailedChunks}
+                    disabled={retryInProgress}
+                    sx={{
+                      borderColor: 'orange',
+                      color: 'orange',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                        borderColor: 'orange',
+                      },
+                    }}
+                  >
+                    {retryInProgress ? (
+                      <>
+                        <CircularProgress size={20} sx={{ mr: 1, color: 'orange' }} />
+                        Retrying...
+                      </>
+                    ) : (
+                      `Retry Failed Chunks (${failedChunks.length})`
+                    )}
+                  </Button>
+                )}
+              </Box>
             )}
           </Box>
         </Container>

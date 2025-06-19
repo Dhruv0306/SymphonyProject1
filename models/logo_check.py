@@ -99,6 +99,26 @@ class BatchUrlRequest(BaseModel):
         description="Email address for batch completion notification",
         example="user@example.com",
     )
+    chunk_index: Optional[int] = Field(
+        None,
+        description="Current chunk index (0-based)",
+        example=0,
+    )
+    total_chunks: Optional[int] = Field(
+        None,
+        description="Total number of chunks",
+        example=4,
+    )
+    total_files: Optional[int] = Field(
+        None,
+        description="Total number of files in the entire batch",
+        example=100,
+    )
+    client_id: Optional[str] = Field(
+        None,
+        description="Client ID for WebSocket updates",
+        example="3ba569a2-58d3-4217-86f2-65d7afb89a23",
+    )
 
     class Config:
         schema_extra = {
@@ -109,6 +129,9 @@ class BatchUrlRequest(BaseModel):
                 ],
                 "batch_id": "550e8400-e29b-41d4-a716-446655440000",
                 "email": "user@example.com",
+                "chunk_index": 0,
+                "total_chunks": 4,
+                "total_files": 100,
             }
         }
 

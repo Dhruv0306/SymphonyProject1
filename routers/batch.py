@@ -20,6 +20,14 @@ from detect_logo import check_logo
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
 from utils.emailer import send_batch_summary_email
+from utils.batch_tracker import (
+    init_batch,
+    update_batch,
+    mark_done,
+    clear_batch,
+    get_progress,
+)
+from utils.websocket import broadcast_json
 import sys
 
 
@@ -100,6 +108,7 @@ router = APIRouter(
 )
 async def start_batch(
     request: Request,
+    client_id: Optional[str] = Form(None),
     token: Optional[str] = Header(None, alias="X-Auth-Token"),
     email: Optional[str] = Form(
         None, description="Email address for batch completion notification"
@@ -156,6 +165,10 @@ async def start_batch(
         }
         with open(os.path.join(batch_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
+
+        # Associate batch with client if client_id provided
+        if client_id:
+            connection_manager.associate_batch(client_id, batch_id)
 
         return BatchStartResponse(
             batch_id=batch_id, message="Batch processing session started"
@@ -232,6 +245,14 @@ async def check_logo_batch(
     email: Optional[str] = Form(
         None, description="Email address for batch completion notification"
     ),
+    client_id: Optional[str] = Form(
+        None, description="Client ID for WebSocket updates"
+    ),
+    chunk_index: Optional[int] = Form(None, description="Current chunk index"),
+    total_chunks: Optional[int] = Form(None, description="Total number of chunks"),
+    total_files: Optional[int] = Form(
+        None, description="Total number of files in batch"
+    ),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
     """
@@ -300,6 +321,10 @@ async def check_logo_batch(
 
             logger.info(f"Processing {len(batch_request.image_paths)} URLs")
             batch_id = batch_request.batch_id
+            chunk_index = getattr(batch_request, "chunk_index", None)
+            total_chunks = getattr(batch_request, "total_chunks", None)
+            total_files = getattr(batch_request, "total_files", None)
+            client_id = getattr(batch_request, "client_id", None)
 
         # Get batch_id and email from either form data or JSON request
         batch_id = batch_id or (batch_request.batch_id if batch_request else None)
@@ -350,8 +375,10 @@ async def check_logo_batch(
             # Handle uploaded files
             if files:
                 logger.info(f"Processing {len(files)} uploaded files")
-                total_files = len(files)
-                processed_count = 0
+
+                # Initialize batch tracking only on first chunk
+                if batch_id and chunk_index == 0:
+                    init_batch(batch_id, total_files or len(files))
 
                 for file in tqdm(files, desc="Processing uploaded files"):
                     try:
@@ -382,23 +409,30 @@ async def check_logo_batch(
                         if os.path.exists(temp_file_path):
                             os.remove(temp_file_path)
 
-                        # Update progress via WebSocket if batch_id is provided
-                        processed_count += 1
+                        # Update centralized batch progress
                         if batch_id:
+                            progress = await update_batch(
+                                batch_id, result["Is_Valid"] == "Valid"
+                            )
                             progress_data = {
-                                "processed": processed_count,
-                                "total": total_files,
-                                "valid": valid_count,
-                                "invalid": invalid_count,
-                                "percent_complete": (processed_count / total_files)
-                                * 100,
+                                "event": "progress",
+                                "batch_id": batch_id,
+                                "processed": progress["processed"],
+                                "total": progress["total"],
+                                "valid": progress["valid"],
+                                "invalid": progress["invalid"],
+                                "chunk_index": chunk_index,
+                                "total_chunks": total_chunks,
+                                "percentage": int(
+                                    (progress["processed"] / progress["total"]) * 100
+                                ),
                                 "current_file": file.filename,
                                 "timestamp": time.time(),
                             }
-                            await connection_manager.broadcast(batch_id, progress_data)
-                            logger.debug(
-                                f"WebSocket progress update sent for batch {batch_id}: {processed_count}/{total_files}"
-                            )
+
+                            # Send progress to specific client
+                            if client_id:
+                                await broadcast_json(client_id, progress_data)
 
                     except Exception as e:
                         logger.error(f"Error processing file {file.filename}: {str(e)}")
@@ -415,27 +449,39 @@ async def check_logo_batch(
                             csv_writer.writerow(error_result.dict())
                         invalid_count += 1
 
-                        # Update progress via WebSocket for errors too
-                        processed_count += 1
+                        # Update centralized batch progress for errors
                         if batch_id:
+                            progress = await update_batch(batch_id, False)
                             progress_data = {
-                                "processed": processed_count,
-                                "total": total_files,
-                                "valid": valid_count,
-                                "invalid": invalid_count,
-                                "percent_complete": (processed_count / total_files)
-                                * 100,
+                                "event": "progress",
+                                "batch_id": batch_id,
+                                "processed": progress["processed"],
+                                "total": progress["total"],
+                                "valid": progress["valid"],
+                                "invalid": progress["invalid"],
+                                "chunk_index": chunk_index,
+                                "total_chunks": total_chunks,
+                                "percentage": int(
+                                    (progress["processed"] / progress["total"]) * 100
+                                ),
                                 "current_file": file.filename,
                                 "error": str(e),
                                 "timestamp": time.time(),
+                                "chunk_status": "error",
+                                "message": f"File processing failed: {str(e)}",
                             }
-                            await connection_manager.broadcast(batch_id, progress_data)
+
+                            # Send progress to specific client
+                            if client_id:
+                                await broadcast_json(client_id, progress_data)
 
             # Handle URL requests
             if batch_request and batch_request.image_paths:
                 logger.info(f"Processing {len(batch_request.image_paths)} URLs")
-                total_urls = len(batch_request.image_paths)
-                processed_count = 0
+
+                # Initialize batch tracking only on first chunk
+                if batch_id and chunk_index == 0:
+                    init_batch(batch_id, total_files or len(batch_request.image_paths))
 
                 for url in tqdm(
                     batch_request.image_paths, desc="Processing image URLs"
@@ -456,23 +502,30 @@ async def check_logo_batch(
                         else:
                             invalid_count += 1
 
-                        # Update progress via WebSocket if batch_id is provided
-                        processed_count += 1
+                        # Update centralized batch progress
                         if batch_id:
+                            progress = await update_batch(
+                                batch_id, result["Is_Valid"] == "Valid"
+                            )
                             progress_data = {
-                                "processed": processed_count,
-                                "total": total_urls,
-                                "valid": valid_count,
-                                "invalid": invalid_count,
-                                "percent_complete": (processed_count / total_urls)
-                                * 100,
+                                "event": "progress",
+                                "batch_id": batch_id,
+                                "processed": progress["processed"],
+                                "total": progress["total"],
+                                "valid": progress["valid"],
+                                "invalid": progress["invalid"],
+                                "chunk_index": chunk_index,
+                                "total_chunks": total_chunks,
+                                "percentage": int(
+                                    (progress["processed"] / progress["total"]) * 100
+                                ),
                                 "current_url": str(url),
                                 "timestamp": time.time(),
                             }
-                            await connection_manager.broadcast(batch_id, progress_data)
-                            logger.debug(
-                                f"WebSocket progress update sent for batch {batch_id}: {processed_count}/{total_urls}"
-                            )
+
+                            # Send progress to specific client
+                            if client_id:
+                                await broadcast_json(client_id, progress_data)
 
                     except Exception as e:
                         logger.error(f"Error processing URL {url}: {str(e)}")
@@ -489,21 +542,31 @@ async def check_logo_batch(
                             csv_writer.writerow(error_result.dict())
                         invalid_count += 1
 
-                        # Update progress via WebSocket for errors too
-                        processed_count += 1
+                        # Update centralized batch progress for errors
                         if batch_id:
+                            progress = await update_batch(batch_id, False)
                             progress_data = {
-                                "processed": processed_count,
-                                "total": total_urls,
-                                "valid": valid_count,
-                                "invalid": invalid_count,
-                                "percent_complete": (processed_count / total_urls)
-                                * 100,
+                                "event": "progress",
+                                "batch_id": batch_id,
+                                "processed": progress["processed"],
+                                "total": progress["total"],
+                                "valid": progress["valid"],
+                                "invalid": progress["invalid"],
+                                "chunk_index": chunk_index,
+                                "total_chunks": total_chunks,
+                                "percentage": int(
+                                    (progress["processed"] / progress["total"]) * 100
+                                ),
                                 "current_url": str(url),
                                 "error": str(e),
                                 "timestamp": time.time(),
+                                "chunk_status": "error",
+                                "message": f"URL processing failed: {str(e)}",
                             }
-                            await connection_manager.broadcast(batch_id, progress_data)
+
+                            # Send progress to specific client
+                            if client_id:
+                                await broadcast_json(client_id, progress_data)
 
             # Update batch metadata if tracking enabled
             if batch_id and metadata:
@@ -520,17 +583,31 @@ async def check_logo_batch(
                 with open(metadata_path, "w") as f:
                     json.dump(metadata, f)
 
-                # Send final WebSocket update
-                final_update = {
-                    "processed": len(results),
-                    "total": len(results),
-                    "valid": valid_count,
-                    "invalid": invalid_count,
-                    "percent_complete": 100,
-                    "status": "completed",
-                    "timestamp": time.time(),
-                }
-                await connection_manager.broadcast(batch_id, final_update)
+                # Check if batch is complete and send final update
+                current_progress = get_progress(batch_id)
+                if (
+                    current_progress["processed"] == current_progress["total"]
+                    and chunk_index == total_chunks - 1
+                ):
+                    final_stats = await mark_done(batch_id)
+                    final_update = {
+                        "event": "complete",
+                        "batch_id": batch_id,
+                        "processed": final_stats["processed"],
+                        "total": final_stats["total"],
+                        "valid": final_stats["valid"],
+                        "invalid": final_stats["invalid"],
+                        "percentage": 100,
+                        "status": "completed",
+                        "timestamp": time.time(),
+                    }
+
+                    # Send completion to specific client
+                    if client_id:
+                        await broadcast_json(client_id, final_update)
+
+                    # CRITICAL: Clean up batch tracking memory
+                    clear_batch(batch_id)
 
             if csv_file:
                 csv_file.close()
@@ -655,3 +732,81 @@ async def get_batch_status(batch_id: str):
     except Exception as e:
         logger.error(f"Error getting batch status: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/check-logo/batch/{batch_id}/retry-chunk",
+    response_model=BatchProcessingResponse,
+    summary="Retry a failed chunk",
+    response_description="Retry processing results for the specified chunk",
+)
+@limiter.limit("10/minute")
+async def retry_chunk(
+    request: Request,
+    batch_id: str,
+    chunk_index: int = Form(..., description="Index of the chunk to retry"),
+    files: Optional[List[UploadFile]] = File(None, description="Files to retry"),
+    client_id: Optional[str] = Form(
+        None, description="Client ID for WebSocket updates"
+    ),
+    total_chunks: Optional[int] = Form(None, description="Total number of chunks"),
+    total_files: Optional[int] = Form(
+        None, description="Total number of files in batch"
+    ),
+    batch_request: Optional[BatchUrlRequest] = None,
+):
+    """
+    Retry processing a specific chunk that failed.
+
+    This endpoint allows retrying individual chunks that failed during batch processing.
+    It maintains the same processing logic as the main batch endpoint but focuses on
+    a specific chunk for retry scenarios.
+
+    Args:
+        request: The incoming request
+        batch_id: The batch ID to retry chunk for
+        chunk_index: Index of the chunk to retry
+        files: List of files to retry (for file uploads)
+        client_id: Client ID for WebSocket progress updates
+        batch_request: JSON request for URL retries
+
+    Returns:
+        BatchProcessingResponse: Results of the retry attempt
+    """
+    logger.info(f"Retrying chunk {chunk_index} for batch {batch_id}")
+
+    # Validate batch exists
+    batch_dir = os.path.join("exports", batch_id)
+    metadata_path = os.path.join(batch_dir, "metadata.json")
+    if not os.path.exists(metadata_path):
+        raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+
+    # Use the same processing logic as the main batch endpoint
+    # but with retry-specific logging and error handling
+    try:
+        return await check_logo_batch(
+            request=request,
+            background_tasks=BackgroundTasks(),
+            files=files,
+            batch_id=batch_id,
+            client_id=client_id,
+            chunk_index=chunk_index,
+            total_chunks=total_chunks,
+            total_files=total_files,
+            batch_request=batch_request,
+        )
+    except Exception as e:
+        logger.error(
+            f"Retry failed for chunk {chunk_index} in batch {batch_id}: {str(e)}"
+        )
+        # Return error response with chunk status
+        return JSONResponse(
+            status_code=500,
+            content={
+                "chunk_status": "error",
+                "message": f"Chunk retry failed: {str(e)}",
+                "batch_id": batch_id,
+                "chunk_index": chunk_index,
+                "error": str(e),
+            },
+        )
