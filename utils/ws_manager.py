@@ -117,6 +117,7 @@ async def auto_expire_batch(batch_id, timeout=1800):
         print(f"Batch {batch_id} expired due to inactivity")
         clear_batch(batch_id)
 
+
 def init_batch(client_id, batch_id, total):
     """Initialize a new batch with timeout"""
     batches[batch_id] = {
@@ -125,9 +126,10 @@ def init_batch(client_id, batch_id, total):
         "valid": 0,
         "invalid": 0,
         "total": total,
-        "results": []
+        "results": [],
     }
     timeouts[batch_id] = asyncio.create_task(auto_expire_batch(batch_id))
+
 
 def clear_batch(batch_id):
     """Clear batch and cancel its timeout"""
@@ -135,6 +137,7 @@ def clear_batch(batch_id):
     if batch_id in timeouts:
         timeouts[batch_id].cancel()
         del timeouts[batch_id]
+
 
 # Create a singleton instance of the connection manager
 connection_manager = ConnectionManager()

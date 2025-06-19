@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 async def broadcast_json(client_id: str, data: dict):
     """Send JSON data to a specific client via WebSocket"""
     ws = connection_manager.client_connections.get(client_id)
