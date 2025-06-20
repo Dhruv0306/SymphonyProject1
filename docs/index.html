@@ -48,12 +48,12 @@
                 <div class="card overview">
                     <h3>Enterprise Features</h3>
                     <ul>
-                        <li>Cascading model architecture with 0.40 confidence threshold</li>
-                        <li>Rate-limited API endpoints for optimal performance</li>
-                        <li>Comprehensive batch processing system</li>
-                        <li>Detailed CSV export with model insights</li>
-                        <li>Real-time monitoring and metrics dashboard</li>
-                        <li>Automated error recovery and retry mechanisms</li>
+                        <li>5 specialized YOLO models with 0.35 confidence threshold</li>
+                        <li>FastAPI with SlowAPI rate limiting</li>
+                        <li>Real-time WebSocket batch processing</li>
+                        <li>CSV export with batch metadata and timestamps</li>
+                        <li>React 19.1.0 frontend with Material-UI 7.1.0</li>
+                        <li>APScheduler automated cleanup and maintenance</li>
                     </ul>
                 </div>
 
@@ -72,6 +72,21 @@
             <section id="features" class="content-section">
                 <h2>Key Features</h2>
                 
+                <!-- System Architecture Diagram -->
+                <div class="card diagram-card">
+                    <h3>System Architecture Overview</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/app_structure_upload.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/app_structure_upload.svg" alt="System Architecture" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
+                
                 <!-- Multi-Model Detection -->
                 <div class="card feature-card">
                     <h3><i class="fas fa-brain"></i> Cascading Model Architecture</h3>
@@ -80,9 +95,11 @@
                             <li>
                                 <strong>Progressive Detection:</strong>
                                 <ul>
-                                    <li>Primary YOLOv8s model for fast detection</li>
-                                    <li>Secondary and tertiary YOLOv8s models for verification</li>
-                                    <li>YOLOv11s ensemble for complex cases</li>
+                                    <li>yolov8s_logo_detection - Primary model</li>
+                                    <li>yolov8s_logo_detection2 - Enhanced training data</li>
+                                    <li>yolov8s_logo_detection3 - Refined parameters</li>
+                                    <li>yolov11s_logo_detection - Advanced YOLOv11s</li>
+                                    <li>yolov11s3_logo_detection - Optimized YOLOv11s</li>
                                 </ul>
                             </li>
                             <li>
@@ -151,37 +168,59 @@
             <!-- Detection Models Section -->
             <section id="models" class="content-section">
                 <h2>Detection Models</h2>
+                
+                <!-- Image Processing Pipeline Diagram -->
+                <div class="card diagram-card">
+                    <h3>Image Processing Pipeline</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/image_processing_pipeline.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/image_processing_pipeline.svg" alt="Image Processing Pipeline" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
                 <div class="card models">
                     <h3>Model Architecture</h3>
                     <div class="model-grid">
                         <div class="model">
                             <i class="fas fa-microchip"></i>
-                            <h4>Primary Detection</h4>
-                            <p>YOLOv8n for fast initial screening</p>
+                            <h4>Model 1</h4>
+                            <p>yolov8s_logo_detection</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-microchip"></i>
-                            <h4>Secondary Detection</h4>
-                            <p>YOLOv8s for detailed verification</p>
+                            <h4>Model 2</h4>
+                            <p>yolov8s_logo_detection2</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-microchip"></i>
-                            <h4>Tertiary Detection</h4>
-                            <p>YOLOv8m for complex cases</p>
+                            <h4>Model 3</h4>
+                            <p>yolov8s_logo_detection3</p>
                         </div>
                         <div class="model">
                             <i class="fas fa-brain"></i>
-                            <h4>Final Detection</h4>
-                            <p>YOLOv8l ensemble processing</p>
+                            <h4>Model 4</h4>
+                            <p>yolov11s_logo_detection</p>
+                        </div>
+                        <div class="model">
+                            <i class="fas fa-brain"></i>
+                            <h4>Model 5</h4>
+                            <p>yolov11s3_logo_detection</p>
                         </div>
                     </div>
                     <div class="model-features">
-                        <h4>Detection Flow</h4>
+                        <h4>Sequential Processing Flow</h4>
                         <ul>
-                            <li>Start with YOLOv8n (nano) for speed</li>
-                            <li>If confidence < 0.40, escalate to YOLOv8s (small)</li>
-                            <li>If still < 0.40, use YOLOv8m (medium)</li>
-                            <li>For difficult cases, use YOLOv8l (large) ensemble</li>
+                            <li>Model 1: yolov8s_logo_detection (Primary)</li>
+                            <li>If no Symphony found, try Model 2: yolov8s_logo_detection2</li>
+                            <li>If still no detection, try Model 3: yolov8s_logo_detection3</li>
+                            <li>Continue to Model 4: yolov11s_logo_detection</li>
+                            <li>Final attempt: Model 5: yolov11s3_logo_detection</li>
+                            <li>Early return when Symphony logo detected (conf ≥ 0.35)</li>
                         </ul>
                     </div>
                 </div>
@@ -196,22 +235,22 @@
                         <div class="limit">
                             <i class="fas fa-image"></i>
                             <h4>Single Image</h4>
-                            <p>150 requests per minute</p>
+                            <p>100 requests per minute</p>
                         </div>
                         <div class="limit">
                             <i class="fas fa-images"></i>
                             <h4>Batch Processing</h4>
-                            <p>30 requests per minute</p>
+                            <p>20 requests per minute</p>
                         </div>
                         <div class="limit">
                             <i class="fas fa-file-csv"></i>
                             <h4>CSV Export</h4>
-                            <p>25 requests per minute</p>
+                            <p>20 requests per minute</p>
                         </div>
                         <div class="limit">
-                            <i class="fas fa-chart-line"></i>
-                            <h4>Analytics API</h4>
-                            <p>50 requests per minute</p>
+                            <i class="fas fa-websocket"></i>
+                            <h4>WebSocket</h4>
+                            <p>Real-time updates</p>
                         </div>
                     </div>
                     <div class="limit-info">
@@ -228,6 +267,21 @@
             <!-- Single Image Detection Section -->
             <section id="single-image" class="content-section">
                 <h2>Single Image Detection</h2>
+                
+                <!-- File Processing Workflow Diagram -->
+                <div class="card diagram-card">
+                    <h3>File Processing Workflow</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/file_processing_workflow.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/file_processing_workflow.svg" alt="File Processing Workflow" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
                 <div class="card workflow">
                     <h3>Processing Steps</h3>
                     <div class="workflow-steps">
@@ -258,6 +312,21 @@
             <!-- Batch Processing Section -->
             <section id="batch-processing" class="content-section">
                 <h2>Batch Processing</h2>
+                
+                <!-- Batch Processing Diagram -->
+                <div class="card diagram-card">
+                    <h3>Batch Processing Flow</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/batch_image_processing.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/batch_image_processing.svg" alt="Batch Processing Flow" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
                 <div class="card workflow">
                     <h3>Batch Processing Steps</h3>
                     <div class="workflow-steps">
@@ -284,6 +353,21 @@
                     </div>
                 </div>
 
+                <!-- CSV Export Diagram -->
+                <div class="card diagram-card">
+                    <h3>CSV Export Process</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/batch_export_csv.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/batch_export_csv.svg" alt="CSV Export Process" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
+                
                 <div class="card batch-tips">
                     <h3>CSV Export Details</h3>
                     <ul>
@@ -298,36 +382,66 @@
             <!-- API Integration Section -->
             <section id="api-integration" class="content-section">
                 <h2>API Integration</h2>
+                
+                <!-- API Security Flow Diagram -->
+                <div class="card diagram-card">
+                    <h3>API Security & Authentication Flow</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/api_security_flow.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/api_security_flow.svg" alt="API Security Flow" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
+                
+                <!-- Frontend API Integration Diagram -->
+                <div class="card diagram-card">
+                    <h3>Frontend API Integration</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images/svg/frontend_api_integration.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images/svg/frontend_api_integration.svg" alt="Frontend API Integration" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
                 <div class="card api-overview">
                     <h3>Key Endpoints</h3>
                     <ul>
                         <li>
                             <strong>Single Image Detection:</strong>
-                            <code>POST /api/v2/check-logo/single/</code>
+                            <code>POST /api/check-logo/single/</code>
                         </li>
                         <li>
                             <strong>Start Batch Session:</strong>
-                            <code>POST /api/v2/start-batch</code>
+                            <code>POST /api/start-batch</code>
                         </li>
                         <li>
                             <strong>Batch Processing:</strong>
-                            <code>POST /api/v2/check-logo/batch/</code>
+                            <code>POST /api/check-logo/batch/</code>
                         </li>
                         <li>
                             <strong>CSV Export:</strong>
-                            <code>GET /api/v2/check-logo/batch/export-csv</code>
+                            <code>GET /api/check-logo/batch/export-csv/{batch_id}</code>
                         </li>
                         <li>
-                            <strong>Batch Statistics:</strong>
-                            <code>GET /api/v2/check-logo/batch/stats</code>
+                            <strong>Admin Login:</strong>
+                            <code>POST /api/admin/login</code>
                         </li>
                         <li>
-                            <strong>Analytics Dashboard:</strong>
-                            <code>GET /api/v2/analytics/dashboard</code>
+                            <strong>Batch History:</strong>
+                            <code>GET /api/admin/batch-history</code>
                         </li>
                         <li>
-                            <strong>Model Performance:</strong>
-                            <code>GET /api/v2/analytics/model-performance</code>
+                            <strong>WebSocket Updates:</strong>
+                            <code>WS /ws/batch/{batch_id}</code>
                         </li>
                     </ul>
                 </div>
@@ -336,6 +450,21 @@
             <!-- Troubleshooting Section -->
             <section id="troubleshooting" class="content-section">
                 <h2>Troubleshooting</h2>
+                
+                <!-- Error Handling Diagram -->
+                <div class="card diagram-card">
+                    <h3>Error Handling & Monitoring</h3>
+                    <div class="svg-container">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                        </div>
+                        <object data="images\svg\error_management_flow.svg" type="image/svg+xml" class="responsive-svg">
+                            <img src="images\svg\error_management_flow.svg" alt="Error Handling & Monitoring" class="fallback-img">
+                        </object>
+                    </div>
+                </div>
                 
                 <!-- Rate Limit Issues -->
                 <div class="card error-card">

@@ -1,4 +1,4 @@
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as "Client"
     participant A as "API Gateway"
@@ -9,24 +9,24 @@ sequenceDiagram
     participant E as "CSV Exporter"
     participant S as "Storage"
 
-    rect rgba(40, 100, 160, 0.4)
+    rect rgba(40, 100, 160, 0.6)
         C->>A: "Start Batch"
         A->>B: "Initialize Batch"
         B->>S: "Create Batch State"
         B-->>C: "Return Batch ID"
     end
 
-    rect rgba(40, 100, 160, 0.4)
+    rect rgba(40, 100, 160, 0.6)
         C->>A: "Submit Images (with Batch ID)"
     end
     
-    rect rgba(30, 90, 50, 0.4)
+    rect rgba(30, 90, 50, 0.6)
         A->>A: "Authenticate"
         A->>B: "Validate Batch ID"
         A->>V: "Validate Request"
     end
     
-    rect rgba(90, 50, 100, 0.4)
+    rect rgba(90, 50, 100, 0.6)
         V->>P: "Process Image"
         
         par "Image Processing"
@@ -36,7 +36,7 @@ sequenceDiagram
         end
     end
     
-    rect rgba(130, 90, 20, 0.4) 
+    rect rgba(130, 90, 20, 0.6) 
         P->>M: "Request Detection"
         
         par "Model Processing"
@@ -48,7 +48,7 @@ sequenceDiagram
         end
     end
     
-    rect rgba(120, 40, 50, 0.4)
+    rect rgba(120, 40, 50, 0.6)
         M->>P: "Return Results"
         P->>B: "Update Batch State"
         P->>S: "Cache Results"
@@ -56,7 +56,7 @@ sequenceDiagram
         A->>C: "Return Response"
     end
 
-    rect rgba(60, 80, 110, 0.4)
+    rect rgba(60, 80, 110, 0.6)
         Note over C,S: "CSV Export Flow"
         C->>A: "Request CSV Export (with Batch ID)"
         A->>B: "Validate Batch ID"

@@ -172,13 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Add version badges to API endpoints
+    // Add WebSocket indicator to WebSocket endpoints
     document.querySelectorAll('.api-overview code').forEach(code => {
         const text = code.textContent;
-        if (text.includes('/v2/')) {
+        if (text.includes('/ws/')) {
             const badge = document.createElement('span');
-            badge.className = 'version-badge new';
-            badge.textContent = 'v2';
+            badge.className = 'version-badge';
+            badge.style.backgroundColor = 'var(--websocket-color)';
+            badge.textContent = 'WS';
             code.appendChild(badge);
         }
     });
@@ -186,14 +187,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize API method tags
     document.querySelectorAll('.api-overview li').forEach(item => {
         const codeText = item.querySelector('code').textContent;
-        const method = codeText.split(' ')[0];
+        let method = 'GET';
         
-        if (method) {
-            const methodTag = document.createElement('span');
-            methodTag.className = `api-method ${method.toLowerCase()}`;
-            methodTag.textContent = method;
-            item.insertBefore(methodTag, item.firstChild);
+        if (codeText.includes('POST')) method = 'POST';
+        else if (codeText.includes('WS')) method = 'WS';
+        else if (codeText.includes('GET')) method = 'GET';
+        
+        const methodTag = document.createElement('span');
+        methodTag.className = `api-method ${method.toLowerCase()}`;
+        methodTag.textContent = method;
+        
+        if (method === 'WS') {
+            methodTag.style.backgroundColor = 'var(--websocket-color)';
         }
+        
+        item.insertBefore(methodTag, item.firstChild);
     });
     
     // Add copy button to all code blocks
@@ -220,5 +228,139 @@ document.addEventListener('DOMContentLoaded', function() {
             preElement.style.position = 'relative';
             preElement.appendChild(copyButton);
         }
+    });
+    
+    // Add model sequence indicators
+    document.querySelectorAll('.model').forEach((model, index) => {
+        const sequenceNumber = document.createElement('div');
+        sequenceNumber.className = 'model-sequence';
+        sequenceNumber.textContent = index + 1;
+        sequenceNumber.style.cssText = `
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 24px;
+            height: 24px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        `;
+        model.style.position = 'relative';
+        model.appendChild(sequenceNumber);
+    });
+    
+    // Handle SVG responsive behavior
+    function handleSVGResize() {
+        document.querySelectorAll('.responsive-svg').forEach(svg => {
+            const container = svg.parentElement;
+            const containerWidth = container.offsetWidth;
+            
+            if (containerWidth < 480) {
+                svg.style.maxHeight = '300px';
+            } else if (containerWidth < 768) {
+                svg.style.maxHeight = '400px';
+            } else {
+                svg.style.maxHeight = '600px';
+            }
+        });
+    }
+    
+    // Handle SVG loading
+    document.querySelectorAll('object[data*=".svg"]').forEach(obj => {
+        obj.addEventListener('load', function() {
+            this.style.opacity = '1';
+        });
+    });
+    
+    handleSVGResize();
+    window.addEventListener('resize', handleSVGResize);
+    
+    // SVG Zoom and Pan functionality
+    document.querySelectorAll('.zoom-controls').forEach(controls => {
+        const container = controls.parentElement;
+        const svg = container.querySelector('.responsive-svg');
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        
+        function updateTransform() {
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+        
+        // Zoom controls
+        controls.querySelector('.zoom-in').addEventListener('click', () => {
+            scale = Math.min(scale * 1.3, 3);
+            updateTransform();
+        });
+        
+        controls.querySelector('.zoom-out').addEventListener('click', () => {
+            scale = Math.max(scale / 1.3, 0.5);
+            updateTransform();
+        });
+        
+        controls.querySelector('.zoom-reset').addEventListener('click', () => {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        });
+        
+        // Pan functionality
+        container.addEventListener('mousedown', (e) => {
+            if (scale > 1) {
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+                container.classList.add('dragging');
+            }
+        });
+        
+        container.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+            }
+        });
+        
+        container.addEventListener('mouseup', () => {
+            isDragging = false;
+            container.classList.remove('dragging');
+        });
+        
+        container.addEventListener('mouseleave', () => {
+            isDragging = false;
+            container.classList.remove('dragging');
+        });
+        
+        // Touch support
+        container.addEventListener('touchstart', (e) => {
+            if (scale > 1 && e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - translateX;
+                startY = e.touches[0].clientY - translateY;
+            }
+        });
+        
+        container.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                e.preventDefault();
+                translateX = e.touches[0].clientX - startX;
+                translateY = e.touches[0].clientY - startY;
+                updateTransform();
+            }
+        });
+        
+        container.addEventListener('touchend', () => {
+            isDragging = false;
+        });
     });
 }); 

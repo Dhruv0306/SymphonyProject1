@@ -1,32 +1,47 @@
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
-graph LR
-    subgraph "Frontend Components"
-        style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A1[Upload Component] -->|"Files"| B1[API Client]
-        A2[URL Input] -->|"URLs"| B1
-        A3[Batch Manager] -->|"Batch ID"| B1
+%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+graph TD
+    subgraph "Main App Structure"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["App.js"] -->|"Initialize Routes"| B["router.js"]
+        B -->|"Render Navigation"| C["AppNavigation.js"]
     end
 
-    subgraph "API Layer"
-        style B1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style B2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style B3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B1 -->|"Request"| B2[FastAPI Routes]
-        B2 -->|"Process"| B3[Response Handler]
+    subgraph "Core Upload Components"
+        style D1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Route to Upload"| D1["FileUploader.js"]
+        D1 -->|"Render Batch Form"| D2["BatchProcessingForm.js"]
+        D1 -->|"Show Progress"| D3["ProgressBar.js"]
+        D1 -->|"Collect Email"| D4["EmailInput.js"]
     end
 
-    subgraph "State Management"
-        style C1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style C2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B3 -->|"Update"| C1[UI State]
-        C1 -->|"Reflect"| C2[Progress Bar]
+    subgraph "Admin Components"
+        style E1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style E2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        C -->|"Route to Admin"| E1["AdminLogin.js"]
+        E1 -->|"Authenticate & Redirect"| E2["Dashboard.js"]
+        E2 -->|"Display History"| E3["BatchHistory.js"]
+        C -->|"Show Admin Link"| E4["AdminNavLink.js"]
     end
 
-    subgraph "User Feedback"
-        style D1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style D2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Show"| D1[Status Messages]
-        C1 -->|"Display"| D2[Results Grid]
+    subgraph "Utility Services"
+        style F1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style F2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        D1 -->|"Chunk Images"| F1["utils/imageChunker.js"]
+        D1 -->|"Generate Client ID"| F2["utils/clientId.js"]
+        E1 -->|"Handle Auth"| F3["utils/auth.js"]
+    end
+
+    subgraph "Backend Communication"
+        style G1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        style G2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        F1 -->|"Get API Endpoints"| G1["config.js (API URLs)"]
+        D3 -->|"Real-time Updates"| G2["WebSocket Connection"]
     end

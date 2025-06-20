@@ -1,36 +1,40 @@
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "Request Processing"
+    subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A[Client Request] -->|"HTTP/REST"| B[FastAPI Gateway]
+        style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A[React Frontend] -->|"HTTP/REST + WebSocket"| A1[FastAPI App.py]
     end
 
-    subgraph "Security Layers"
+    subgraph "Security & Rate Limiting"
+        style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Check"| C[SlowAPI Rate Limiter]
-        C -->|"100/min single"| D[Single Image Endpoint]
-        C -->|"20/min batch"| E[Batch Processing Endpoint]
-        C -->|"Verify"| F[CORS Filter]
+        A1 -->|"Apply Middleware"| B[CORS Middleware]
+        B -->|"Rate Limit"| C[SlowAPI Limiter]
+        C -->|"CSRF Protection"| D[Security Utils]
+        D -->|"Session Auth"| E[Admin Authentication]
     end
 
-    subgraph "Validation Layer"
-        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style H fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style I fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        F -->|"Validate"| G[Input Validator]
-        G -->|"Check"| H[File Type Filter]
-        G -->|"Verify"| I[Size Limits]
+    subgraph "API Router Layer"
+        style F1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        E -->|"Route"| F1[single.py Router]
+        E -->|"Route"| F2[batch.py Router]
+        E -->|"Route"| F3[export.py Router]
+        E -->|"Route"| F4[admin_auth.py Router]
+        E -->|"Route"| F5[websocket.py Router]
     end
 
-    subgraph "Monitoring & Logging"
-        style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style L fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        D & E -->|"Log"| J[Request Logs]
-        H & I -->|"Log"| K[Validation Logs]
-        J & K -->|"Monitor"| L[Health Metrics]
+    subgraph "Validation & Processing"
+        style G fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        F1 & F2 -->|"Validate Input"| G[File Operations]
+        G -->|"Process Images"| H[detect_logo.py]
+        H -->|"Log Results"| I[Logger Utils]
     end 

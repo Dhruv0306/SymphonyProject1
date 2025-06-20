@@ -1,16 +1,17 @@
 :root {
-    --primary-color: #0066B3;      /* Symphony Blue - from official website */
+    --primary-color: #0066B3;      /* Symphony Blue - consistent with React frontend */
     --secondary-color: #005299;    /* Darker blue for hover states */
     --accent-color: #F7F7F7;       /* Light gray for backgrounds */
     --text-color: #333333;         /* Symphony Gray */
     --light-text: #666666;         /* Secondary text color */
     --background-color: #FFFFFF;    /* White background */
     --sidebar-width: 280px;
-    --header-height: 80px;         /* Increased for logo */
+    --header-height: 80px;
     --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     --success-color: #28A745;
     --warning-color: #FFC107;
     --error-color: #DC3545;
+    --websocket-color: #17A2B8;    /* WebSocket connection color */
 }
 
 * {
@@ -628,6 +629,82 @@ ul, ol {
     color: var(--primary-color);
 }
 
+/* SVG Diagram Styles */
+.diagram-card {
+    background-color: var(--background-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--card-shadow);
+    border: 1px solid #E5E7EB;
+}
+
+.svg-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 1rem 0;
+    text-align: center;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 1rem;
+    position: relative;
+    cursor: grab;
+}
+
+.svg-container.dragging {
+    cursor: grabbing;
+}
+
+.svg-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.responsive-svg {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    min-height: 300px;
+    max-height: 600px;
+    transition: transform 0.2s ease;
+    transform-origin: center center;
+    user-select: none;
+    pointer-events: none;
+}
+
+.fallback-img {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    border-radius: 4px;
+}
+
+/* Responsive SVG adjustments */
+@media (max-width: 768px) {
+    .svg-container {
+        padding: 0.5rem;
+    }
+    
+    .responsive-svg {
+        min-height: 200px;
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .svg-container {
+        padding: 0.25rem;
+    }
+    
+    .responsive-svg {
+        min-height: 150px;
+        max-height: 300px;
+    }
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .method-grid {
@@ -992,7 +1069,7 @@ ul, ol {
 /* Model Architecture Updates */
 .model-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -1020,6 +1097,13 @@ ul, ol {
 .model:not(:last-child):after {
     display: block;
 }
+
+/* Sequential model flow indicator */
+.model:nth-child(1) { border-left: 4px solid #4CAF50; }
+.model:nth-child(2) { border-left: 4px solid #2196F3; }
+.model:nth-child(3) { border-left: 4px solid #FF9800; }
+.model:nth-child(4) { border-left: 4px solid #9C27B0; }
+.model:nth-child(5) { border-left: 4px solid #F44336; }
 
 .model:hover {
     transform: translateY(-2px);
@@ -1126,6 +1210,10 @@ ul, ol {
         top: auto;
         transform: translateX(50%);
     }
+    
+    .diagram-card {
+        margin-bottom: 1.5rem;
+    }
 
     .limit,
     .model {
@@ -1135,7 +1223,7 @@ ul, ol {
 
 /* Troubleshooting Section Styles */
 #troubleshooting {
-    padding: 2rem;
+    padding: 0;
 }
 
 .error-card {
@@ -1183,7 +1271,7 @@ ul, ol {
 
 .error-details li::before {
     content: "•";
-    color: #6c757d;
+    color: var(--primary-color);
     position: absolute;
     left: -1rem;
 }
@@ -1214,7 +1302,7 @@ ul, ol {
 
 .best-practices li::before {
     content: "✓";
-    color: #2196f3;
+    color: var(--success-color);
     position: absolute;
     left: -1.5rem;
     font-weight: bold;
@@ -1231,4 +1319,36 @@ ul, ol {
 
 .fa-check-circle {
     color: #1565c0;
+}
+
+/* Zoom Controls */
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 5px;
+    z-index: 10;
+}
+
+.zoom-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.zoom-btn:hover {
+    background: var(--secondary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.zoom-btn:active {
+    transform: translateY(0);
 } 
