@@ -16,7 +16,7 @@ from models.logo_check import (
     BatchStartResponse,
     BatchStatusResponse,
 )
-from detect_logo import check_logo
+from services.yolo_client import yolo_client
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
 from utils.emailer import send_batch_summary_email
@@ -390,7 +390,9 @@ async def check_logo_batch(
                             shutil.copyfileobj(file.file, buffer)
                             file.file.seek(0)
 
-                        result = check_logo(temp_file_path)
+                        with open(temp_file_path, 'rb') as f:
+                            file_content = f.read()
+                        result = await yolo_client.check_logo(file_data=file_content, filename=file.filename)
                         result["Image_Path_or_URL"] = file.filename
 
                         # Convert to Pydantic model
@@ -488,7 +490,7 @@ async def check_logo_batch(
                 ):
                     try:
                         logger.info(f"Processing URL: {url}")
-                        result = check_logo(str(url))
+                        result = await yolo_client.check_logo(image_path=str(url))
                         logger.info(f"URL processing result: {result}")
 
                         result_model = LogoCheckResult(**result)

@@ -1,0 +1,7 @@
+fastapi==0.115.12
+uvicorn==0.34.3
+python-multipart==0.0.20
+ultralytics==8.3.151
+pillow==11.2.1
+requests==2.32.3
+pydantic==2.11.5
