@@ -1,39 +1,40 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
-graph LR
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+graph TD
     subgraph "Error Sources"
         style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A1["Input Validation"] -->|"Errors"| B["Error Handler"]
-        A2["Processing"] -->|"Errors"| B
-        A3["Model Inference"] -->|"Errors"| B
-        A4["System"] -->|"Errors"| B
+        style A5 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        A1["Input Validation<br/>- Invalid file types<br/>- Missing batch ID<br/>- Empty requests"] -->|"400 Bad Request"| B["FastAPI Error Handler"]
+        A2["Batch Processing<br/>- Batch not found<br/>- Invalid batch state"] -->|"404 Not Found"| B
+        A3["Model Inference<br/>- Model loading errors<br/>- Prediction failures"] -->|"500 Internal Error"| B
+        A4["File Operations<br/>- File read/write errors<br/>- Storage issues"] -->|"500 Internal Error"| B
+        A5["Rate Limiting<br/>- Too many requests<br/>- SlowAPI limits"] -->|"429 Too Many Requests"| B
     end
 
     subgraph "Error Processing"
         style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Classification"| C["Error Classifier"]
-        C -->|"Response"| D["Error Response"]
+        B -->|"Classify & Log"| C["Error Response Generator<br/>- HTTPException with detail<br/>- Structured error messages<br/>- Status code mapping"]
+        C -->|"Return to Client"| D["JSON Error Response<br/>{detail: 'error message',<br/>status_code: xxx}"]
     end
 
-    subgraph "Monitoring"
-        style E fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style G fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Metrics"| E["Prometheus"]
-        B -->|"Logs"| F["Log Files"]
-        E & F -->|"Visualization"| G["Grafana"]
+    subgraph "Test Coverage"
+        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Pytest Coverage"| E["test_batch.py<br/>- Invalid batch ID tests<br/>- Missing files tests<br/>- Mixed valid/invalid files"]
+        E -->|"Test Scenarios"| F["Batch Lifecycle Tests<br/>- Multiple file upload<br/>- URL processing<br/>- Status checking"]
+        F -->|"Edge Cases"| G["Error Scenarios<br/>- Empty batch processing<br/>- Single file handling<br/>- Invalid file types"]
     end
 
-    subgraph "Alerts"
+    subgraph "Logging & Monitoring"
         style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        G -->|"Thresholds"| H["Alert Manager"]
-        H -->|"Notification"| I["DevOps Team"]
+        style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Write Logs"| H["Logger Utils<br/>- Structured logging<br/>- Error categorization<br/>- Batch tracking"]
+        H -->|"Store Logs"| I["logs/ Directory<br/>- Application logs<br/>- Error logs<br/>- Performance metrics"]
+        I -->|"Cleanup"| J["APScheduler<br/>- Log rotation<br/>- Size-based cleanup<br/>- Retention policies"]
     end
-
-    %% Style all edge labels
-    linkStyle default color:#000000,font-weight:bold

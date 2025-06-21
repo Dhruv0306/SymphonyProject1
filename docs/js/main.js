@@ -284,11 +284,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const containerWidth = container.offsetWidth;
             
             if (containerWidth < 480) {
-                svg.style.maxHeight = '300px';
-            } else if (containerWidth < 768) {
                 svg.style.maxHeight = '400px';
-            } else {
+            } else if (containerWidth < 768) {
                 svg.style.maxHeight = '600px';
+            } else {
+                svg.style.maxHeight = '800px';
             }
         });
     }
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Zoom controls
         controls.querySelector('.zoom-in').addEventListener('click', () => {
-            scale = Math.min(scale * 1.3, 3);
+            scale = Math.min(scale * 1.3, 10);
             updateTransform();
         });
         

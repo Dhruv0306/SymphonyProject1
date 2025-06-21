@@ -1,72 +1,130 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
-    participant C as "Client"
-    participant A as "API Gateway"
-    participant B as "Batch Manager"
-    participant V as "Validator"
-    participant P as "Processor"
-    participant M as "Model Pool"
-    participant E as "CSV Exporter"
-    participant S as "Storage"
+    participant C as "Client (React)"
+    participant A as "FastAPI App"
+    participant B as "batch.py"
+    participant T as "batch_tracker.py"
+    participant D as "detect_logo.py"
+    participant M as "YOLO Models"
+    participant S as "File Storage"
+    participant W as "WebSocket"
 
     rect rgba(40, 100, 160, 0.4)
-        C->>A: "Start Batch"
-        A->>B: "Initialize Batch"
-        B->>S: "Create Batch State"
-        B-->>C: "Return Batch ID"
+        Note over C,A: "Phase 1: Batch Initialization"
+        C->>A: "POST /api/start-batch"
+        A->>B: "create_batch_id()"
+        B->>T: "initialize_batch(batch_id)"
+        T->>S: "Create data/{batch_id}.json"
+        B-->>C: "201: {batch_id: uuid4()}"
     end
 
     rect rgba(40, 100, 160, 0.4)
-        C->>A: "Submit Images (with Batch ID)"
+        Note over C,A: "Phase 2: Batch Configuration"
+        C->>A: "POST /api/init-batch"
+        Note right of C: "{batch_id, client_id, total}"
+        A->>B: "init_batch_processing()"
+        B->>T: "update_batch_state()"
+        Note right of T: "Set total count, client_id"
+        B-->>C: "200: Batch initialized"
     end
     
     rect rgba(30, 90, 50, 0.4)
-        A->>A: "Authenticate"
-        A->>B: "Validate Batch ID"
-        A->>V: "Validate Request"
-    end
-    
-    rect rgba(90, 50, 100, 0.4)
-        V->>P: "Process Image"
+        Note over C,A: "Phase 3: File Processing"
+        C->>A: "POST /api/check-logo/batch/"
+        Note right of C: "FormData: files[] + batch_id<br/>OR JSON: image_paths[] + batch_id"
+        A->>B: "process_batch_images()"
         
-        par "Image Processing"
-            P->>P: "Enhance Image"
-            P->>P: "Add Boundaries"
-            P->>P: "Normalize"
+        alt "Validation Checks"
+            B->>T: "validate_batch_exists(batch_id)"
+            alt "Batch not found"
+                T-->>B: "Batch not found"
+                B-->>C: "400: Invalid batch ID"
+            end
+            
+            B->>B: "validate_files_or_urls()"
+            alt "No files provided"
+                B-->>C: "400: Files or URLs required"
+            end
         end
     end
     
-    rect rgba(130, 90, 20, 0.4) 
-        P->>M: "Request Detection"
-        
-        par "Model Processing"
-            M->>M: "YOLOv8s #1"
-            M->>M: "YOLOv8s #2"
-            M->>M: "YOLOv11s #1"
-            M->>M: "YOLOv11s #2"
-            M->>M: "YOLOv11s #3"
+    rect rgba(90, 50, 100, 0.4)
+        Note over B,M: "Phase 4: Image Processing Loop"
+        loop "For each image/URL"
+            B->>D: "check_logo(image_data)"
+            
+            alt "Image preprocessing"
+                D->>D: "PIL.Image.open()"
+                D->>D: "ImageOps.expand(border=10, fill='white')"
+                D->>D: "Convert to RGB if needed"
+            end
+            
+            alt "Sequential Model Testing (Early Exit)"
+                D->>M: "yolov8s_logo_detection.predict(conf=0.35)"
+                alt "Symphony detected (conf >= 0.35)"
+                    M-->>D: "Valid detection result"
+                    D-->>B: "Return early with result"
+                else "No detection"
+                    D->>M: "yolov8s_logo_detection2.predict(conf=0.35)"
+                    alt "Symphony detected"
+                        M-->>D: "Valid detection result"
+                        D-->>B: "Return early with result"
+                    else "No detection"
+                        D->>M: "yolov8s_logo_detection3.predict(conf=0.35)"
+                        alt "Symphony detected"
+                            M-->>D: "Valid detection result"
+                            D-->>B: "Return early with result"
+                        else "No detection"
+                            D->>M: "yolov11s_logo_detection.predict(conf=0.35)"
+                            alt "Symphony detected"
+                                M-->>D: "Valid detection result"
+                                D-->>B: "Return early with result"
+                            else "No detection"
+                                D->>M: "yolov11s3_logo_detection.predict(conf=0.35)"
+                                alt "Symphony detected"
+                                    M-->>D: "Valid detection result"
+                                    D-->>B: "Return with result"
+                                else "All models failed"
+                                    M-->>D: "No valid detection"
+                                    D-->>B: "Return invalid result"
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            B->>T: "update_batch_progress()"
+            B->>W: "send_progress_update(client_id)"
+            Note right of W: "Real-time progress to frontend"
         end
     end
     
     rect rgba(120, 40, 50, 0.4)
-        M->>P: "Return Results"
-        P->>B: "Update Batch State"
-        P->>S: "Cache Results"
-        P->>A: "Aggregate Response"
-        A->>C: "Return Response"
+        Note over B,S: "Phase 5: Finalization"
+        B->>T: "finalize_batch_state()"
+        T->>S: "Save complete results to data/"
+        B-->>C: "200: {batch_id, message: 'Processing complete', status: 'processing'}"
     end
 
     rect rgba(60, 80, 110, 0.4)
-        Note over C,S: "CSV Export Flow"
-        C->>A: "Request CSV Export (with Batch ID)"
-        A->>B: "Validate Batch ID"
-        B->>E: "Fetch Batch Results"
-        E->>S: "Get Cached Results"
-        S-->>E: "Return Results"
-        E->>E: "Generate CSV"
-        Note right of E: "Add Batch ID"
-        E->>S: "Store CSV File"
-        S-->>A: "File Location"
-        A-->>C: "Download CSV"
-        Note over S: "Cleanup Temporary Files"
+        Note over C,S: "Phase 6: Status & Export"
+        
+        opt "Status Check"
+            C->>A: "GET /api/check-logo/batch/{batch_id}/status"
+            A->>B: "get_batch_status()"
+            B->>T: "load_batch_state()"
+            T-->>B: "{status, counts: {total, processed, valid, invalid}, progress: %}"
+            B-->>C: "200: Status response"
+        end
+        
+        opt "CSV Export"
+            C->>A: "GET /api/check-logo/batch/export-csv/{batch_id}"
+            A->>B: "export_batch_csv()"
+            B->>T: "validate_batch_exists()"
+            B->>B: "Generate CSV with headers:<br/>Image_Path, Is_Valid, Confidence, Detected_By, Bounding_Box"
+            B->>S: "Save to exports/{batch_id}_results.csv"
+            B-->>C: "FileResponse: CSV download"
+            Note over S: "APScheduler cleanup after 24h"
+        end
     end

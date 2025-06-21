@@ -1,11 +1,11 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
     subgraph "Main App Structure"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["App.js"] -->|"Initialize Routes"| B["router.js"]
-        B -->|"Render Navigation"| C["AppNavigation.js"]
+        A["App.js<br/>Main React application<br/>Port 3000"] -->|"Initialize Routes"| B["router.js<br/>React Router setup<br/>Route definitions"]
+        B -->|"Render Navigation"| C["AppNavigation.js<br/>Navigation component<br/>Route switching"]
     end
 
     subgraph "Core Upload Components"
@@ -13,10 +13,10 @@ graph TD
         style D2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Route to Upload"| D1["FileUploader.js"]
-        D1 -->|"Render Batch Form"| D2["BatchProcessingForm.js"]
-        D1 -->|"Show Progress"| D3["ProgressBar.js"]
-        D1 -->|"Collect Email"| D4["EmailInput.js"]
+        C -->|"Route to Upload"| D1["FileUploader.js<br/>Main upload interface<br/>Batch processing UI"]
+        D1 -->|"Render Batch Form"| D2["BatchProcessingForm.js<br/>Multi-file upload<br/>URL input support"]
+        D1 -->|"Show Progress"| D3["ProgressBar.js<br/>Real-time progress<br/>WebSocket updates"]
+        D1 -->|"Collect Email"| D4["EmailInput.js<br/>User identification<br/>Notification setup"]
     end
 
     subgraph "Admin Components"
@@ -24,24 +24,35 @@ graph TD
         style E2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Route to Admin"| E1["AdminLogin.js"]
-        E1 -->|"Authenticate & Redirect"| E2["Dashboard.js"]
-        E2 -->|"Display History"| E3["BatchHistory.js"]
-        C -->|"Show Admin Link"| E4["AdminNavLink.js"]
+        C -->|"Route to Admin"| E1["AdminLogin.js<br/>Authentication form<br/>Session management"]
+        E1 -->|"Authenticate & Redirect"| E2["Dashboard.js<br/>Admin control panel<br/>System overview"]
+        E2 -->|"Display History"| E3["BatchHistory.js<br/>Processing history<br/>Batch management"]
+        C -->|"Show Admin Link"| E4["AdminNavLink.js<br/>Conditional navigation<br/>Auth-based visibility"]
     end
 
     subgraph "Utility Services"
         style F1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        D1 -->|"Chunk Images"| F1["utils/imageChunker.js"]
-        D1 -->|"Generate Client ID"| F2["utils/clientId.js"]
-        E1 -->|"Handle Auth"| F3["utils/auth.js"]
+        D1 -->|"Chunk Images"| F1["utils/imageChunker.js<br/>File processing<br/>Batch optimization"]
+        D1 -->|"Generate Client ID"| F2["utils/clientId.js<br/>Unique identification<br/>Session tracking"]
+        E1 -->|"Handle Auth"| F3["utils/auth.js<br/>Authentication logic<br/>Token management"]
     end
 
     subgraph "Backend Communication"
         style G1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        F1 -->|"Get API Endpoints"| G1["config.js (API URLs)"]
-        D3 -->|"Real-time Updates"| G2["WebSocket Connection"]
+        style G3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        F1 -->|"Get API Endpoints"| G1["config.js<br/>API URLs configuration<br/>Environment settings"]
+        D3 -->|"Real-time Updates"| G2["WebSocket Connection<br/>ws://localhost:8000/ws/{client_id}<br/>Progress notifications"]
+        G1 -->|"API Calls"| G3["FastAPI Backend<br/>http://localhost:8000<br/>REST API endpoints"]
+    end
+
+    subgraph "State Flow"
+        style H1 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        style H2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        style H3 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        D2 -->|"1. Start Batch"| H1["POST /api/start-batch<br/>Get batch_id"]
+        H1 -->|"2. Initialize"| H2["POST /api/init-batch<br/>Set parameters"]
+        H2 -->|"3. Process"| H3["POST /api/check-logo/batch/<br/>Upload & process files"]
     end

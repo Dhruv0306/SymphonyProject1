@@ -1,72 +1,88 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as "Client"
-    participant A as "API Gateway"
-    participant B as "Batch Manager"
-    participant V as "Validator"
-    participant P as "Processor"
-    participant M as "Model Pool"
-    participant E as "CSV Exporter"
-    participant S as "Storage"
+    participant A as "FastAPI App"
+    participant B as "batch.py Router"
+    participant T as "batch_tracker.py"
+    participant D as "detect_logo.py"
+    participant M as "YOLO Models"
+    participant S as "File Storage"
 
     rect rgba(40, 100, 160, 0.6)
-        C->>A: "Start Batch"
-        A->>B: "Initialize Batch"
-        B->>S: "Create Batch State"
-        B-->>C: "Return Batch ID"
+        Note over C,A: "Step 1: Initialize Batch"
+        C->>A: "POST /api/start-batch"
+        A->>B: "create_batch_id()"
+        B->>T: "initialize_batch()"
+        T->>S: "Create batch state in data/"
+        B-->>C: "201: {batch_id: uuid}"
     end
 
     rect rgba(40, 100, 160, 0.6)
-        C->>A: "Submit Images (with Batch ID)"
+        Note over C,A: "Step 2: Set Batch Parameters"
+        C->>A: "POST /api/init-batch"
+        Note right of C: "{batch_id, client_id, total}"
+        A->>B: "init_batch_processing()"
+        B->>T: "update_batch_state()"
+        B-->>C: "200: Batch initialized"
     end
     
     rect rgba(30, 90, 50, 0.6)
-        A->>A: "Authenticate"
-        A->>B: "Validate Batch ID"
-        A->>V: "Validate Request"
+        Note over C,A: "Step 3: Process Images"
+        C->>A: "POST /api/check-logo/batch/"
+        Note right of C: "files[] + batch_id OR image_paths[] + batch_id"
+        A->>B: "process_batch_images()"
+        B->>B: "Validate batch_id exists"
+        B->>B: "Validate files or URLs provided"
     end
     
     rect rgba(90, 50, 100, 0.6)
-        V->>P: "Process Image"
-        
-        par "Image Processing"
-            P->>P: "Enhance Image"
-            P->>P: "Add Boundaries"
-            P->>P: "Normalize"
-        end
-    end
-    
-    rect rgba(130, 90, 20, 0.6) 
-        P->>M: "Request Detection"
-        
-        par "Model Processing"
-            M->>M: "YOLOv8s #1"
-            M->>M: "YOLOv8s #2"
-            M->>M: "YOLOv11s #1"
-            M->>M: "YOLOv11s #2"
-            M->>M: "YOLOv11s #3"
+        loop "For each image"
+            B->>D: "check_logo(image)"
+            D->>D: "Add white boundary"
+            D->>D: "Preprocess image"
+            
+            alt "Sequential Model Testing"
+                D->>M: "yolov8s_logo_detection.predict()"
+                alt "No logo detected (conf < 0.35)"
+                    D->>M: "yolov8s_logo_detection2.predict()"
+                    alt "No logo detected"
+                        D->>M: "yolov8s_logo_detection3.predict()"
+                        alt "No logo detected"
+                            D->>M: "yolov11s_logo_detection.predict()"
+                            alt "No logo detected"
+                                D->>M: "yolov11s3_logo_detection.predict()"
+                            end
+                        end
+                    end
+                end
+            end
+            
+            M-->>D: "Detection results"
+            D-->>B: "Formatted response"
+            B->>T: "update_batch_progress()"
         end
     end
     
     rect rgba(120, 40, 50, 0.6)
-        M->>P: "Return Results"
-        P->>B: "Update Batch State"
-        P->>S: "Cache Results"
-        P->>A: "Aggregate Response"
-        A->>C: "Return Response"
+        B->>T: "finalize_batch_state()"
+        T->>S: "Save final results"
+        B-->>C: "200: {batch_id, message, status: 'processing'}"
     end
 
     rect rgba(60, 80, 110, 0.6)
-        Note over C,S: "CSV Export Flow"
-        C->>A: "Request CSV Export (with Batch ID)"
-        A->>B: "Validate Batch ID"
-        B->>E: "Fetch Batch Results"
-        E->>S: "Get Cached Results"
-        S-->>E: "Return Results"
-        E->>E: "Generate CSV"
-        Note right of E: "Add Batch ID"
-        E->>S: "Store CSV File"
-        S-->>A: "File Location"
-        A-->>C: "Download CSV"
-        Note over S: "Cleanup Temporary Files"
+        Note over C,S: "Step 4: Check Status & Export"
+        C->>A: "GET /api/check-logo/batch/{batch_id}/status"
+        A->>B: "get_batch_status()"
+        B->>T: "load_batch_state()"
+        T-->>B: "Batch progress & results"
+        B-->>C: "200: {status, counts, progress}"
+        
+        opt "Export CSV"
+            C->>A: "GET /api/check-logo/batch/export-csv/{batch_id}"
+            A->>B: "export_batch_csv()"
+            B->>T: "validate_batch_exists()"
+            B->>B: "Generate CSV with results"
+            B->>S: "Save to exports/{batch_id}.csv"
+            B-->>C: "FileResponse: CSV download"
+        end
     end

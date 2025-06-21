@@ -1,12 +1,12 @@
-%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
     subgraph "Frontend Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["React Frontend"] -->|"Render Components"| A1["FileUploader Component"]
-        A -->|"Admin Access"| A2["Admin Dashboard"]
-        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py"]
+        A["React Frontend<br/>Port 3000"] -->|"Render Components"| A1["FileUploader Component<br/>Batch processing UI"]
+        A -->|"Admin Access"| A2["Admin Dashboard<br/>Authentication required"]
+        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py<br/>Port 8000"]
         A2 -->|"Auth Requests"| B
     end
 
@@ -17,11 +17,11 @@ graph TD
         style C3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Route Single Images"| C1["single.py Router"]
-        B -->|"Route Batch Requests"| C2["batch.py Router"]
-        B -->|"Route CSV Exports"| C3["export.py Router"]
-        B -->|"Route Admin Login"| C4["admin_auth.py Router"]
-        B -->|"Route WebSocket"| C5["websocket.py Router"]
+        B -->|"Route Single Images"| C1["single.py Router<br/>POST /api/check-logo/single"]
+        B -->|"Route Batch Requests"| C2["batch.py Router<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/<br/>GET /api/check-logo/batch/{id}/status"]
+        B -->|"Route CSV Exports"| C3["export.py Router<br/>GET /api/check-logo/batch/export-csv/{id}"]
+        B -->|"Route Admin Login"| C4["admin_auth.py Router<br/>POST /api/admin/login<br/>POST /api/admin/logout"]
+        B -->|"Route WebSocket"| C5["websocket.py Router<br/>WS /ws/{client_id}"]
     end
 
     subgraph "Core Detection Engine"
@@ -31,13 +31,13 @@ graph TD
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Call check_logo()"| D["detect_logo.py"]
+        C1 -->|"Call check_logo()"| D["detect_logo.py<br/>Sequential model testing<br/>Confidence threshold 0.35"]
         C2 -->|"Call check_logo()"| D
-        D -->|"Load Model 1"| E1["yolov8s_logo_detection"]
-        D -->|"Load Model 2"| E2["yolov8s_logo_detection2"]
-        D -->|"Load Model 3"| E3["yolov8s_logo_detection3"]
-        D -->|"Load Model 4"| E4["yolov11s_logo_detection"]
-        D -->|"Load Model 5"| E5["yolov11s3_logo_detection"]
+        D -->|"Load Model 1"| E1["yolov8s_logo_detection<br/>Primary detection model"]
+        D -->|"Load Model 2"| E2["yolov8s_logo_detection2<br/>Secondary YOLOv8 variant"]
+        D -->|"Load Model 3"| E3["yolov8s_logo_detection3<br/>Tertiary YOLOv8 variant"]
+        D -->|"Load Model 4"| E4["yolov11s_logo_detection<br/>Primary YOLOv11 model"]
+        D -->|"Load Model 5"| E5["yolov11s3_logo_detection<br/>Secondary YOLOv11 model"]
     end
 
     subgraph "Utility Services"
@@ -46,11 +46,11 @@ graph TD
         style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F4 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F5 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Track Batch State"| F1["batch_tracker.py"]
-        B -->|"Manage WebSocket"| F2["ws_manager.py"]
-        B -->|"Schedule Cleanup"| F3["cleanup.py"]
-        B -->|"Apply Security"| F4["security.py"]
-        B -->|"Write Logs"| F5["logger.py"]
+        B -->|"Track Batch State"| F1["batch_tracker.py<br/>JSON state management<br/>24h retention"]
+        B -->|"Manage WebSocket"| F2["ws_manager.py<br/>Real-time progress updates<br/>Client connections"]
+        B -->|"Schedule Cleanup"| F3["cleanup.py<br/>APScheduler tasks<br/>Resource management"]
+        B -->|"Apply Security"| F4["security.py<br/>CORS, rate limiting<br/>SlowAPI integration"]
+        B -->|"Write Logs"| F5["logger.py<br/>Structured logging<br/>10MB rotation"]
     end
 
     subgraph "Storage & Data"
@@ -58,8 +58,15 @@ graph TD
         style G2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|"Save Temp Files"| G1["temp_uploads/"]
-        C3 -->|"Generate CSV"| G2["exports/"]
-        F5 -->|"Write Log Files"| G3["logs/"]
-        F1 -->|"Store Batch Data"| G4["data/"]
+        D -->|"Save Temp Files"| G1["temp_uploads/<br/>Processing artifacts<br/>30min cleanup"]
+        C3 -->|"Generate CSV"| G2["exports/<br/>batch_{id}_results.csv<br/>24h retention"]
+        F5 -->|"Write Log Files"| G3["logs/<br/>Application & error logs<br/>Size-based rotation"]
+        F1 -->|"Store Batch Data"| G4["data/<br/>{batch_id}.json<br/>State persistence"]
+    end
+
+    subgraph "Testing & Quality"
+        style H1 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        style H2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        C2 -->|"Test Coverage"| H1["test_batch.py<br/>Pytest test suite<br/>Batch lifecycle testing"]
+        H1 -->|"Test Scenarios"| H2["Test Cases:<br/>- Multiple file upload<br/>- URL processing<br/>- Invalid batch handling<br/>- Mixed file types<br/>- Status checking"]
     end

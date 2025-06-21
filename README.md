@@ -88,9 +88,9 @@ graph TD
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["React Frontend"] -->|"Render Components"| A1["FileUploader Component"]
-        A -->|"Admin Access"| A2["Admin Dashboard"]
-        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py"]
+        A["React Frontend<br/>Port 3000"] -->|"Render Components"| A1["FileUploader Component<br/>Batch processing UI"]
+        A -->|"Admin Access"| A2["Admin Dashboard<br/>Authentication required"]
+        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py<br/>Port 8000"]
         A2 -->|"Auth Requests"| B
     end
 
@@ -101,11 +101,11 @@ graph TD
         style C3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Route Single Images"| C1["single.py Router"]
-        B -->|"Route Batch Requests"| C2["batch.py Router"]
-        B -->|"Route CSV Exports"| C3["export.py Router"]
-        B -->|"Route Admin Login"| C4["admin_auth.py Router"]
-        B -->|"Route WebSocket"| C5["websocket.py Router"]
+        B -->|"Route Single Images"| C1["single.py Router<br/>POST /api/check-logo/single"]
+        B -->|"Route Batch Requests"| C2["batch.py Router<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/<br/>GET /api/check-logo/batch/{id}/status"]
+        B -->|"Route CSV Exports"| C3["export.py Router<br/>GET /api/check-logo/batch/export-csv/{id}"]
+        B -->|"Route Admin Login"| C4["admin_auth.py Router<br/>POST /api/admin/login<br/>POST /api/admin/logout"]
+        B -->|"Route WebSocket"| C5["websocket.py Router<br/>WS /ws/{client_id}"]
     end
 
     subgraph "Core Detection Engine"
@@ -115,13 +115,13 @@ graph TD
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Call check_logo()"| D["detect_logo.py"]
+        C1 -->|"Call check_logo()"| D["detect_logo.py<br/>Sequential model testing<br/>Confidence threshold 0.35"]
         C2 -->|"Call check_logo()"| D
-        D -->|"Load Model 1"| E1["yolov8s_logo_detection"]
-        D -->|"Load Model 2"| E2["yolov8s_logo_detection2"]
-        D -->|"Load Model 3"| E3["yolov8s_logo_detection3"]
-        D -->|"Load Model 4"| E4["yolov11s_logo_detection"]
-        D -->|"Load Model 5"| E5["yolov11s3_logo_detection"]
+        D -->|"Load Model 1"| E1["yolov8s_logo_detection<br/>Primary detection model"]
+        D -->|"Load Model 2"| E2["yolov8s_logo_detection2<br/>Secondary YOLOv8 variant"]
+        D -->|"Load Model 3"| E3["yolov8s_logo_detection3<br/>Tertiary YOLOv8 variant"]
+        D -->|"Load Model 4"| E4["yolov11s_logo_detection<br/>Primary YOLOv11 model"]
+        D -->|"Load Model 5"| E5["yolov11s3_logo_detection<br/>Secondary YOLOv11 model"]
     end
 
     subgraph "Utility Services"
@@ -130,11 +130,11 @@ graph TD
         style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F4 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F5 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Track Batch State"| F1["batch_tracker.py"]
-        B -->|"Manage WebSocket"| F2["ws_manager.py"]
-        B -->|"Schedule Cleanup"| F3["cleanup.py"]
-        B -->|"Apply Security"| F4["security.py"]
-        B -->|"Write Logs"| F5["logger.py"]
+        B -->|"Track Batch State"| F1["batch_tracker.py<br/>JSON state management<br/>24h retention"]
+        B -->|"Manage WebSocket"| F2["ws_manager.py<br/>Real-time progress updates<br/>Client connections"]
+        B -->|"Schedule Cleanup"| F3["cleanup.py<br/>APScheduler tasks<br/>Resource management"]
+        B -->|"Apply Security"| F4["security.py<br/>CORS, rate limiting<br/>SlowAPI integration"]
+        B -->|"Write Logs"| F5["logger.py<br/>Structured logging<br/>10MB rotation"]
     end
 
     subgraph "Storage & Data"
@@ -142,10 +142,17 @@ graph TD
         style G2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|"Save Temp Files"| G1["temp_uploads/"]
-        C3 -->|"Generate CSV"| G2["exports/"]
-        F5 -->|"Write Log Files"| G3["logs/"]
-        F1 -->|"Store Batch Data"| G4["data/"]
+        D -->|"Save Temp Files"| G1["temp_uploads/<br/>Processing artifacts<br/>30min cleanup"]
+        C3 -->|"Generate CSV"| G2["exports/<br/>batch_{id}_results.csv<br/>24h retention"]
+        F5 -->|"Write Log Files"| G3["logs/<br/>Application & error logs<br/>Size-based rotation"]
+        F1 -->|"Store Batch Data"| G4["data/<br/>{batch_id}.json<br/>State persistence"]
+    end
+
+    subgraph "Testing & Quality"
+        style H1 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        style H2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        C2 -->|"Test Coverage"| H1["test_batch.py<br/>Pytest test suite<br/>Batch lifecycle testing"]
+        H1 -->|"Test Scenarios"| H2["Test Cases:<br/>- Multiple file upload<br/>- URL processing<br/>- Invalid batch handling<br/>- Mixed file types<br/>- Status checking"]
     end
 ```
 
@@ -153,23 +160,45 @@ graph TD
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
-    subgraph "FastAPI Application Initialization"
+    subgraph "Client Layer"
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["FastAPI App Instance"] -->|"Initialize Limiter"| B["SlowAPI Rate Limiter"]
-        B -->|"Add Middleware"| C["CORS Middleware"]
+        style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["React Frontend"] -->|"HTTP/REST + WebSocket"| A1["FastAPI App.py"]
     end
 
-    subgraph "Middleware Stack"
-        style D1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style D2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Log Requests"| D1["Request Logging Middleware"]
-        D1 -->|"Apply CSRF Protection"| D2["CSRF Protection (utils/security.py)"]
+    subgraph "Security & Rate Limiting"
+        style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        A1 -->|"Apply Middleware"| B["CORS Middleware"]
+        B -->|"Rate Limit"| C["SlowAPI Limiter"]
+        C -->|"CSRF Protection"| D["Security Utils"]
+        D -->|"Session Auth"| E["Admin Authentication"]
     end
 
-    subgraph "Router Registration"
-        style E1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+    subgraph "API Router Layer"
+        style F1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        E -->|"Route"| F1["single.py Router<br/>POST /api/check-logo/single"]
+        E -->|"Route"| F2["batch.py Router<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/<br/>GET /api/check-logo/batch/{id}/status"]
+        E -->|"Route"| F3["export.py Router<br/>GET /api/check-logo/batch/export-csv/{id}"]
+        E -->|"Route"| F4["admin_auth.py Router<br/>POST /api/admin/login<br/>POST /api/admin/logout"]
+        E -->|"Route"| F5["websocket.py Router<br/>WS /ws/{client_id}"]
+    end
+
+    subgraph "Validation & Processing"
+        style G fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        F1 & F2 -->|"Validate Input"| G["File Operations<br/>- Multipart files<br/>- Image URLs<br/>- File type validation"]
+        G -->|"Process Images"| H["detect_logo.py<br/>- Sequential model testing<br/>- Confidence threshold 0.35<br/>- 5 YOLO models"]
+        H -->|"Log Results"| I["Logger Utils<br/>- Batch tracking<br/>- Error handling"]
+    end
+```d
         style E2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
@@ -214,8 +243,8 @@ graph TD
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["App.js"] -->|"Initialize Routes"| B["router.js"]
-        B -->|"Render Navigation"| C["AppNavigation.js"]
+        A["App.js<br/>Main React application<br/>Port 3000"] -->|"Initialize Routes"| B["router.js<br/>React Router setup<br/>Route definitions"]
+        B -->|"Render Navigation"| C["AppNavigation.js<br/>Navigation component<br/>Route switching"]
     end
 
     subgraph "Core Upload Components"
@@ -223,10 +252,10 @@ graph TD
         style D2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Route to Upload"| D1["FileUploader.js"]
-        D1 -->|"Render Batch Form"| D2["BatchProcessingForm.js"]
-        D1 -->|"Show Progress"| D3["ProgressBar.js"]
-        D1 -->|"Collect Email"| D4["EmailInput.js"]
+        C -->|"Route to Upload"| D1["FileUploader.js<br/>Main upload interface<br/>Batch processing UI"]
+        D1 -->|"Render Batch Form"| D2["BatchProcessingForm.js<br/>Multi-file upload<br/>URL input support"]
+        D1 -->|"Show Progress"| D3["ProgressBar.js<br/>Real-time progress<br/>WebSocket updates"]
+        D1 -->|"Collect Email"| D4["EmailInput.js<br/>User identification<br/>Notification setup"]
     end
 
     subgraph "Admin Components"
@@ -234,155 +263,41 @@ graph TD
         style E2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Route to Admin"| E1["AdminLogin.js"]
-        E1 -->|"Authenticate & Redirect"| E2["Dashboard.js"]
-        E2 -->|"Display History"| E3["BatchHistory.js"]
-        C -->|"Show Admin Link"| E4["AdminNavLink.js"]
+        C -->|"Route to Admin"| E1["AdminLogin.js<br/>Authentication form<br/>Session management"]
+        E1 -->|"Authenticate & Redirect"| E2["Dashboard.js<br/>Admin control panel<br/>System overview"]
+        E2 -->|"Display History"| E3["BatchHistory.js<br/>Processing history<br/>Batch management"]
+        C -->|"Show Admin Link"| E4["AdminNavLink.js<br/>Conditional navigation<br/>Auth-based visibility"]
     end
 
     subgraph "Utility Services"
         style F1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        D1 -->|"Chunk Images"| F1["utils/imageChunker.js"]
-        D1 -->|"Generate Client ID"| F2["utils/clientId.js"]
-        E1 -->|"Handle Auth"| F3["utils/auth.js"]
+        D1 -->|"Chunk Images"| F1["utils/imageChunker.js<br/>File processing<br/>Batch optimization"]
+        D1 -->|"Generate Client ID"| F2["utils/clientId.js<br/>Unique identification<br/>Session tracking"]
+        E1 -->|"Handle Auth"| F3["utils/auth.js<br/>Authentication logic<br/>Token management"]
     end
 
     subgraph "Backend Communication"
         style G1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        F1 -->|"Get API Endpoints"| G1["config.js (API URLs)"]
-        D3 -->|"Real-time Updates"| G2["WebSocket Connection"]
+        style G3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        F1 -->|"Get API Endpoints"| G1["config.js<br/>API URLs configuration<br/>Environment settings"]
+        D3 -->|"Real-time Updates"| G2["WebSocket Connection<br/>ws://localhost:8000/ws/{client_id}<br/>Progress notifications"]
+        G1 -->|"API Calls"| G3["FastAPI Backend<br/>http://localhost:8000<br/>REST API endpoints"]
+    end
+
+    subgraph "State Flow"
+        style H1 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        style H2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        style H3 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        D2 -->|"1. Start Batch"| H1["POST /api/start-batch<br/>Get batch_id"]
+        H1 -->|"2. Initialize"| H2["POST /api/init-batch<br/>Set parameters"]
+        H2 -->|"3. Process"| H3["POST /api/check-logo/batch/<br/>Upload & process files"]
     end
 ```
 
 ### Sequential Model Processing Flow (detect_logo.py)
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
-graph TD
-    subgraph "Image Preprocessing"
-        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["File/URL Input"] -->|"Load Image"| B["PIL Image.open()"]
-        B -->|"ImageOps.expand(border=10)"| C["add_boundary() - White Frame"]
-    end
-
-    subgraph "Sequential Model Execution"
-        style D1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style D5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"Run Inference"| D1["Model 1: yolov8s_logo_detection<br/>YOLO.predict(conf=0.35)"]
-        D1 -->|"No Symphony Found"| D2["Model 2: yolov8s_logo_detection2<br/>Enhanced Training Data"]
-        D2 -->|"No Symphony Found"| D3["Model 3: yolov8s_logo_detection3<br/>Refined Parameters"]
-        D3 -->|"No Symphony Found"| D4["Model 4: yolov11s_logo_detection<br/>YOLOv11s Architecture"]
-        D4 -->|"No Symphony Found"| D5["Model 5: yolov11s3_logo_detection<br/>Optimized YOLOv11s"]
-    end
-
-    subgraph "Early Return Logic"
-        style E1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style E2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        style E3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        D1 -->|"name.lower() == 'symphony'"| E1["Return Valid Result<br/>+ Confidence<br/>+ Bounding Box<br/>+ Model Name"]
-        D2 -->|"name.lower() == 'symphony'"| E1
-        D3 -->|"name.lower() == 'symphony'"| E1
-        D4 -->|"name.lower() == 'symphony'"| E1
-        D5 -->|"name.lower() == 'symphony'"| E1
-        D5 -->|"All Models Complete"| E2["Return Invalid Result"]
-    end
-
-    subgraph "Error Handling"
-        style F1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        style F2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A -->|"requests.get() fails"| F1["Return Error Response"]
-        B -->|"Image.open() fails"| F1
-        D1 -->|"Exception in try/except"| F2["Continue to Next Model"]
-        D2 -->|"Exception in try/except"| F2
-        D3 -->|"Exception in try/except"| F2
-        D4 -->|"Exception in try/except"| F2
-    end
-```
-
-### Batch Processing Pipeline
-```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
-sequenceDiagram
-    participant C as "Client"
-    participant A as "API Gateway"
-    participant B as "Batch Manager"
-    participant V as "Validator"
-    participant P as "Processor"
-    participant M as "Model Pool"
-    participant E as "CSV Exporter"
-    participant S as "Storage"
-
-    rect rgba(40, 100, 160, 0.4)
-        C->>A: "Start Batch"
-        A->>B: "Initialize Batch"
-        B->>S: "Create Batch State"
-        B-->>C: "Return Batch ID"
-    end
-
-    rect rgba(40, 100, 160, 0.4)
-        C->>A: "Submit Images (with Batch ID)"
-    end
-    
-    rect rgba(30, 90, 50, 0.4)
-        A->>A: "Authenticate"
-        A->>B: "Validate Batch ID"
-        A->>V: "Validate Request"
-    end
-    
-    rect rgba(90, 50, 100, 0.4)
-        V->>P: "Process Image"
-        
-        par "Image Processing"
-            P->>P: "Enhance Image"
-            P->>P: "Add Boundaries"
-            P->>P: "Normalize"
-        end
-    end
-    
-    rect rgba(130, 90, 20, 0.4) 
-        P->>M: "Request Detection"
-        
-        par "Model Processing"
-            M->>M: "YOLOv8s #1"
-            M->>M: "YOLOv8s #2"
-            M->>M: "YOLOv11s #1"
-            M->>M: "YOLOv11s #2"
-            M->>M: "YOLOv11s #3"
-        end
-    end
-    
-    rect rgba(120, 40, 50, 0.4)
-        M->>P: "Return Results"
-        P->>B: "Update Batch State"
-        P->>S: "Cache Results"
-        P->>A: "Aggregate Response"
-        A->>C: "Return Response"
-    end
-
-    rect rgba(60, 80, 110, 0.4)
-        Note over C,S: "CSV Export Flow"
-        C->>A: "Request CSV Export (with Batch ID)"
-        A->>B: "Validate Batch ID"
-        B->>E: "Fetch Batch Results"
-        E->>S: "Get Cached Results"
-        S-->>E: "Return Results"
-        E->>E: "Generate CSV"
-        Note right of E: "Add Batch ID"
-        E->>S: "Store CSV File"
-        S-->>A: "File Location"
-        A-->>C: "Download CSV"
-        Note over S: "Cleanup Temporary Files"
-    end
-```
-
-### YOLO Model Detection Pipeline
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
@@ -391,7 +306,7 @@ graph TD
         style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         A["File Upload or URL"] -->|"Image.open() / requests.get()"| B["PIL Image Processing"]
-        B -->|"ImageOps.expand()"| C["Add White Boundary"]
+        B -->|"ImageOps.expand(border=10, fill='white')"| C["Add White Boundary"]
     end
 
     subgraph "Sequential Model Execution (detect_logo.py)"
@@ -400,64 +315,304 @@ graph TD
         style D3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"model.predict()"| D1["Model 1: yolov8s_logo_detection"]
-        D1 -->|"No Symphony Detected"| D2["Model 2: yolov8s_logo_detection2"]
-        D2 -->|"No Symphony Detected"| D3["Model 3: yolov8s_logo_detection3"]
-        D3 -->|"No Symphony Detected"| D4["Model 4: yolov11s_logo_detection"]
-        D4 -->|"No Symphony Detected"| D5["Model 5: yolov11s3_logo_detection"]
+        C -->|"model.predict(conf=0.35)"| D1["Model 1: yolov8s_logo_detection<br/>Confidence ≥ 0.35"]
+        D1 -->|"No Symphony Detected"| D2["Model 2: yolov8s_logo_detection2<br/>Confidence ≥ 0.35"]
+        D2 -->|"No Symphony Detected"| D3["Model 3: yolov8s_logo_detection3<br/>Confidence ≥ 0.35"]
+        D3 -->|"No Symphony Detected"| D4["Model 4: yolov11s_logo_detection<br/>Confidence ≥ 0.35"]
+        D4 -->|"No Symphony Detected"| D5["Model 5: yolov11s3_logo_detection<br/>Confidence ≥ 0.35"]
     end
 
     subgraph "Early Return Logic"
         style E1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style E2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        D1 -->|"Symphony Found (Conf ≥ 0.35)"| E1["Return Valid Result"]
+        D1 -->|"Symphony Found (Conf ≥ 0.35)"| E1["Return Valid Result<br/>Stop processing other models"]
         D2 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D3 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D4 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D5 -->|"Symphony Found (Conf ≥ 0.35)"| E1
-        D5 -->|"No Symphony in All Models"| E2["Return Invalid"]
+        D5 -->|"No Symphony in All Models"| E2["Return Invalid<br/>All models failed"]
     end
 
     subgraph "Result Structure"
         style F fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        E1 -->|"Format JSON Response"| F["JSON Response:<br/>- Image_Path_or_URL<br/>- Is_Valid: Valid/Invalid<br/>- Confidence (if valid)<br/>- Detected_By (model name)<br/>- Bounding_Box (coordinates)<br/>- Error (if any)"]
+        E1 -->|"Format JSON Response"| F["JSON Response:<br/>- Image_Path_or_URL<br/>- Is_Valid: 'Valid'/'Invalid'<br/>- Confidence (if valid)<br/>- Detected_By (model name)<br/>- Bounding_Box [x1,y1,x2,y2]<br/>- Error (if processing failed)"]
         E2 -->|"Format JSON Response"| F
+    end
+
+    subgraph "Error Handling"
+        style G fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        A -->|"Invalid file/URL"| G["Error Response<br/>- Is_Valid: 'Invalid'<br/>- Error: description<br/>- No confidence/bounding box"]
+        G --> F
+    end
+```
+
+### Batch Processing Pipeline
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as "Client"
+    participant A as "FastAPI App"
+    participant B as "batch.py Router"
+    participant T as "batch_tracker.py"
+    participant D as "detect_logo.py"
+    participant M as "YOLO Models"
+    participant S as "File Storage"
+
+    rect rgba(40, 100, 160, 0.6)
+        Note over C,A: "Step 1: Initialize Batch"
+        C->>A: "POST /api/start-batch"
+        A->>B: "create_batch_id()"
+        B->>T: "initialize_batch()"
+        T->>S: "Create batch state in data/"
+        B-->>C: "201: {batch_id: uuid}"
+    end
+
+    rect rgba(40, 100, 160, 0.6)
+        Note over C,A: "Step 2: Set Batch Parameters"
+        C->>A: "POST /api/init-batch"
+        Note right of C: "{batch_id, client_id, total}"
+        A->>B: "init_batch_processing()"
+        B->>T: "update_batch_state()"
+        B-->>C: "200: Batch initialized"
+    end
+    
+    rect rgba(30, 90, 50, 0.6)
+        Note over C,A: "Step 3: Process Images"
+        C->>A: "POST /api/check-logo/batch/"
+        Note right of C: "files[] + batch_id OR image_paths[] + batch_id"
+        A->>B: "process_batch_images()"
+        B->>B: "Validate batch_id exists"
+        B->>B: "Validate files or URLs provided"
+    end
+    
+    rect rgba(90, 50, 100, 0.6)
+        loop "For each image"
+            B->>D: "check_logo(image)"
+            D->>D: "Add white boundary"
+            D->>D: "Preprocess image"
+            
+            alt "Sequential Model Testing"
+                D->>M: "yolov8s_logo_detection.predict()"
+                alt "No logo detected (conf < 0.35)"
+                    D->>M: "yolov8s_logo_detection2.predict()"
+                    alt "No logo detected"
+                        D->>M: "yolov8s_logo_detection3.predict()"
+                        alt "No logo detected"
+                            D->>M: "yolov11s_logo_detection.predict()"
+                            alt "No logo detected"
+                                D->>M: "yolov11s3_logo_detection.predict()"
+                            end
+                        end
+                    end
+                end
+            end
+            
+            M-->>D: "Detection results"
+            D-->>B: "Formatted response"
+            B->>T: "update_batch_progress()"
+        end
+    end
+    
+    rect rgba(120, 40, 50, 0.6)
+        B->>T: "finalize_batch_state()"
+        T->>S: "Save final results"
+        B-->>C: "200: {batch_id, message, status: 'processing'}"
+    end
+
+    rect rgba(60, 80, 110, 0.6)
+        Note over C,S: "Step 4: Check Status & Export"
+        C->>A: "GET /api/check-logo/batch/{batch_id}/status"
+        A->>B: "get_batch_status()"
+        B->>T: "load_batch_state()"
+        T-->>B: "Batch progress & results"
+        B-->>C: "200: {status, counts, progress}"
+        
+        opt "Export CSV"
+            C->>A: "GET /api/check-logo/batch/export-csv/{batch_id}"
+            A->>B: "export_batch_csv()"
+            B->>T: "validate_batch_exists()"
+            B->>B: "Generate CSV with results"
+            B->>S: "Save to exports/{batch_id}.csv"
+            B-->>C: "FileResponse: CSV download"
+        end
+    end
+```
+
+### YOLO Model Detection Pipeline
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
+sequenceDiagram
+    participant C as "Client (React)"
+    participant A as "FastAPI App"
+    participant B as "batch.py"
+    participant T as "batch_tracker.py"
+    participant D as "detect_logo.py"
+    participant M as "YOLO Models"
+    participant S as "File Storage"
+    participant W as "WebSocket"
+
+    rect rgba(40, 100, 160, 0.4)
+        Note over C,A: "Phase 1: Batch Initialization"
+        C->>A: "POST /api/start-batch"
+        A->>B: "create_batch_id()"
+        B->>T: "initialize_batch(batch_id)"
+        T->>S: "Create data/{batch_id}.json"
+        B-->>C: "201: {batch_id: uuid4()}"
+    end
+
+    rect rgba(40, 100, 160, 0.4)
+        Note over C,A: "Phase 2: Batch Configuration"
+        C->>A: "POST /api/init-batch"
+        Note right of C: "{batch_id, client_id, total}"
+        A->>B: "init_batch_processing()"
+        B->>T: "update_batch_state()"
+        Note right of T: "Set total count, client_id"
+        B-->>C: "200: Batch initialized"
+    end
+    
+    rect rgba(30, 90, 50, 0.4)
+        Note over C,A: "Phase 3: File Processing"
+        C->>A: "POST /api/check-logo/batch/"
+        Note right of C: "FormData: files[] + batch_id<br/>OR JSON: image_paths[] + batch_id"
+        A->>B: "process_batch_images()"
+        
+        alt "Validation Checks"
+            B->>T: "validate_batch_exists(batch_id)"
+            alt "Batch not found"
+                T-->>B: "Batch not found"
+                B-->>C: "400: Invalid batch ID"
+            end
+            
+            B->>B: "validate_files_or_urls()"
+            alt "No files provided"
+                B-->>C: "400: Files or URLs required"
+            end
+        end
+    end
+    
+    rect rgba(90, 50, 100, 0.4)
+        Note over B,M: "Phase 4: Image Processing Loop"
+        loop "For each image/URL"
+            B->>D: "check_logo(image_data)"
+            
+            alt "Image preprocessing"
+                D->>D: "PIL.Image.open()"
+                D->>D: "ImageOps.expand(border=10, fill='white')"
+                D->>D: "Convert to RGB if needed"
+            end
+            
+            alt "Sequential Model Testing (Early Exit)"
+                D->>M: "yolov8s_logo_detection.predict(conf=0.35)"
+                alt "Symphony detected (conf >= 0.35)"
+                    M-->>D: "Valid detection result"
+                    D-->>B: "Return early with result"
+                else "No detection"
+                    D->>M: "yolov8s_logo_detection2.predict(conf=0.35)"
+                    alt "Symphony detected"
+                        M-->>D: "Valid detection result"
+                        D-->>B: "Return early with result"
+                    else "No detection"
+                        D->>M: "yolov8s_logo_detection3.predict(conf=0.35)"
+                        alt "Symphony detected"
+                            M-->>D: "Valid detection result"
+                            D-->>B: "Return early with result"
+                        else "No detection"
+                            D->>M: "yolov11s_logo_detection.predict(conf=0.35)"
+                            alt "Symphony detected"
+                                M-->>D: "Valid detection result"
+                                D-->>B: "Return early with result"
+                            else "No detection"
+                                D->>M: "yolov11s3_logo_detection.predict(conf=0.35)"
+                                alt "Symphony detected"
+                                    M-->>D: "Valid detection result"
+                                    D-->>B: "Return with result"
+                                else "All models failed"
+                                    M-->>D: "No valid detection"
+                                    D-->>B: "Return invalid result"
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            B->>T: "update_batch_progress()"
+            B->>W: "send_progress_update(client_id)"
+            Note right of W: "Real-time progress to frontend"
+        end
+    end
+    
+    rect rgba(120, 40, 50, 0.4)
+        Note over B,S: "Phase 5: Finalization"
+        B->>T: "finalize_batch_state()"
+        T->>S: "Save complete results to data/"
+        B-->>C: "200: {batch_id, message: 'Processing complete', status: 'processing'}"
+    end
+
+    rect rgba(60, 80, 110, 0.4)
+        Note over C,S: "Phase 6: Status & Export"
+        
+        opt "Status Check"
+            C->>A: "GET /api/check-logo/batch/{batch_id}/status"
+            A->>B: "get_batch_status()"
+            B->>T: "load_batch_state()"
+            T-->>B: "{status, counts: {total, processed, valid, invalid}, progress: %}"
+            B-->>C: "200: Status response"
+        end
+        
+        opt "CSV Export"
+            C->>A: "GET /api/check-logo/batch/export-csv/{batch_id}"
+            A->>B: "export_batch_csv()"
+            B->>T: "validate_batch_exists()"
+            B->>B: "Generate CSV with headers:<br/>Image_Path, Is_Valid, Confidence, Detected_By, Bounding_Box"
+            B->>S: "Save to exports/{batch_id}_results.csv"
+            B-->>C: "FileResponse: CSV download"
+            Note over S: "APScheduler cleanup after 24h"
+        end
     end
 ```
 
 ### Error Handling and Monitoring
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
-graph LR
+graph TD
     subgraph "Error Sources"
         style A1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A1["Input Validation"] -->|"Errors"| B["Error Handler"]
-        A2["Processing"] -->|"Errors"| B
-        A3["Model Inference"] -->|"Errors"| B
-        A4["System"] -->|"Errors"| B
+        style A5 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        A1["Input Validation<br/>- Invalid file types<br/>- Missing batch ID<br/>- Empty requests"] -->|"400 Bad Request"| B["FastAPI Error Handler"]
+        A2["Batch Processing<br/>- Batch not found<br/>- Invalid batch state"] -->|"404 Not Found"| B
+        A3["Model Inference<br/>- Model loading errors<br/>- Prediction failures"] -->|"500 Internal Error"| B
+        A4["File Operations<br/>- File read/write errors<br/>- Storage issues"] -->|"500 Internal Error"| B
+        A5["Rate Limiting<br/>- Too many requests<br/>- SlowAPI limits"] -->|"429 Too Many Requests"| B
     end
 
     subgraph "Error Processing"
         style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Classification"| C["Error Classifier"]
-        C -->|"Response"| D["Error Response"]
+        B -->|"Classify & Log"| C["Error Response Generator<br/>- HTTPException with detail<br/>- Structured error messages<br/>- Status code mapping"]
+        C -->|"Return to Client"| D["JSON Error Response<br/>{detail: 'error message',<br/>status_code: xxx}"]
     end
 
-    subgraph "Monitoring"
-        style E fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        style F fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Logs"| F["Log Files"]
-        F -->|"Analysis"| E["Log Analysis"]
+    subgraph "Test Coverage"
+        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Pytest Coverage"| E["test_batch.py<br/>- Invalid batch ID tests<br/>- Missing files tests<br/>- Mixed valid/invalid files"]
+        E -->|"Test Scenarios"| F["Batch Lifecycle Tests<br/>- Multiple file upload<br/>- URL processing<br/>- Status checking"]
+        F -->|"Edge Cases"| G["Error Scenarios<br/>- Empty batch processing<br/>- Single file handling<br/>- Invalid file types"]
     end
 
-    subgraph "Error Reporting"
+    subgraph "Logging & Monitoring"
         style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        E -->|"Report"| H["Error Reports"]
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Write Logs"| H["Logger Utils<br/>- Structured logging<br/>- Error categorization<br/>- Batch tracking"]
+        H -->|"Store Logs"| I["logs/ Directory<br/>- Application logs<br/>- Error logs<br/>- Performance metrics"]
+        I -->|"Cleanup"| J["APScheduler<br/>- Log rotation<br/>- Size-based cleanup<br/>- Retention policies"]
     end
 ```
 
@@ -469,8 +624,8 @@ graph TD
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A1["Multipart File Upload"] -->|"Process Files"| A3["utils/file_ops.py"]
-        A2["Image URL"] -->|"Validate URL"| A3
+        A1["Multipart File Upload<br/>FastAPI UploadFile[]"] -->|"Process Files"| A3["utils/file_ops.py<br/>File validation & processing"]
+        A2["Image URL Array<br/>JSON image_paths[]"] -->|"Validate URL"| A3
     end
 
     subgraph "Storage Directories"
@@ -479,18 +634,20 @@ graph TD
         style B3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style B4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style B5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        A3 -->|"Save Temp Files"| B1["temp_uploads/ - Temporary files"]
-        A3 -->|"Store Uploads"| B2["uploads/ - Persistent uploads"]
-        A3 -->|"Generate CSV"| B3["exports/ - CSV files"]
-        A3 -->|"Track Batches"| B4["data/ - Batch states"]
-        A3 -->|"Write Logs"| B5["logs/ - Application logs"]
+        A3 -->|"Save Temp Files"| B1["temp_uploads/<br/>Temporary processing files<br/>Auto-cleanup every 30min"]
+        A3 -->|"Store Uploads"| B2["uploads/<br/>Persistent uploaded files<br/>Long-term storage"]
+        A3 -->|"Generate CSV"| B3["exports/<br/>CSV export files<br/>batch_{id}_results.csv<br/>24h retention"]
+        A3 -->|"Track Batches"| B4["data/<br/>Batch state JSON files<br/>{batch_id}.json<br/>24h retention"]
+        A3 -->|"Write Logs"| B5["logs/<br/>Application logs<br/>10MB rotation limit"]
     end
 
     subgraph "Batch State Management"
         style C1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style C2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B4 -->|"Manage State"| C1["utils/batch_tracker.py"]
-        C1 -->|"Save/Load State"| C2["JSON State Files"]
+        style C3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        B4 -->|"Manage State"| C1["utils/batch_tracker.py<br/>- initialize_batch()<br/>- update_batch_state()<br/>- validate_batch_exists()"]
+        C1 -->|"Save/Load State"| C2["JSON State Files<br/>- batch_id, client_id<br/>- total, processed counts<br/>- results array"]
+        C1 -->|"Test Coverage"| C3["test_batch.py<br/>- Batch lifecycle tests<br/>- Status validation<br/>- Error scenarios"]
     end
 
     subgraph "Automated Cleanup (APScheduler)"
@@ -498,10 +655,10 @@ graph TD
         style D2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B1 -->|"Delete Old Files"| D1["cleanup_temp_uploads()<br/>Every 30 minutes"]
-        B4 -->|"Remove Expired Batches"| D2["cleanup_old_batches()<br/>Every 1 hour (24h retention)"]
-        B5 -->|"Rotate Large Logs"| D3["Log Rotation<br/>10MB size limit"]
-        D1 -->|"Execute Cleanup"| D4["utils/cleanup.py"]
+        B1 -->|"Delete Old Files"| D1["cleanup_temp_uploads()<br/>Every 30 minutes<br/>Remove processing artifacts"]
+        B4 -->|"Remove Expired Batches"| D2["cleanup_old_batches()<br/>Every 1 hour<br/>24h retention policy"]
+        B5 -->|"Rotate Large Logs"| D3["Log Rotation<br/>10MB size limit<br/>Prevent disk overflow"]
+        D1 -->|"Execute Cleanup"| D4["utils/cleanup.py<br/>Scheduled maintenance<br/>Resource management"]
         D2 -->|"Execute Cleanup"| D4
         D3 -->|"Execute Cleanup"| D4
     end
@@ -509,8 +666,8 @@ graph TD
     subgraph "WebSocket State Management"
         style E1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style E2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Connect WebSocket"| E1["utils/ws_manager.py"]
-        E1 -->|"Send Progress"| E2["Real-time Progress Updates"]
+        C1 -->|"Connect WebSocket"| E1["utils/ws_manager.py<br/>Real-time communication<br/>Client-specific connections"]
+        E1 -->|"Send Progress"| E2["Progress Updates<br/>Batch processing status<br/>Real-time feedback"]
     end
 ```
 
@@ -519,40 +676,52 @@ graph TD
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 sequenceDiagram
     participant C as Client
-    participant A as API
-    participant B as Batch Manager
-    participant D as Data Processor
-    participant S as Storage
-    participant E as Exporter
+    participant A as export.py Router
+    participant B as batch_tracker.py
+    participant D as Batch State
+    participant S as exports/ Directory
+    participant E as CSV Generator
 
-    rect rgba(40, 100, 160, 0.4)
-        C->>A: Request CSV Export
-        A->>B: Validate Batch ID
-        B->>D: Fetch Batch Results
+    rect rgba(40, 100, 160, 0.6)
+        C->>A: GET /api/check-logo/batch/export-csv/{batch_id}
+        A->>B: validate_batch_exists(batch_id)
+        B->>D: Load batch state from data/{batch_id}.json
+        alt "Batch not found"
+            D-->>A: 404 Batch not found
+            A-->>C: HTTPException 404
+        end
     end
 
-    rect rgba(30, 90, 50, 0.4)
-        D->>S: Get Cached Results
-        S-->>D: Return Results
-        D->>E: Format Data
+    rect rgba(30, 90, 50, 0.6)
+        D-->>B: Return batch results
+        B-->>A: Batch validation successful
+        A->>E: Generate CSV from batch data
+        Note right of E: Rate limited by SlowAPI
     end
 
-    rect rgba(90, 50, 100, 0.4)
-        E->>E: Generate Headers
-        E->>E: Format Rows
-        E->>E: Add Metadata
+    rect rgba(90, 50, 100, 0.6)
+        E->>E: Create CSV headers
+        Note right of E: Image_Path, Is_Valid, Confidence,<br/>Detected_By, Bounding_Box, Processing_Time
+        E->>E: Format batch results
+        Note right of E: Include all processed images<br/>Add batch metadata and timestamps<br/>Handle both valid and invalid results
+        E->>E: Include model detection details
+        Note right of E: Sequential model results<br/>yolov8s_logo_detection variants<br/>yolov11s_logo_detection variants
     end
 
-    rect rgba(120, 40, 50, 0.4)
-        E->>S: Save CSV File
-        S-->>A: Return File Path
-        A-->>C: Download Link
+    rect rgba(120, 40, 50, 0.6)
+        E->>S: Save CSV to exports/{batch_id}.csv
+        S-->>A: Return file path
+        A->>A: Create FileResponse with headers
+        Note right of A: Content-Disposition: attachment<br/>filename=batch_{batch_id}_results.csv
+        A-->>C: FileResponse with CSV download
     end
 
-    rect rgba(60, 80, 110, 0.4)
-        Note over S: Auto-cleanup after 24h
-        Note over C: Secure Download
-        Note over E: Include Batch Details
+    rect rgba(60, 80, 110, 0.6)
+        Note over S: Auto-cleanup scheduled
+        Note over A: APScheduler cleans exports/ every 24h
+        Note over E: Handles mixed valid/invalid files
+        Note over B: Batch state persists in data/ directory
+        Note over A: Error handling for missing batches
     end
 ```
 
