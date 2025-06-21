@@ -18,10 +18,13 @@ from models.logo_check import (
 )
 from pydantic import BaseModel
 
+
 class InitBatchRequest(BaseModel):
     batch_id: str
     client_id: str
     total: int
+
+
 from services.yolo_client import yolo_client
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
@@ -98,35 +101,36 @@ router = APIRouter(
 @router.post(
     "/init-batch",
     summary="Initialize batch tracking",
-    response_description="Batch tracking initialized"
+    response_description="Batch tracking initialized",
 )
 async def init_batch_endpoint(payload: InitBatchRequest):
     """Initialize batch tracking with total count before uploading chunks"""
     try:
         init_batch(payload.batch_id, payload.total)
-        
+
         # Update metadata.json with the correct total count
         batch_dir = os.path.join("exports", payload.batch_id)
         metadata_path = os.path.join(batch_dir, "metadata.json")
-        
+
         if os.path.exists(metadata_path):
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-            
+
             metadata["counts"]["total"] = payload.total
             metadata["status"] = "processing"
-            
+
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f)
-        
+
         return {
-            "message": "Batch initialized", 
+            "message": "Batch initialized",
             "batch_id": payload.batch_id,
-            "total": payload.total
+            "total": payload.total,
         }
     except Exception as e:
         logger.error(f"Error initializing batch: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post(
     "/start-batch",
@@ -299,65 +303,77 @@ async def check_logo_batch(
     """Start batch processing - returns immediately with batch_id for WebSocket tracking"""
     try:
         content_type = request.headers.get("content-type", "")
-        
+
         # Handle JSON URLs
         if "application/json" in content_type:
             if not batch_request:
                 raw_body = await request.json()
                 batch_request = BatchUrlRequest(**raw_body)
-            
+
             if not batch_request.image_paths:
                 raise HTTPException(status_code=400, detail="No image URLs provided")
-            
+
             batch_id = batch_request.batch_id
             client_id = getattr(batch_request, "client_id", None)
             # Validate batch exists
             batch_dir = os.path.join("exports", batch_id)
             if not os.path.exists(os.path.join(batch_dir, "metadata.json")):
-                raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
-            
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid batch_id: {batch_id}"
+                )
+
             # Batch should already be initialized via /init-batch
-            
+
             # Start background processing
-            asyncio.create_task(process_batch_background(
-                batch_id=batch_id,
-                image_urls=batch_request.image_paths,
-                client_id=client_id
-            ))
-            
-            return {"batch_id": batch_id, "message": "Batch processing started", "status": "processing"}
-        
+            asyncio.create_task(
+                process_batch_background(
+                    batch_id=batch_id,
+                    image_urls=batch_request.image_paths,
+                    client_id=client_id,
+                )
+            )
+
+            return {
+                "batch_id": batch_id,
+                "message": "Batch processing started",
+                "status": "processing",
+            }
+
         # Handle file uploads
         elif files:
             if not batch_id:
                 raise HTTPException(status_code=400, detail="batch_id required")
-            
+
             # Validate batch exists
             batch_dir = os.path.join("exports", batch_id)
             if not os.path.exists(os.path.join(batch_dir, "metadata.json")):
-                raise HTTPException(status_code=400, detail=f"Invalid batch_id: {batch_id}")
-            
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid batch_id: {batch_id}"
+                )
+
             # Read files
             files_data = []
             for file in files:
                 content = await file.read()
                 files_data.append((file.filename, content))
-            
+
             # Batch should already be initialized via /init-batch
-            
+
             # Start background processing
-            asyncio.create_task(process_batch_background(
-                batch_id=batch_id,
-                files_data=files_data,
-                client_id=client_id
-            ))
-            
-            return {"batch_id": batch_id, "message": "Batch processing started", "status": "processing"}
-        
+            asyncio.create_task(
+                process_batch_background(
+                    batch_id=batch_id, files_data=files_data, client_id=client_id
+                )
+            )
+
+            return {
+                "batch_id": batch_id,
+                "message": "Batch processing started",
+                "status": "processing",
+            }
+
         else:
             raise HTTPException(status_code=400, detail="Files or URLs required")
-
-
 
     except HTTPException:
         raise

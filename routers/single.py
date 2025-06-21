@@ -50,7 +50,9 @@ async def check_logo_single(
             file_location = ""
             try:
                 file_content = await file.read()
-                result = await yolo_client.check_logo(file_data=file_content, filename=file.filename)
+                result = await yolo_client.check_logo(
+                    file_data=file_content, filename=file.filename
+                )
                 return LogoCheckResult(**result)
             except (ValueError, IOError) as e:
                 raise HTTPException(status_code=400, detail=str(e))

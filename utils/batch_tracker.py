@@ -52,9 +52,11 @@ async def mark_done(batch_id: str) -> Dict:
         progress["complete_sent"] = True
         return dict(progress)
 
+
 def is_complete_sent(batch_id: str) -> bool:
     """Check if complete event was already sent"""
     return _batch_data.get(batch_id, {}).get("complete_sent", False)
+
 
 async def mark_complete_sent(batch_id: str):
     """Mark complete event as sent"""
