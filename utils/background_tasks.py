@@ -76,7 +76,7 @@ async def process_url_async(url: str, batch_id: str, client_id: str, csv_path: s
                 "valid": progress["valid"],
                 "invalid": progress["invalid"],
                 "percentage": round((progress["processed"] / progress["total"]) * 100, 2),
-                "current_url": url,
+                "current_url": str(url),
                 "current_status": result["Is_Valid"],
                 "timestamp": time.time()
             })

@@ -16,6 +16,7 @@ import { chunkImages, processImageChunks, retryFailedChunks } from './utils/imag
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
 import { getClientId } from './utils/clientId';
+import { decodeUrl } from './utils/urlDecoder';
 
 // Theme constants for consistent branding
 const symphonyBlue = '#0066B3';     // Primary brand color
@@ -76,11 +77,12 @@ const FileUploader = ({ onFilesSelected }) => {
   const [displayValue, setDisplayValue] = useState(10);  // Changed from 50 to 10
   const [uploadStatuses, setUploadStatuses] = useState({}); // Track upload status for each file
   const [websocket, setWebsocket] = useState(null); // WebSocket connection
+  const wsRef = useRef(null); // Track WebSocket connection
   const processStartTimeRef = useRef(null); // Track process start time
   const [failedChunks, setFailedChunks] = useState([]); // Track failed chunks for retry
   const [retryInProgress, setRetryInProgress] = useState(false); // Track retry state
   const [emailNotification, setEmailNotification] = useState(''); // Email for notifications
-
+  const [clientID, setClientID] = useState(getClientId()); // Client ID for WebSocket
   // Responsive design hooks
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -106,9 +108,9 @@ const FileUploader = ({ onFilesSelected }) => {
 
   // WebSocket connection effect
   useEffect(() => {
-    const clientId = getClientId();
-    const wsUrl = `ws://localhost:8000/ws/${clientId}`;
+    if (wsRef.current) return; // Already connected
 
+    const wsUrl = `ws://localhost:8000/ws/${clientID}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -135,7 +137,7 @@ const FileUploader = ({ onFilesSelected }) => {
           elapsedTime: elapsedTime > 0 ? formatTime(elapsedTime) : '0s',
           estimatedTimeRemaining: estimatedTimeRemaining > 0 ? formatTime(estimatedTimeRemaining) : 'Calculating...'
         });
-        const currentFile = data.current_file || data.current_url || '';
+        const currentFile = data.current_file || decodeUrl(data.current_url) || '';
         if (data.current_status === "Valid") {
           setUploadStatuses((prev) => ({ ...prev, [currentFile]: "valid" }));
         } else {
@@ -161,7 +163,7 @@ const FileUploader = ({ onFilesSelected }) => {
               setResults(response.data.results.map(result => ({
                 isValid: result.Is_Valid === "Valid",
                 message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-                name: result.Image_Path_or_URL
+                name: decodeUrl(result.Image_Path_or_URL)
               })));
             }
             console.log('Processing complete:', response.data);
@@ -179,25 +181,29 @@ const FileUploader = ({ onFilesSelected }) => {
         console.log('WebSocket disconnected cleanly');
       }
       setWebsocket(null);
+      wsRef.current = null;
     };
 
     ws.onerror = (error) => {
       console.log('WebSocket connection error (normal in dev mode)');
     };
 
+    wsRef.current = ws;
+
     return () => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
+      wsRef.current = null;
     };
   }, []);
 
   // WebSocket heartbeat effect
   useEffect(() => {
-    const clientId = getClientId();
+    // const clientId = getClientId();
     const heartbeatInterval = setInterval(() => {
       if (websocket?.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({ event: "heartbeat", client_id: clientId }));
+        websocket.send(JSON.stringify({ event: "heartbeat", client_id: clientID }));
       }
     }, 30000); // every 30s
 
@@ -337,7 +343,7 @@ const FileUploader = ({ onFilesSelected }) => {
 
         // Initialize batch tracking on backend
         const totalImages = inputMethod === 'upload' ? files.length : batchUrls.split('\n').filter(url => url.trim()).length;
-        await initializeBatchTracking(newBatchId, getClientId(), totalImages);
+        await initializeBatchTracking(newBatchId, clientID, totalImages);
       }
 
       if (mode === 'single') {
@@ -409,7 +415,7 @@ const FileUploader = ({ onFilesSelected }) => {
           const processChunk = async (chunk, chunkIndex) => {
             return await retryWithBackoff(async () => {
               const formData = new FormData();
-              const clientId = getClientId();
+              // const clientId = getClientId();
 
               // Set uploading status for each file in the chunk
               chunk.forEach(file => {
@@ -418,7 +424,7 @@ const FileUploader = ({ onFilesSelected }) => {
               });
 
               // Add chunk metadata
-              formData.append('client_id', clientId);
+              formData.append('client_id', clientID);
               formData.append('batch_id', newBatchId);
               formData.append('chunk_index', chunkIndex);
               formData.append('total_chunks', chunks.length);
@@ -502,9 +508,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 chunk_index: chunkIndex,
                 total_chunks: chunks.length,
                 total_files: urls.length,
-                client_id: getClientId()
+                client_id: clientID
               };
-
               const response = await axios.post(
                 `${API_BASE_URL}/api/check-logo/batch/`,
                 JSON.stringify(data),  // Explicitly stringify the JSON
@@ -552,7 +557,7 @@ const FileUploader = ({ onFilesSelected }) => {
             chunks,
             (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
             (progressData) => {
-              setProgress(progressData);
+              // setProgress(progressData);
             },
             (failedChunk) => {
               console.log(`Chunk ${failedChunk.index + 1} failed:`, failedChunk.error);
@@ -600,14 +605,14 @@ const FileUploader = ({ onFilesSelected }) => {
         ? async (chunk, chunkIndex) => {
           return await retryWithBackoff(async () => {
             const formData = new FormData();
-            const clientId = getClientId();
+            // const clientId = getClientId();
 
             chunk.forEach(file => {
               formData.append('files', file);
               setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
             });
 
-            formData.append('client_id', clientId);
+            formData.append('client_id', clientID);
             formData.append('batch_id', batchId);
             formData.append('chunk_index', chunkIndex);
             formData.append('total_chunks', failedChunks.length);
@@ -658,7 +663,7 @@ const FileUploader = ({ onFilesSelected }) => {
               chunk_index: chunkIndex,
               total_chunks: failedChunks.length,
               total_files: chunk.length,
-              client_id: getClientId()
+              client_id: clientID
             };
 
             const response = await axios.post(
@@ -759,8 +764,8 @@ const FileUploader = ({ onFilesSelected }) => {
       if (emailNotification.trim()) {
         formData.append('email', emailNotification.trim());
       }
-      const clientId = getClientId();
-      formData.append('client_id', clientId);
+      // const clientId = getClientId();
+      formData.append('client_id', clientID);
 
       const response = await axios.post(`${API_BASE_URL}/api/start-batch`, formData);
       setBatchId(response.data.batch_id);
