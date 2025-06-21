@@ -11,7 +11,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MenuIcon from '@mui/icons-material/Menu';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, WS_BASE_URL } from './config';
 import { chunkImages, processImageChunks, retryFailedChunks } from './utils/imageChunker';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
@@ -83,6 +83,8 @@ const FileUploader = ({ onFilesSelected }) => {
   const [retryInProgress, setRetryInProgress] = useState(false); // Track retry state
   const [emailNotification, setEmailNotification] = useState(''); // Email for notifications
   const [clientID, setClientID] = useState(getClientId()); // Client ID for WebSocket
+  const [batchRunning, setBatchRunning] = useState(false); // Track if batch is running  
+  
   // Responsive design hooks
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -110,7 +112,7 @@ const FileUploader = ({ onFilesSelected }) => {
   useEffect(() => {
     if (wsRef.current) return; // Already connected
 
-    const wsUrl = `ws://localhost:8000/ws/${clientID}`;
+    const wsUrl = `${WS_BASE_URL}/ws/${clientID}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -144,6 +146,7 @@ const FileUploader = ({ onFilesSelected }) => {
           setUploadStatuses((prev) => ({ ...prev, [currentFile]: "invalid" }));
         }
       } else if (data.event === 'complete') {
+        setBatchRunning(false);
         setProgress(null);
         const processEndTime = Date.now();
         setProcessSummary({
@@ -154,24 +157,6 @@ const FileUploader = ({ onFilesSelected }) => {
           endTime: processEndTime,
           failedChunks: failedChunks.length
         });
-
-        // Complete batch and get final results
-        if (data.batch_id) {
-          try {
-            const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/${data.batch_id}/complete`);
-            if (response.data?.results && Array.isArray(response.data.results)) {
-              setResults(response.data.results.map(result => ({
-                isValid: result.Is_Valid === "Valid",
-                message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-                name: decodeUrl(result.Image_Path_or_URL)
-              })));
-            }
-            console.log('Processing complete:', response.data);
-          } catch (error) {
-            console.error('Error completing batch:', error);
-          }
-        }
-
         setLoading(false);
       }
     };
@@ -209,6 +194,29 @@ const FileUploader = ({ onFilesSelected }) => {
 
     return () => clearInterval(heartbeatInterval);
   }, [websocket]);
+
+  // Handle batch completion
+  useEffect(() => {
+    const handleBatchComplete = async () => {
+      if (!batchRunning && batchId) {
+        try {
+          const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/${batchId}/complete`);
+          if (response.data?.results && Array.isArray(response.data.results)) {
+            setResults(response.data.results.map(result => ({
+              isValid: result.Is_Valid === "Valid",
+              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+              name: decodeUrl(result.Image_Path_or_URL)
+            })));
+          }
+          console.log('Processing complete:', response.data);
+        } catch (error) {
+          console.error('Error completing batch:', error);
+        }
+      }
+    };
+
+    handleBatchComplete();
+  }, [batchRunning, batchId]);
 
   /**
    * Toggle mobile navigation drawer
@@ -328,6 +336,10 @@ const FileUploader = ({ onFilesSelected }) => {
     setLoading(true);
     const startTime = Date.now();
     processStartTimeRef.current = startTime;
+
+    if (mode === 'batch') {
+      setBatchRunning(true);
+    }
 
     try {
       let newBatchId = null;

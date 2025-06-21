@@ -31,6 +31,16 @@ from routers import (
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 import asyncio
+import os
+import sys
+
+# Check if custom host is provided and set YOLO_SERVICE_URL
+if '--host' in sys.argv:
+    host_index = sys.argv.index('--host')
+    if host_index + 1 < len(sys.argv):
+        host = sys.argv[host_index + 1]
+        if host != 'localhost' and host != '127.0.0.1':
+            os.environ['YOLO_SERVICE_URL'] = f'http://{host}:8001'
 
 # Setup logging
 logger = setup_logging()

@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, WS_BASE_URL } from '../config';
 
 /**
  * Real-time progress bar component using WebSocket connection
@@ -44,7 +44,7 @@ const ProgressBar = ({ batchId }) => {
       }
       
       // Create new WebSocket connection
-      ws = new WebSocket(`${API_BASE_URL.replace('http', 'ws')}/ws/batch/${batchId}`);
+      ws = new WebSocket(`${WS_BASE_URL}/ws/batch/${batchId}`);
       
       ws.onopen = () => {
         console.log('WebSocket connected');

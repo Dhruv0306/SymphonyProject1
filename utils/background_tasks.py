@@ -125,6 +125,19 @@ async def process_batch_background(batch_id: str, files_data: List[Tuple[str, by
             
             final_stats = await mark_done(batch_id)
             
+            # Update metadata.json with final counts and completion time
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+            
+            metadata["counts"]["valid"] = final_stats["valid"]
+            metadata["counts"]["invalid"] = final_stats["invalid"]
+            metadata["counts"]["total"] = final_stats["total"]
+            metadata["status"] = "completed"
+            metadata["completed_at"] = time.time()
+            
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f)
+            
             if client_id:
                 await broadcast_json(client_id, {
                     "event": "complete",

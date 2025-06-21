@@ -213,13 +213,13 @@ const Dashboard = () => {
       </Box>
       <Divider />
       <List>
-        <ListItem button onClick={() => { setActiveTab(0); setDrawerOpen(false); }}>
+        <ListItem component="button" onClick={() => { setActiveTab(0); setDrawerOpen(false); }}>
           <ListItemIcon>
             <DashboardIcon />
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </ListItem>
-        <ListItem button onClick={() => { setActiveTab(1); setDrawerOpen(false); }}>
+        <ListItem component="button" onClick={() => { setActiveTab(1); setDrawerOpen(false); }}>
           <ListItemIcon>
             <HistoryIcon />
           </ListItemIcon>
@@ -228,7 +228,7 @@ const Dashboard = () => {
       </List>
       <Divider />
       <List>
-        <ListItem button onClick={handleLogout}>
+        <ListItem component="button" onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon />
           </ListItemIcon>
@@ -261,6 +261,11 @@ const Dashboard = () => {
         anchor="left"
         open={drawerOpen}
         onClose={toggleDrawer}
+        hideBackdrop
+        ModalProps={{
+          disableEnforceFocus: true,
+          disableAutoFocus: true
+        }}
       >
         {drawerContent}
       </Drawer>

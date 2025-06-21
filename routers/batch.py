@@ -104,6 +104,21 @@ async def init_batch_endpoint(payload: InitBatchRequest):
     """Initialize batch tracking with total count before uploading chunks"""
     try:
         init_batch(payload.batch_id, payload.total)
+        
+        # Update metadata.json with the correct total count
+        batch_dir = os.path.join("exports", payload.batch_id)
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+        
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+            
+            metadata["counts"]["total"] = payload.total
+            metadata["status"] = "processing"
+            
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f)
+        
         return {
             "message": "Batch initialized", 
             "batch_id": payload.batch_id,
