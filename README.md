@@ -1,7 +1,7 @@
 # Symphony Logo Detection System
 ## Enterprise-Grade YOLO-Powered Image Validation
 
-A comprehensive logo detection system built by Symphony Limited that uses advanced YOLOv8 and YOLOv11 models to validate the presence of Symphony logos in images. The system features a robust FastAPI backend with real-time processing capabilities and a modern React frontend for seamless user interaction.
+A comprehensive logo detection system built by Symphony Limited that uses advanced YOLOv8 and YOLOv11 models to validate the presence of Symphony logos in images. The system features a robust FastAPI backend with real-time processing capabilities and a modern React 19.1.0 frontend for seamless user interaction.
 
 ## Table of Contents
 1. [Key Features](#key-features)
@@ -656,13 +656,14 @@ usingYolo/
 - **Pandas 2.3.0** - Data processing and CSV export
 - **Redis 6.2.0** - Caching and session management
 - **Celery 5.5.3** - Distributed task processing
+- **Requests 2.32.3** - HTTP library for URL-based image processing
 
 ### Frontend Stack
 - **React 19.1.0** - Modern UI framework with latest features
 - **Material-UI 7.1.0** - Professional component library with icons
 - **Axios 1.9.0** - HTTP client for API communication
 - **React Dropzone 14.3.8** - Drag-and-drop file uploads
-- **React Router DOM 6.30.1** - Client-side routing with future flags
+- **React Router DOM 6.30.1** - Client-side routing
 - **Cross-env 7.0.3** - Cross-platform environment variables
 - **Emotion React/Styled 11.14.0** - CSS-in-JS styling solution
 - **Web Vitals 2.1.4** - Performance monitoring
@@ -679,7 +680,9 @@ usingYolo/
 - **Early Detection Return** - Stops processing when logo is found
 - **Model Cascade** - Sequential model execution for optimal accuracy
 - **GPU Acceleration** - CUDA support for faster inference
-- **Image Enhancement** - Automatic boundary addition and preprocessing
+- **Image Enhancement** - Automatic boundary addition (10px white border)
+- **URL Processing** - Direct HTTP/HTTPS image URL support
+- **Robust Error Handling** - Graceful model failure recovery
 
 ### Development & Testing Tools
 - **Pytest 8.0.2** - Backend testing framework
@@ -788,6 +791,20 @@ npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000 --ho
 // --host=<host>    : Set custom host IP (default: localhost)
 ```
 
+### Backend Configuration
+
+The backend automatically detects custom host configurations and sets the YOLO service URL accordingly:
+
+```python
+# Automatic host detection in App.py
+if '--host' in sys.argv:
+    host_index = sys.argv.index('--host')
+    if host_index + 1 < len(sys.argv):
+        host = sys.argv[host_index + 1]
+        if host != 'localhost' and host != '127.0.0.1':
+            os.environ['YOLO_SERVICE_URL'] = f'http://{host}:8001'
+```
+
 ### Model Configuration
 
 The YOLO models are automatically loaded from the following paths in `detect_logo.py`:
@@ -804,7 +821,12 @@ MODEL_PATHS = [
 CONFIDENCE_THRESHOLD = 0.35  # Adjustable detection threshold
 ```
 
-**Note:** Models are loaded sequentially, and detection stops at the first successful match above the confidence threshold.
+**Key Features:**
+- **Sequential Processing:** Models are loaded and executed in order
+- **Early Return:** Detection stops at the first successful match above confidence threshold
+- **Boundary Enhancement:** Images are automatically enhanced with white boundaries
+- **URL Support:** Both local files and HTTP/HTTPS URLs are supported
+- **Robust Error Handling:** Failed models are skipped with detailed logging
 
 ## Running the Application
 
@@ -844,6 +866,14 @@ npm run start-backend -- --backend=http://your-server:8000 --port=3001 --host=0.
 REACT_APP_BACKEND_URL=http://your-server:8000 npm start
 ```
 
+### WebSocket Configuration
+
+The system uses WebSocket connections for real-time updates:
+- **Connection URL:** `ws://localhost:8000/ws/{client_id}`
+- **Heartbeat Interval:** 30 seconds
+- **Automatic Reconnection:** Built-in connection management
+- **Progress Updates:** Real-time batch processing status
+
 **Frontend Features:**
 - **Single & Batch Processing:** Toggle between single image validation and batch processing
 - **File Upload & URL Input:** Support for both file uploads and image URLs
@@ -853,6 +883,9 @@ REACT_APP_BACKEND_URL=http://your-server:8000 npm start
 - **Retry Logic:** Automatic retry for failed chunks with user-initiated retry option
 - **CSV Export:** Download batch results with metadata
 - **Responsive Design:** Mobile-optimized interface with drawer navigation
+- **Symphony Branding:** Consistent color scheme (#0066B3) and logo integration
+- **Configurable Batch Size:** Adjustable batch processing size (1-999 images)
+- **Upload Status Tracking:** Real-time status indicators for each file
 
 ### Development Mode
 
@@ -900,6 +933,11 @@ The application provides built-in documentation:
 ##### Start Batch Session
 ```http
 POST /api/start-batch
+Content-Type: multipart/form-data
+
+Parameters:
+- email: Optional email for notifications
+- client_id: Client identifier for WebSocket updates
 
 Response:
 {
@@ -935,10 +973,23 @@ Response:
 ##### Batch Processing
 ```http
 POST /api/check-logo/batch/
-Content-Type: multipart/form-data
+Content-Type: multipart/form-data OR application/json
 
-Parameters:
+Parameters (File Upload):
+- files: Multiple image files
+- client_id: Client identifier for WebSocket updates
 - batch_id: UUID for batch session tracking
+- chunk_index: Current chunk index
+- total_chunks: Total number of chunks
+- total_files: Total number of files
+
+Parameters (URL Processing):
+- image_paths: Array of image URLs
+- client_id: Client identifier for WebSocket updates
+- batch_id: UUID for batch session tracking
+- chunk_index: Current chunk index
+- total_chunks: Total number of chunks
+- total_files: Total number of URLs
 - files: Multiple image files (multipart upload)
 - image_paths: Semicolon-separated URLs (alternative to files)
 
