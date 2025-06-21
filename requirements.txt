@@ -6,6 +6,7 @@ amqp==5.3.1
 annotated-types==0.7.0
 anyio==4.9.0
 APScheduler==3.10.4
+asyncio==3.4.3
 attrs==25.3.0
 billiard==4.2.1
 black==24.2.0
@@ -81,7 +82,7 @@ pyparsing==3.2.3
 pytest==8.0.2
 pytest-asyncio==0.23.5
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.0
+python-dotenv==1.1.0
 # Cross-platform magic file support
 python-magic==0.4.27; sys_platform != 'win32'
 python-magic-bin==0.4.14; sys_platform == 'win32'

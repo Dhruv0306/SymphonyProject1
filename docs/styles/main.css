@@ -12,6 +12,8 @@
     --warning-color: #FFC107;
     --error-color: #DC3545;
     --websocket-color: #17A2B8;    /* WebSocket connection color */
+    --yolov8-color: #2196F3;       /* YOLOv8 model color */
+    --yolov11-color: #9C27B0;      /* YOLOv11 model color */
 }
 
 * {
@@ -1105,6 +1107,35 @@ ul, ol {
 .model:nth-child(4) { border-left: 4px solid #9C27B0; }
 .model:nth-child(5) { border-left: 4px solid #F44336; }
 
+/* Model sequence numbers */
+.model-sequence {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 2;
+}
+
+.model:nth-child(1) .model-type,
+.model:nth-child(2) .model-type,
+.model:nth-child(3) .model-type {
+    background: var(--yolov8-color);
+}
+
+.model:nth-child(4) .model-type,
+.model:nth-child(5) .model-type {
+    background: var(--yolov11-color);
+}
+
 .model:hover {
     transform: translateY(-2px);
     box-shadow: var(--card-shadow);
@@ -1351,4 +1382,85 @@ ul, ol {
 
 .zoom-btn:active {
     transform: translateY(0);
+}
+
+/* Endpoint Notes */
+.endpoint-note {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--light-text);
+    font-style: italic;
+    margin-top: 0.25rem;
+    padding-left: 1rem;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--accent-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Model Type Indicators */
+.model-type {
+    position: absolute;
+    bottom: -10px;
+    right: -10px;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    z-index: 1;
+}
+
+/* Technology Badges */
+.tech-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin: 0.2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-indicator.online {
+    background: rgba(40, 167, 69, 0.1);
+    color: var(--success-color);
+    border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.status-indicator.processing {
+    background: rgba(255, 193, 7, 0.1);
+    color: var(--warning-color);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.status-indicator.offline {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--error-color);
+    border: 1px solid rgba(220, 53, 69, 0.2);
 } 

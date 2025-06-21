@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing Symphony Logo Detection Documentation...');
     // Mobile menu toggle
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.querySelector('.sidebar');
@@ -184,6 +185,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Add technology version badges
+    const techVersions = {
+        'FastAPI': '0.115.12',
+        'React': '19.1.0',
+        'Material-UI': '7.1.0',
+        'Ultralytics': '8.3.151',
+        'Torch': '2.7.1',
+        'SlowAPI': '0.1.9'
+    };
+    
+    Object.entries(techVersions).forEach(([tech, version]) => {
+        document.querySelectorAll('li').forEach(li => {
+            if (li.textContent.includes(tech) && !li.querySelector('.version-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'version-badge';
+                badge.textContent = `v${version}`;
+                badge.style.marginLeft = '0.5rem';
+                li.appendChild(badge);
+            }
+        });
+    });
+    
     // Initialize API method tags
     document.querySelectorAll('.api-overview li').forEach(item => {
         const codeText = item.querySelector('code').textContent;
@@ -363,4 +386,24 @@ document.addEventListener('DOMContentLoaded', function() {
             isDragging = false;
         });
     });
-}); 
+    
+    console.log('Symphony Logo Detection Documentation loaded successfully');
+    console.log('Features: 5 YOLO models, FastAPI 0.115.12, React 19.1.0, Real-time WebSocket updates');
+});
+
+// Add global error handler for better debugging
+window.addEventListener('error', (e) => {
+    console.error('Documentation error:', e.error);
+});
+
+// Add performance monitoring
+if ('performance' in window) {
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            const perfData = performance.getEntriesByType('navigation')[0];
+            if (perfData) {
+                console.log(`Page load time: ${perfData.loadEventEnd - perfData.loadEventStart}ms`);
+            }
+        }, 0);
+    });
+} 

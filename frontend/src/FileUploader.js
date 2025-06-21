@@ -11,11 +11,12 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MenuIcon from '@mui/icons-material/Menu';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, WS_BASE_URL } from './config';
 import { chunkImages, processImageChunks, retryFailedChunks } from './utils/imageChunker';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
 import { getClientId } from './utils/clientId';
+import { decodeUrl } from './utils/urlDecoder';
 
 // Theme constants for consistent branding
 const symphonyBlue = '#0066B3';     // Primary brand color
@@ -35,12 +36,12 @@ const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000, chunkIn
       return await fn();
     } catch (error) {
       retries++;
-      const isRetryableError = 
+      const isRetryableError =
         error.response?.status === 429 || // Rate limit
         error.response?.status >= 500 || // Server errors
         error.code === 'NETWORK_ERROR' || // Network issues
         !error.response; // Network timeout/connection issues
-      
+
       if (isRetryableError && retries < maxRetries) {
         const delay = initialDelay * Math.pow(2, retries - 1);
         const chunkInfo = chunkIndex !== null ? ` (Chunk ${chunkIndex + 1})` : '';
@@ -76,11 +77,14 @@ const FileUploader = ({ onFilesSelected }) => {
   const [displayValue, setDisplayValue] = useState(10);  // Changed from 50 to 10
   const [uploadStatuses, setUploadStatuses] = useState({}); // Track upload status for each file
   const [websocket, setWebsocket] = useState(null); // WebSocket connection
+  const wsRef = useRef(null); // Track WebSocket connection
   const processStartTimeRef = useRef(null); // Track process start time
   const [failedChunks, setFailedChunks] = useState([]); // Track failed chunks for retry
   const [retryInProgress, setRetryInProgress] = useState(false); // Track retry state
   const [emailNotification, setEmailNotification] = useState(''); // Email for notifications
-
+  const [clientID, setClientID] = useState(getClientId()); // Client ID for WebSocket
+  const [batchRunning, setBatchRunning] = useState(false); // Track if batch is running  
+  
   // Responsive design hooks
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -106,26 +110,26 @@ const FileUploader = ({ onFilesSelected }) => {
 
   // WebSocket connection effect
   useEffect(() => {
-    const clientId = getClientId();
-    const wsUrl = `ws://localhost:8000/ws/${clientId}`;
-    
+    if (wsRef.current) return; // Already connected
+
+    const wsUrl = `${WS_BASE_URL}/ws/${clientID}`;
     const ws = new WebSocket(wsUrl);
-    
+
     ws.onopen = () => {
       console.log('WebSocket connected');
       setWebsocket(ws);
     };
-    
-    ws.onmessage = (event) => {
+
+    ws.onmessage = async (event) => {
       const data = JSON.parse(event.data);
       console.log('WebSocket message:', data);
-      
+
       if (data.event === 'progress') {
         const currentTime = Date.now();
         const elapsedTime = processStartTimeRef.current ? currentTime - processStartTimeRef.current : 0;
-        const estimatedTimeRemaining = (data.processed > 0 && elapsedTime > 0) ? 
+        const estimatedTimeRemaining = (data.processed > 0 && elapsedTime > 0) ?
           ((data.total - data.processed) * elapsedTime) / data.processed : 0;
-        
+
         setProgress({
           processedImages: data.processed,
           totalImages: data.total,
@@ -135,45 +139,84 @@ const FileUploader = ({ onFilesSelected }) => {
           elapsedTime: elapsedTime > 0 ? formatTime(elapsedTime) : '0s',
           estimatedTimeRemaining: estimatedTimeRemaining > 0 ? formatTime(estimatedTimeRemaining) : 'Calculating...'
         });
+        const currentFile = data.current_file || decodeUrl(data.current_url) || '';
+        if (data.current_status === "Valid") {
+          setUploadStatuses((prev) => ({ ...prev, [currentFile]: "valid" }));
+        } else {
+          setUploadStatuses((prev) => ({ ...prev, [currentFile]: "invalid" }));
+        }
       } else if (data.event === 'complete') {
+        setBatchRunning(false);
         setProgress(null);
+        const processEndTime = Date.now();
         setProcessSummary({
           totalImages: data.total,
-          validCount: data.valid,
-          invalidCount: data.invalid
+          totalTime: processEndTime - processStartTimeRef.current,
+          averageTimePerImage: (processEndTime - processStartTimeRef.current) / data.total,
+          startTime: processStartTimeRef.current,
+          endTime: processEndTime,
+          failedChunks: failedChunks.length
         });
+        setLoading(false);
       }
     };
-    
+
     ws.onclose = (event) => {
       if (event.wasClean) {
         console.log('WebSocket disconnected cleanly');
       }
       setWebsocket(null);
+      wsRef.current = null;
     };
-    
+
     ws.onerror = (error) => {
       console.log('WebSocket connection error (normal in dev mode)');
     };
-    
+
+    wsRef.current = ws;
+
     return () => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
+      wsRef.current = null;
     };
   }, []);
 
   // WebSocket heartbeat effect
   useEffect(() => {
-    const clientId = getClientId();
+    // const clientId = getClientId();
     const heartbeatInterval = setInterval(() => {
       if (websocket?.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({ event: "heartbeat", client_id: clientId }));
+        websocket.send(JSON.stringify({ event: "heartbeat", client_id: clientID }));
       }
     }, 30000); // every 30s
 
     return () => clearInterval(heartbeatInterval);
   }, [websocket]);
+
+  // Handle batch completion
+  useEffect(() => {
+    const handleBatchComplete = async () => {
+      if (!batchRunning && batchId) {
+        try {
+          const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/${batchId}/complete`);
+          if (response.data?.results && Array.isArray(response.data.results)) {
+            setResults(response.data.results.map(result => ({
+              isValid: result.Is_Valid === "Valid",
+              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
+              name: decodeUrl(result.Image_Path_or_URL)
+            })));
+          }
+          console.log('Processing complete:', response.data);
+        } catch (error) {
+          console.error('Error completing batch:', error);
+        }
+      }
+    };
+
+    handleBatchComplete();
+  }, [batchRunning, batchId]);
 
   /**
    * Toggle mobile navigation drawer
@@ -294,6 +337,10 @@ const FileUploader = ({ onFilesSelected }) => {
     const startTime = Date.now();
     processStartTimeRef.current = startTime;
 
+    if (mode === 'batch') {
+      setBatchRunning(true);
+    }
+
     try {
       let newBatchId = null;
 
@@ -305,6 +352,10 @@ const FileUploader = ({ onFilesSelected }) => {
           return;
         }
         setBatchId(newBatchId);
+
+        // Initialize batch tracking on backend
+        const totalImages = inputMethod === 'upload' ? files.length : batchUrls.split('\n').filter(url => url.trim()).length;
+        await initializeBatchTracking(newBatchId, clientID, totalImages);
       }
 
       if (mode === 'single') {
@@ -376,7 +427,7 @@ const FileUploader = ({ onFilesSelected }) => {
           const processChunk = async (chunk, chunkIndex) => {
             return await retryWithBackoff(async () => {
               const formData = new FormData();
-              const clientId = getClientId();
+              // const clientId = getClientId();
 
               // Set uploading status for each file in the chunk
               chunk.forEach(file => {
@@ -385,7 +436,7 @@ const FileUploader = ({ onFilesSelected }) => {
               });
 
               // Add chunk metadata
-              formData.append('client_id', clientId);
+              formData.append('client_id', clientID);
               formData.append('batch_id', newBatchId);
               formData.append('chunk_index', chunkIndex);
               formData.append('total_chunks', chunks.length);
@@ -432,7 +483,7 @@ const FileUploader = ({ onFilesSelected }) => {
             chunks,
             (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
             (progressData) => {
-              setProgress(progressData);
+              // setProgress(progressData);
             },
             (failedChunk) => {
               console.log(`Chunk ${failedChunk.index + 1} failed:`, failedChunk.error);
@@ -446,31 +497,11 @@ const FileUploader = ({ onFilesSelected }) => {
             console.log(`${failedChunks.length} chunks failed and can be retried`);
           }
 
-          // Store final processing summary
-          const processEndTime = Date.now();
-          setProcessSummary({
-            totalImages: files.length,
-            totalTime: processEndTime - startTime,
-            averageTimePerImage: (processEndTime - startTime) / files.length,
-            startTime: startTime,
-            endTime: processEndTime,
-            failedChunks: failedChunks.length
-          });
-
           setResults(allResults.map((result, index) => ({
             isValid: result.Is_Valid === "Valid",
             message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
             name: files[index].name
           })));
-
-          // Complete batch and send email notification
-          if (newBatchId) {
-            try {
-              await axios.post(`${API_BASE_URL}/api/check-logo/batch/${newBatchId}/complete`);
-            } catch (error) {
-              console.error('Error completing batch:', error);
-            }
-          }
         } else {
           // For batch URL input
           const urls = batchUrls.split('\n').filter(url => url.trim());
@@ -489,9 +520,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 chunk_index: chunkIndex,
                 total_chunks: chunks.length,
                 total_files: urls.length,
-                client_id: getClientId()
+                client_id: clientID
               };
-
               const response = await axios.post(
                 `${API_BASE_URL}/api/check-logo/batch/`,
                 JSON.stringify(data),  // Explicitly stringify the JSON
@@ -517,15 +547,7 @@ const FileUploader = ({ onFilesSelected }) => {
                 setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
               });
 
-              if (!response.data || !response.data.results) {
-                console.error('Invalid response format:', response.data);
-                // Set error status for each URL
-                chunk.forEach(url => {
-                  setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
-                });
-                throw new Error('Invalid response format from server');
-              }
-
+              // Backend now processes in background, no immediate results returned
               // Process results and update status
               const results = response.data.results || [];
               results.forEach((result, idx) => {
@@ -547,7 +569,7 @@ const FileUploader = ({ onFilesSelected }) => {
             chunks,
             (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
             (progressData) => {
-              setProgress(progressData);
+              // setProgress(progressData);
             },
             (failedChunk) => {
               console.log(`Chunk ${failedChunk.index + 1} failed:`, failedChunk.error);
@@ -561,38 +583,20 @@ const FileUploader = ({ onFilesSelected }) => {
             console.log(`${failedChunks.length} chunks failed and can be retried`);
           }
 
-          // Store final processing summary
-          const processEndTime = Date.now();
-          setProcessSummary({
-            totalImages: urls.length,
-            totalTime: processEndTime - startTime,
-            averageTimePerImage: (processEndTime - startTime) / urls.length,
-            startTime: startTime,
-            endTime: processEndTime,
-            failedChunks: failedChunks.length
-          });
-
           setResults(allResults.map((result, index) => ({
             isValid: result.Is_Valid === "Valid",
             message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
             name: urls[index]
           })));
-
-          // Complete batch and send email notification
-          if (newBatchId) {
-            try {
-              await axios.post(`${API_BASE_URL}/api/check-logo/batch/${newBatchId}/complete`);
-            } catch (error) {
-              console.error('Error completing batch:', error);
-            }
-          }
         }
       }
     } catch (error) {
       console.error('Error:', error);
       setError(error.response?.data?.detail || 'An error occurred during processing');
     } finally {
-      setLoading(false);
+      if (mode === 'single') {
+        setLoading(false);
+      }
     }
   };
 
@@ -604,113 +608,113 @@ const FileUploader = ({ onFilesSelected }) => {
 
     setRetryInProgress(true);
     setError(null);
-    
+
     try {
       console.log(`Retrying ${failedChunks.length} failed chunks...`);
-      
+
       // Create process chunk function based on input method
-      const processChunk = inputMethod === 'upload' 
+      const processChunk = inputMethod === 'upload'
         ? async (chunk, chunkIndex) => {
-            return await retryWithBackoff(async () => {
-              const formData = new FormData();
-              const clientId = getClientId();
+          return await retryWithBackoff(async () => {
+            const formData = new FormData();
+            // const clientId = getClientId();
 
-              chunk.forEach(file => {
-                formData.append('files', file);
-                setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
-              });
+            chunk.forEach(file => {
+              formData.append('files', file);
+              setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
+            });
 
-              formData.append('client_id', clientId);
-              formData.append('batch_id', batchId);
-              formData.append('chunk_index', chunkIndex);
-              formData.append('total_chunks', failedChunks.length);
-              formData.append('total_files', chunk.length);
+            formData.append('client_id', clientID);
+            formData.append('batch_id', batchId);
+            formData.append('chunk_index', chunkIndex);
+            formData.append('total_chunks', failedChunks.length);
+            formData.append('total_files', chunk.length);
 
-              const response = await axios.post(
-                `${API_BASE_URL}/api/check-logo/batch/${batchId}/retry-chunk`,
-                formData,
-                {
-                  headers: {
-                    'Content-Type': 'multipart/form-data',
-                  },
-                }
-              );
-
-              if (response.data.chunk_status === 'error') {
-                throw new Error(response.data.message || 'Chunk retry failed');
+            const response = await axios.post(
+              `${API_BASE_URL}/api/check-logo/batch/${batchId}/retry-chunk`,
+              formData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                },
               }
+            );
 
-              chunk.forEach(file => {
-                setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
-              });
+            if (response.data.chunk_status === 'error') {
+              throw new Error(response.data.message || 'Chunk retry failed');
+            }
 
-              const results = response.data.results || [];
-              results.forEach((result, idx) => {
-                const file = chunk[idx];
-                if (file) {
-                  if (result.Is_Valid === "Valid") {
-                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "valid" }));
-                  } else {
-                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "invalid" }));
-                  }
+            chunk.forEach(file => {
+              setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
+            });
+
+            const results = response.data.results || [];
+            results.forEach((result, idx) => {
+              const file = chunk[idx];
+              if (file) {
+                if (result.Is_Valid === "Valid") {
+                  setUploadStatuses((prev) => ({ ...prev, [file.name]: "valid" }));
+                } else {
+                  setUploadStatuses((prev) => ({ ...prev, [file.name]: "invalid" }));
                 }
-              });
+              }
+            });
 
-              return results;
-            }, 3, 1000, chunkIndex);
-          }
+            return results;
+          }, 3, 1000, chunkIndex);
+        }
         : async (chunk, chunkIndex) => {
-            return await retryWithBackoff(async () => {
-              chunk.forEach(url => {
-                setUploadStatuses((prev) => ({ ...prev, [url]: "uploading" }));
-              });
+          return await retryWithBackoff(async () => {
+            chunk.forEach(url => {
+              setUploadStatuses((prev) => ({ ...prev, [url]: "uploading" }));
+            });
 
-              const data = {
-                image_paths: chunk.map(url => url.trim()),
-                batch_id: batchId,
-                chunk_index: chunkIndex,
-                total_chunks: failedChunks.length,
-                total_files: chunk.length,
-                client_id: getClientId()
-              };
+            const data = {
+              image_paths: chunk.map(url => url.trim()),
+              batch_id: batchId,
+              chunk_index: chunkIndex,
+              total_chunks: failedChunks.length,
+              total_files: chunk.length,
+              client_id: clientID
+            };
 
-              const response = await axios.post(
-                `${API_BASE_URL}/api/check-logo/batch/${batchId}/retry-chunk`,
-                JSON.stringify(data),
-                {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                  },
-                }
-              );
-
-              if (response.data.chunk_status === 'error') {
-                chunk.forEach(url => {
-                  setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
-                });
-                throw new Error(response.data.message || 'Chunk retry failed');
+            const response = await axios.post(
+              `${API_BASE_URL}/api/check-logo/batch/${batchId}/retry-chunk`,
+              JSON.stringify(data),
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                },
               }
+            );
 
+            if (response.data.chunk_status === 'error') {
               chunk.forEach(url => {
-                setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
+                setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
               });
+              throw new Error(response.data.message || 'Chunk retry failed');
+            }
 
-              const results = response.data.results || [];
-              results.forEach((result, idx) => {
-                const url = chunk[idx];
-                if (url) {
-                  if (result.Is_Valid === "Valid") {
-                    setUploadStatuses((prev) => ({ ...prev, [url]: "valid" }));
-                  } else {
-                    setUploadStatuses((prev) => ({ ...prev, [url]: "invalid" }));
-                  }
+            chunk.forEach(url => {
+              setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
+            });
+
+            const results = response.data.results || [];
+            results.forEach((result, idx) => {
+              const url = chunk[idx];
+              if (url) {
+                if (result.Is_Valid === "Valid") {
+                  setUploadStatuses((prev) => ({ ...prev, [url]: "valid" }));
+                } else {
+                  setUploadStatuses((prev) => ({ ...prev, [url]: "invalid" }));
                 }
-              });
+              }
+            });
 
-              return response.data.results || [];
-            }, 3, 1000, chunkIndex);
-          };
+            return response.data.results || [];
+          }, 3, 1000, chunkIndex);
+        };
 
       const { results: retryResults, failedChunks: stillFailedChunks } = await retryFailedChunks(
         failedChunks,
@@ -750,17 +754,31 @@ const FileUploader = ({ onFilesSelected }) => {
     }
   };
 
+  const initializeBatchTracking = async (batchId, clientId, total) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/init-batch`, {
+        batch_id: batchId,
+        client_id: clientId,
+        total: total
+      });
+      console.log('Batch tracking initialized');
+    } catch (error) {
+      console.error('Error initializing batch tracking:', error);
+      throw error;
+    }
+  };
+
   const handleStartBatch = async () => {
     try {
       const formData = new FormData();
-      
+
       // Add email if provided
       if (emailNotification.trim()) {
         formData.append('email', emailNotification.trim());
       }
-      const clientId = getClientId();
-      formData.append('client_id', clientId);
-      
+      // const clientId = getClientId();
+      formData.append('client_id', clientID);
+
       const response = await axios.post(`${API_BASE_URL}/api/start-batch`, formData);
       setBatchId(response.data.batch_id);
       return response.data.batch_id;
@@ -772,6 +790,93 @@ const FileUploader = ({ onFilesSelected }) => {
   };
 
   const renderPreview = () => {
+    const commonGridImageBox = (src, index, name, statusKey) => (
+      <Box
+        key={index}
+        sx={{
+          position: 'relative',
+          paddingTop: '75%', // 4:3 aspect ratio
+          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          borderRadius: 1,
+          overflow: 'hidden',
+          border: `1px solid ${symphonyBlue}20`,
+        }}
+      >
+        {src ? (
+          <img
+            src={src}
+            alt={`Preview ${index + 1}`}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+            }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'data:image/svg+xml;base64,...'; // Placeholder fallback
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.9rem',
+              color: 'text.secondary',
+              fontStyle: 'italic',
+            }}
+          >
+            No preview available
+          </Box>
+        )}
+
+        {/* Status badge */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            borderRadius: '4px',
+            padding: '2px 4px',
+          }}
+        >
+          <UploadStatus status={uploadStatuses[statusKey]} />
+        </Box>
+
+        {/* Caption */}
+        {name && (
+          <Typography
+            variant="caption"
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              padding: '4px',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              textAlign: 'center',
+              borderTop: `1px solid ${symphonyBlue}20`,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {name}
+          </Typography>
+        )}
+      </Box>
+    );
+
     if (inputMethod === 'upload') {
       if (mode === 'single' && preview) {
         return (
@@ -801,51 +906,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 <ImageIcon sx={{ fontSize: 20 }} />
                 Preview
               </Typography>
-              <Box
-                sx={{
-                  p: 2,
-                  flex: 1,
-                  overflow: 'auto'
-                }}
-              >
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'white',
-                    borderRadius: 1,
-                    border: `1px solid ${symphonyBlue}20`,
-                  }}
-                >
-                  <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                      }}
-                    />
-                    {files.length > 0 && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                          borderRadius: '4px',
-                          padding: '2px 4px',
-                        }}
-                      >
-                        <UploadStatus status={uploadStatuses[files[0].name]} />
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
+              <Box sx={{ p: 2, flex: 1, overflow: 'auto' }}>
+                {commonGridImageBox(preview, 0, files[0]?.name, files[0]?.name)}
               </Box>
             </Paper>
           </Box>
@@ -858,7 +920,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 backgroundColor: symphonyLightBlue,
                 borderRadius: 2,
                 border: `1px solid ${symphonyBlue}20`,
-                height: { xs: '300px', sm: '400px' },
+                maxHeight: { xs: '80vh', sm: '600px' },
+                overflow: 'auto',
                 display: 'flex',
                 flexDirection: 'column'
               }}
@@ -881,69 +944,14 @@ const FileUploader = ({ onFilesSelected }) => {
               <Box
                 sx={{
                   p: 2,
-                  flex: 1,
-                  overflow: 'auto'
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                  gap: 2
                 }}
               >
-                <Grid container spacing={2}>
-                  {previews.map((preview, index) => (
-                    <Grid xs={6} sm={4} md={3} key={index}>
-                      <Paper
-                        elevation={1}
-                        sx={{
-                          height: { xs: 120, sm: 150 },
-                          position: 'relative',
-                          overflow: 'hidden',
-                          borderRadius: 1,
-                          backgroundColor: 'white',
-                          border: `1px solid ${symphonyBlue}20`,
-                        }}
-                      >
-                        <img
-                          src={preview.url}
-                          alt={`Preview ${index + 1}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                          }}
-                        />
-                        <Box>
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              position: 'absolute',
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              padding: '4px',
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                              textAlign: 'center',
-                              borderTop: `1px solid ${symphonyBlue}20`,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {preview.name}
-                          </Typography>
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              top: 4,
-                              right: 4,
-                              backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                              borderRadius: '4px',
-                              padding: '2px 4px',
-                            }}
-                          >
-                            <UploadStatus status={uploadStatuses[preview.name]} />
-                          </Box>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
+                {previews.map((preview, index) =>
+                  commonGridImageBox(preview.url, index, preview.name, preview.name)
+                )}
               </Box>
             </Paper>
           </Box>
@@ -978,55 +986,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 <ImageIcon sx={{ fontSize: 20 }} />
                 URL Preview
               </Typography>
-              <Box
-                sx={{
-                  p: 2,
-                  flex: 1,
-                  overflow: 'auto'
-                }}
-              >
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'white',
-                    borderRadius: 1,
-                    border: `1px solid ${symphonyBlue}20`,
-                  }}
-                >
-                  <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-                    <img
-                      src={imageUrl}
-                      alt="URL Preview"
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                      }}
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxsaW5lIHgxPSIxOCIgeTE9IjYiIHgyPSI2IiB5Mj0iMTgiPjwvbGluZT48bGluZSB4MT0iNiIgeTE9IjYiIHgyPSIxOCIgeTI9IjE4Ij48L2xpbmU+PC9zdmc+';
-                      }}
-                    />
-                    {imageUrl && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                          borderRadius: '4px',
-                          padding: '2px 4px',
-                        }}
-                      >
-                        <UploadStatus status={uploadStatuses[imageUrl]} />
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
+              <Box sx={{ p: 2, flex: 1, overflow: 'auto' }}>
+                {commonGridImageBox(imageUrl, 0, imageUrl, imageUrl)}
               </Box>
             </Paper>
           </Box>
@@ -1041,8 +1002,8 @@ const FileUploader = ({ onFilesSelected }) => {
                   backgroundColor: symphonyLightBlue,
                   borderRadius: 2,
                   border: `1px solid ${symphonyBlue}20`,
-                  minHeight: { xs: '200px', sm: '400px' },
                   maxHeight: { xs: '80vh', sm: '600px' },
+                  overflow: 'auto',
                   display: 'flex',
                   flexDirection: 'column'
                 }}
@@ -1054,67 +1015,25 @@ const FileUploader = ({ onFilesSelected }) => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1,
-                    p: { xs: 1.5, sm: 2 },
+                    p: 2,
                     borderBottom: `1px solid ${symphonyBlue}20`,
                     backgroundColor: symphonyLightBlue,
                   }}
                 >
-                  <ImageIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                  <ImageIcon sx={{ fontSize: 20 }} />
                   URL Previews ({urls.length} images)
                 </Typography>
                 <Box
                   sx={{
-                    p: { xs: 1.5, sm: 2 },
-                    flex: 1,
-                    overflow: 'auto',
+                    p: 2,
                     display: 'grid',
                     gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                    gap: { xs: 1.5, sm: 2 }
+                    gap: 2
                   }}
                 >
-                  {urls.map((url, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        position: 'relative',
-                        paddingTop: '75%',
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                        borderRadius: 1,
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <>
-                        <img
-                          src={url}
-                          alt={`Preview ${index + 1}`}
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain'
-                          }}
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'placeholder-image.png';
-                          }}
-                        />
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                            borderRadius: '4px',
-                            padding: '2px 4px',
-                          }}
-                        >
-                          <UploadStatus status={uploadStatuses[url]} />
-                        </Box>
-                      </>
-                    </Box>
-                  ))}
+                  {urls.map((url, index) =>
+                    commonGridImageBox(url, index, url, url)
+                  )}
                 </Box>
               </Paper>
             </Box>
@@ -1122,6 +1041,7 @@ const FileUploader = ({ onFilesSelected }) => {
         }
       }
     }
+
     return null;
   };
 
@@ -1473,16 +1393,10 @@ const FileUploader = ({ onFilesSelected }) => {
             🔄 Retrying Failed Chunks
           </Typography>
         )}
-        
+
         <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
           {isRetry ? progress.retryProgress : `Processing images: ${progress.processedImages} / ${progress.totalImages}`}
         </Typography>
-        
-        {!isRetry && (
-          <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-            Chunk: {progress.currentChunk} / {progress.totalChunks}
-          </Typography>
-        )}
 
         {/* Time information with larger text */}
         {!isRetry && (
@@ -2043,11 +1957,11 @@ const FileUploader = ({ onFilesSelected }) => {
                   maxWidth: '400px',
                   mx: 'auto'
                 }}>
-                  <EmailInput 
+                  <EmailInput
                     email={emailNotification}
                     setEmail={setEmailNotification}
                   />
-                  
+
                   <Typography
                     variant="subtitle1"
                     sx={{
@@ -2229,7 +2143,7 @@ const FileUploader = ({ onFilesSelected }) => {
                 >
                   Export Results to CSV
                 </Button>
-                
+
                 {failedChunks.length > 0 && (
                   <Button
                     variant="outlined"

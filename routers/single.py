@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from starlette.requests import Request
 from models.logo_check import LogoCheckResult, SingleImageUrlRequest
 from utils.file_ops import is_valid_image, save_temp_file
-from detect_logo import check_logo
+from services.yolo_client import yolo_client
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from PIL import UnidentifiedImageError
@@ -49,8 +49,10 @@ async def check_logo_single(
 
             file_location = ""
             try:
-                file_location = save_temp_file(file)
-                result = check_logo(file_location)
+                file_content = await file.read()
+                result = await yolo_client.check_logo(
+                    file_data=file_content, filename=file.filename
+                )
                 return LogoCheckResult(**result)
             except (ValueError, IOError) as e:
                 raise HTTPException(status_code=400, detail=str(e))
@@ -59,16 +61,10 @@ async def check_logo_single(
                 raise HTTPException(
                     status_code=500, detail=f"Error processing file: {str(e)}"
                 )
-            finally:
-                if file_location and os.path.exists(file_location):
-                    try:
-                        os.remove(file_location)
-                    except Exception as e:
-                        logger.error(f"Error removing temporary file: {str(e)}")
 
         elif image_path:
             try:
-                result = check_logo(image_path)
+                result = await yolo_client.check_logo(image_path=image_path)
                 return LogoCheckResult(**result)
             except UnidentifiedImageError as e:
                 raise HTTPException(
@@ -111,7 +107,7 @@ async def check_logo_single_url(request: Request, image_request: SingleImageUrlR
     - Error message (if any)
     """
     try:
-        result = check_logo(str(image_request.image_path))
+        result = await yolo_client.check_logo(image_path=str(image_request.image_path))
         return LogoCheckResult(**result)
     except UnidentifiedImageError as e:
         raise HTTPException(status_code=400, detail="Invalid or inaccessible image URL")

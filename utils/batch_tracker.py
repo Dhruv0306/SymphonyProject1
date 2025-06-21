@@ -22,6 +22,7 @@ def init_batch(batch_id: str, total: int):
         "valid": 0,
         "invalid": 0,
         "done": False,
+        "complete_sent": False,
     }
     asyncio.create_task(auto_expire_batch(batch_id))
 
@@ -48,7 +49,19 @@ async def mark_done(batch_id: str) -> Dict:
     async with _batch_locks[batch_id]:
         progress = _batch_data[batch_id]
         progress["done"] = True
+        progress["complete_sent"] = True
         return dict(progress)
+
+
+def is_complete_sent(batch_id: str) -> bool:
+    """Check if complete event was already sent"""
+    return _batch_data.get(batch_id, {}).get("complete_sent", False)
+
+
+async def mark_complete_sent(batch_id: str):
+    """Mark complete event as sent"""
+    async with _batch_locks[batch_id]:
+        _batch_data[batch_id]["complete_sent"] = True
 
 
 async def auto_expire_batch(batch_id: str, timeout: int = 3600):

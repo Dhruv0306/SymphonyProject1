@@ -219,10 +219,15 @@ class BatchStatusResponse(BaseModel):
         description="Current status of the batch (pending, processing, completed, failed)",
         example="completed",
     )
-    progress: Optional[Dict] = Field(
-        None,
-        description="Progress information if available",
-        example={"total": 100, "processed": 45, "percent_complete": 45.0},
+    counts: Dict = Field(
+        ...,
+        description="Count information",
+        example={"valid": 10, "invalid": 5, "total": 15},
+    )
+    progress: float = Field(
+        ...,
+        description="Progress percentage (0.0 to 100.0)",
+        example=75.0,
     )
 
     class Config:

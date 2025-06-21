@@ -30,6 +30,23 @@ def setup_test_images():
 
 
 def test_batch_multiple_files(setup_test_images):
+    # Step 1: Start batch
+    batch_response = client.post("/api/start-batch")
+    assert batch_response.status_code == 201
+    batch_id = batch_response.json()["batch_id"]
+
+    # Step 2: Initialize batch with total count
+    init_response = client.post(
+        "/api/init-batch",
+        json={
+            "batch_id": batch_id,
+            "client_id": "test_client",
+            "total": len(setup_test_images),
+        },
+    )
+    assert init_response.status_code == 200
+
+    # Step 3: Upload files
     files = []
     file_handles = []
 
@@ -39,49 +56,137 @@ def test_batch_multiple_files(setup_test_images):
         files.append(("files", (img_name, img_file, "image/jpeg")))
 
     try:
-        response = client.post("/api/check-logo/batch/", files=files)
+        response = client.post(
+            "/api/check-logo/batch/", files=files, data={"batch_id": batch_id}
+        )
         assert response.status_code == 200
         result = response.json()
         assert "batch_id" in result
-        assert "total_processed" in result
-        assert "results" in result
-        assert isinstance(result["results"], list)
-        assert len(result["results"]) == len(setup_test_images)
-        for item in result["results"]:
-            assert "Is_Valid" in item
-            assert item["Is_Valid"] in ["Valid", "Invalid"]
+        assert "message" in result
+        assert result["status"] == "processing"
     finally:
-        # Close files in finally block
         for fh in file_handles:
             fh.close()
 
 
-def test_batch_no_files():
-    response = client.post("/api/check-logo/batch/")
+def test_batch_status():
+    # Start and initialize batch
+    batch_response = client.post("/api/start-batch")
+    batch_id = batch_response.json()["batch_id"]
+
+    client.post(
+        "/api/init-batch",
+        json={"batch_id": batch_id, "client_id": "test_client", "total": 5},
+    )
+
+    # Check status
+    status_response = client.get(f"/api/check-logo/batch/{batch_id}/status")
+    assert status_response.status_code == 200
+    result = status_response.json()
+    assert "batch_id" in result
+    assert "status" in result
+    assert "counts" in result
+    assert "progress" in result
+
+
+def test_batch_invalid_id():
+    fake_batch_id = "non-existent-batch-id"
+
+    # Test status with invalid ID
+    status_response = client.get(f"/api/check-logo/batch/{fake_batch_id}/status")
+    assert status_response.status_code == 404
+    assert "not found" in status_response.json()["detail"]
+
+    # Test processing with invalid ID - API checks files first
+    process_response = client.post(
+        "/api/check-logo/batch/", data={"batch_id": fake_batch_id}
+    )
+    assert process_response.status_code == 400
+    assert "Files or URLs required" in process_response.json()["detail"]
+
+
+def test_batch_with_urls():
+    # Start and initialize batch
+    batch_response = client.post("/api/start-batch")
+    batch_id = batch_response.json()["batch_id"]
+
+    client.post(
+        "/api/init-batch",
+        json={"batch_id": batch_id, "client_id": "test_client", "total": 2},
+    )
+
+    # Process with URLs
+    url_payload = {
+        "batch_id": batch_id,
+        "image_paths": [
+            "https://example.com/image1.jpg",
+            "https://example.com/image2.jpg",
+        ],
+    }
+
+    response = client.post("/api/check-logo/batch/", json=url_payload)
     assert response.status_code == 200
     result = response.json()
-    assert result["total_processed"] == 0
-    assert result["valid_count"] == 0
-    assert result["invalid_count"] == 0
-    assert len(result["results"]) == 0
+    assert "batch_id" in result
+    assert "message" in result
+    assert result["status"] == "processing"
+
+
+def test_batch_no_files():
+    # Step 1: Start batch
+    batch_response = client.post("/api/start-batch")
+    assert batch_response.status_code == 201
+    batch_id = batch_response.json()["batch_id"]
+
+    # Step 2: Try to process without files or URLs
+    response = client.post("/api/check-logo/batch/", data={"batch_id": batch_id})
+    assert response.status_code == 400
+    assert "Files or URLs required" in response.json()["detail"]
 
 
 def test_batch_single_file(setup_test_images):
+    # Step 1: Start batch
+    batch_response = client.post("/api/start-batch")
+    assert batch_response.status_code == 201
+    batch_id = batch_response.json()["batch_id"]
+
+    # Step 2: Initialize batch
+    init_response = client.post(
+        "/api/init-batch",
+        json={"batch_id": batch_id, "client_id": "test_client", "total": 1},
+    )
+    assert init_response.status_code == 200
+
+    # Step 3: Upload single file
     img_file = open(f"tests/test_images/{setup_test_images[0]}", "rb")
     try:
         files = [("files", (setup_test_images[0], img_file, "image/jpeg"))]
-        response = client.post("/api/check-logo/batch/", files=files)
+        response = client.post(
+            "/api/check-logo/batch/", files=files, data={"batch_id": batch_id}
+        )
         assert response.status_code == 200
         result = response.json()
         assert "batch_id" in result
-        assert result["total_processed"] == 1
-        assert len(result["results"]) == 1
-        assert result["results"][0]["Is_Valid"] in ["Valid", "Invalid"]
+        assert "message" in result
+        assert result["status"] == "processing"
     finally:
         img_file.close()
 
 
 def test_batch_mixed_valid_invalid_files(setup_test_images):
+    # Step 1: Start batch
+    batch_response = client.post("/api/start-batch")
+    assert batch_response.status_code == 201
+    batch_id = batch_response.json()["batch_id"]
+
+    # Step 2: Initialize batch
+    init_response = client.post(
+        "/api/init-batch",
+        json={"batch_id": batch_id, "client_id": "test_client", "total": 2},
+    )
+    assert init_response.status_code == 200
+
+    # Step 3: Prepare files
     files = []
     file_handles = []
 
@@ -99,17 +204,14 @@ def test_batch_mixed_valid_invalid_files(setup_test_images):
     files.append(("files", ("invalid.txt", txt_file, "text/plain")))
 
     try:
-        response = client.post("/api/check-logo/batch/", files=files)
+        response = client.post(
+            "/api/check-logo/batch/", files=files, data={"batch_id": batch_id}
+        )
         assert response.status_code == 200
         result = response.json()
         assert "batch_id" in result
-        assert result["total_processed"] == 2
-        assert len(result["results"]) == 2
-        # Check that one file is processed as invalid due to being a text file
-        assert any(
-            r["Is_Valid"] == "Invalid" and "invalid.txt" in r["Image_Path_or_URL"]
-            for r in result["results"]
-        )
+        assert "message" in result
+        assert result["status"] == "processing"
     finally:
         for fh in file_handles:
             fh.close()

@@ -16,7 +16,16 @@ from models.logo_check import (
     BatchStartResponse,
     BatchStatusResponse,
 )
-from detect_logo import check_logo
+from pydantic import BaseModel
+
+
+class InitBatchRequest(BaseModel):
+    batch_id: str
+    client_id: str
+    total: int
+
+
+from services.yolo_client import yolo_client
 from utils.file_ops import UPLOAD_DIR
 from utils.ws_manager import ConnectionManager
 from utils.emailer import send_batch_summary_email
@@ -28,7 +37,10 @@ from utils.batch_tracker import (
     get_progress,
 )
 from utils.websocket import broadcast_json
+from utils.background_tasks import process_batch_background
+from utils.batch_tracker import init_batch
 import sys
+import asyncio
 
 
 # Function to check token validity without circular imports
@@ -84,6 +96,40 @@ router = APIRouter(
         },
     },
 )
+
+
+@router.post(
+    "/init-batch",
+    summary="Initialize batch tracking",
+    response_description="Batch tracking initialized",
+)
+async def init_batch_endpoint(payload: InitBatchRequest):
+    """Initialize batch tracking with total count before uploading chunks"""
+    try:
+        init_batch(payload.batch_id, payload.total)
+
+        # Update metadata.json with the correct total count
+        batch_dir = os.path.join("exports", payload.batch_id)
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as f:
+                metadata = json.load(f)
+
+            metadata["counts"]["total"] = payload.total
+            metadata["status"] = "processing"
+
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f)
+
+        return {
+            "message": "Batch initialized",
+            "batch_id": payload.batch_id,
+            "total": payload.total,
+        }
+    except Exception as e:
+        logger.error(f"Error initializing batch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post(
@@ -181,9 +227,8 @@ async def start_batch(
 
 @router.post(
     "/check-logo/batch/",
-    response_model=BatchProcessingResponse,
-    summary="Process multiple images for logo detection",
-    response_description="Batch processing results with individual detection results",
+    summary="Start batch processing (returns immediately)",
+    response_description="Batch started confirmation",
     responses={
         200: {
             "description": "Successfully processed batch",
@@ -232,7 +277,7 @@ async def start_batch(
         },
     },
 )
-@limiter.limit("20/minute")
+@limiter.limit("60/minute")
 async def check_logo_batch(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -255,390 +300,92 @@ async def check_logo_batch(
     ),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
-    """
-    Process multiple images for logo detection.
-
-    This endpoint supports two modes of operation:
-    1. File Upload Mode:
-       - Submit images as multipart/form-data
-       - Use the 'files' parameter to upload multiple images
-       - Optionally include a batch_id for progress tracking
-
-    2. URL Processing Mode:
-       - Submit a JSON request with image URLs
-       - Use the 'image_paths' parameter with a list of URLs
-       - Optionally include a batch_id for progress tracking
-
-    Rate Limiting:
-    - 20 requests per minute
-    - Automatic retry with exponential backoff
-    - Progress tracking available through batch_id
-
-    Args:
-        request: The incoming request
-        files: List of image files (for multipart/form-data)
-        batch_id: Optional tracking ID (for multipart/form-data)
-        batch_request: JSON request body (for URL processing)
-
-    Returns:
-        BatchProcessingResponse: Processing results including:
-            - batch_id: Unique identifier (if provided)
-            - total_processed: Number of images processed
-            - valid_count: Number of valid logos detected
-            - invalid_count: Number of invalid or failed detections
-            - results: List of individual detection results
-
-    Raises:
-        HTTPException:
-            - 400: Invalid request format
-            - 429: Rate limit exceeded
-            - 500: Server processing error
-    """
-    results = []
-    valid_count = 0
-    invalid_count = 0
-
+    """Start batch processing - returns immediately with batch_id for WebSocket tracking"""
     try:
-        # Log request details
         content_type = request.headers.get("content-type", "")
-        logger.info(f"Received batch request with content-type: {content_type}")
 
-        # Handle JSON request for URLs
+        # Handle JSON URLs
         if "application/json" in content_type:
             if not batch_request:
                 raw_body = await request.json()
-                logger.info(f"Processing JSON request: {raw_body}")
-                try:
-                    batch_request = BatchUrlRequest(**raw_body)
-                except Exception as e:
-                    logger.error(f"Failed to parse JSON request: {str(e)}")
-                    raise HTTPException(
-                        status_code=400, detail=f"Invalid request format: {str(e)}"
-                    )
+                batch_request = BatchUrlRequest(**raw_body)
 
             if not batch_request.image_paths:
                 raise HTTPException(status_code=400, detail="No image URLs provided")
 
-            logger.info(f"Processing {len(batch_request.image_paths)} URLs")
             batch_id = batch_request.batch_id
-            chunk_index = getattr(batch_request, "chunk_index", None)
-            total_chunks = getattr(batch_request, "total_chunks", None)
-            total_files = getattr(batch_request, "total_files", None)
             client_id = getattr(batch_request, "client_id", None)
-
-        # Get batch_id and email from either form data or JSON request
-        batch_id = batch_id or (batch_request.batch_id if batch_request else None)
-        email = email or (
-            batch_request.email
-            if batch_request and hasattr(batch_request, "email")
-            else None
-        )
-        logger.info(f"Using batch_id: {batch_id}")
-        if email:
-            logger.info(f"Email notification will be sent to: {email}")
-
-        # Validate and setup batch tracking if batch_id provided
-        metadata = None
-        csv_writer = None
-        csv_file = None
-
-        if batch_id:
+            # Validate batch exists
             batch_dir = os.path.join("exports", batch_id)
-            metadata_path = os.path.join(batch_dir, "metadata.json")
-            if not os.path.exists(metadata_path):
+            if not os.path.exists(os.path.join(batch_dir, "metadata.json")):
                 raise HTTPException(
                     status_code=400, detail=f"Invalid batch_id: {batch_id}"
                 )
 
-            with open(metadata_path, "r") as f:
-                metadata = json.load(f)
+            # Batch should already be initialized via /init-batch
 
-            # Update email in metadata if provided in this request
-            if email and not metadata.get("email"):
-                metadata["email"] = email
-
-            csv_path = metadata["csv_path"]
-            csv_file = open(csv_path, "a", newline="")
-            csv_writer = csv.DictWriter(
-                csv_file,
-                fieldnames=[
-                    "Image_Path_or_URL",
-                    "Is_Valid",
-                    "Confidence",
-                    "Detected_By",
-                    "Bounding_Box",
-                    "Error",
-                ],
+            # Start background processing
+            asyncio.create_task(
+                process_batch_background(
+                    batch_id=batch_id,
+                    image_urls=batch_request.image_paths,
+                    client_id=client_id,
+                )
             )
 
-        try:
-            # Handle uploaded files
-            if files:
-                logger.info(f"Processing {len(files)} uploaded files")
+            return {
+                "batch_id": batch_id,
+                "message": "Batch processing started",
+                "status": "processing",
+            }
 
-                # Initialize batch tracking only on first chunk
-                if batch_id and chunk_index == 0:
-                    init_batch(batch_id, total_files or len(files))
+        # Handle file uploads
+        elif files:
+            if not batch_id:
+                raise HTTPException(status_code=400, detail="batch_id required")
 
-                for file in tqdm(files, desc="Processing uploaded files"):
-                    try:
-                        temp_file_path = os.path.join(
-                            UPLOAD_DIR, f"temp_{file.filename}"
-                        )
-                        with open(temp_file_path, "wb") as buffer:
-                            file.file.seek(0)
-                            shutil.copyfileobj(file.file, buffer)
-                            file.file.seek(0)
+            # Validate batch exists
+            batch_dir = os.path.join("exports", batch_id)
+            if not os.path.exists(os.path.join(batch_dir, "metadata.json")):
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid batch_id: {batch_id}"
+                )
 
-                        result = check_logo(temp_file_path)
-                        result["Image_Path_or_URL"] = file.filename
+            # Read files
+            files_data = []
+            for file in files:
+                content = await file.read()
+                files_data.append((file.filename, content))
 
-                        # Convert to Pydantic model
-                        result_model = LogoCheckResult(**result)
-                        results.append(result_model)
+            # Batch should already be initialized via /init-batch
 
-                        # Write to CSV if tracking enabled
-                        if csv_writer:
-                            csv_writer.writerow(result_model.dict())
-
-                        if result["Is_Valid"] == "Valid":
-                            valid_count += 1
-                        else:
-                            invalid_count += 1
-
-                        if os.path.exists(temp_file_path):
-                            os.remove(temp_file_path)
-
-                        # Update centralized batch progress
-                        if batch_id:
-                            progress = await update_batch(
-                                batch_id, result["Is_Valid"] == "Valid"
-                            )
-                            progress_data = {
-                                "event": "progress",
-                                "batch_id": batch_id,
-                                "processed": progress["processed"],
-                                "total": progress["total"],
-                                "valid": progress["valid"],
-                                "invalid": progress["invalid"],
-                                "chunk_index": chunk_index,
-                                "total_chunks": total_chunks,
-                                "percentage": int(
-                                    (progress["processed"] / progress["total"]) * 100
-                                ),
-                                "current_file": file.filename,
-                                "timestamp": time.time(),
-                            }
-
-                            # Send progress to specific client
-                            if client_id:
-                                await broadcast_json(client_id, progress_data)
-
-                    except Exception as e:
-                        logger.error(f"Error processing file {file.filename}: {str(e)}")
-                        error_result = LogoCheckResult(
-                            Image_Path_or_URL=file.filename,
-                            Is_Valid="Invalid",
-                            Confidence=None,
-                            Detected_By=None,
-                            Bounding_Box=None,
-                            Error=f"Error processing file: {str(e)}",
-                        )
-                        results.append(error_result)
-                        if csv_writer:
-                            csv_writer.writerow(error_result.dict())
-                        invalid_count += 1
-
-                        # Update centralized batch progress for errors
-                        if batch_id:
-                            progress = await update_batch(batch_id, False)
-                            progress_data = {
-                                "event": "progress",
-                                "batch_id": batch_id,
-                                "processed": progress["processed"],
-                                "total": progress["total"],
-                                "valid": progress["valid"],
-                                "invalid": progress["invalid"],
-                                "chunk_index": chunk_index,
-                                "total_chunks": total_chunks,
-                                "percentage": int(
-                                    (progress["processed"] / progress["total"]) * 100
-                                ),
-                                "current_file": file.filename,
-                                "error": str(e),
-                                "timestamp": time.time(),
-                                "chunk_status": "error",
-                                "message": f"File processing failed: {str(e)}",
-                            }
-
-                            # Send progress to specific client
-                            if client_id:
-                                await broadcast_json(client_id, progress_data)
-
-            # Handle URL requests
-            if batch_request and batch_request.image_paths:
-                logger.info(f"Processing {len(batch_request.image_paths)} URLs")
-
-                # Initialize batch tracking only on first chunk
-                if batch_id and chunk_index == 0:
-                    init_batch(batch_id, total_files or len(batch_request.image_paths))
-
-                for url in tqdm(
-                    batch_request.image_paths, desc="Processing image URLs"
-                ):
-                    try:
-                        logger.info(f"Processing URL: {url}")
-                        result = check_logo(str(url))
-                        logger.info(f"URL processing result: {result}")
-
-                        result_model = LogoCheckResult(**result)
-                        results.append(result_model)
-
-                        if csv_writer:
-                            csv_writer.writerow(result_model.dict())
-
-                        if result["Is_Valid"] == "Valid":
-                            valid_count += 1
-                        else:
-                            invalid_count += 1
-
-                        # Update centralized batch progress
-                        if batch_id:
-                            progress = await update_batch(
-                                batch_id, result["Is_Valid"] == "Valid"
-                            )
-                            progress_data = {
-                                "event": "progress",
-                                "batch_id": batch_id,
-                                "processed": progress["processed"],
-                                "total": progress["total"],
-                                "valid": progress["valid"],
-                                "invalid": progress["invalid"],
-                                "chunk_index": chunk_index,
-                                "total_chunks": total_chunks,
-                                "percentage": int(
-                                    (progress["processed"] / progress["total"]) * 100
-                                ),
-                                "current_url": str(url),
-                                "timestamp": time.time(),
-                            }
-
-                            # Send progress to specific client
-                            if client_id:
-                                await broadcast_json(client_id, progress_data)
-
-                    except Exception as e:
-                        logger.error(f"Error processing URL {url}: {str(e)}")
-                        error_result = LogoCheckResult(
-                            Image_Path_or_URL=str(url),
-                            Is_Valid="Invalid",
-                            Confidence=None,
-                            Detected_By=None,
-                            Bounding_Box=None,
-                            Error=str(e),
-                        )
-                        results.append(error_result)
-                        if csv_writer:
-                            csv_writer.writerow(error_result.dict())
-                        invalid_count += 1
-
-                        # Update centralized batch progress for errors
-                        if batch_id:
-                            progress = await update_batch(batch_id, False)
-                            progress_data = {
-                                "event": "progress",
-                                "batch_id": batch_id,
-                                "processed": progress["processed"],
-                                "total": progress["total"],
-                                "valid": progress["valid"],
-                                "invalid": progress["invalid"],
-                                "chunk_index": chunk_index,
-                                "total_chunks": total_chunks,
-                                "percentage": int(
-                                    (progress["processed"] / progress["total"]) * 100
-                                ),
-                                "current_url": str(url),
-                                "error": str(e),
-                                "timestamp": time.time(),
-                                "chunk_status": "error",
-                                "message": f"URL processing failed: {str(e)}",
-                            }
-
-                            # Send progress to specific client
-                            if client_id:
-                                await broadcast_json(client_id, progress_data)
-
-            # Update batch metadata if tracking enabled
-            if batch_id and metadata:
-                metadata["counts"]["valid"] += valid_count
-                metadata["counts"]["invalid"] += invalid_count
-                metadata["counts"]["total"] += len(results)
-                metadata["status"] = "completed"
-
-                # Add completion timestamp
-                metadata["completed_at"] = time.time()
-
-                batch_dir = os.path.join("exports", batch_id)
-                metadata_path = os.path.join(batch_dir, "metadata.json")
-                with open(metadata_path, "w") as f:
-                    json.dump(metadata, f)
-
-                # Check if batch is complete and send final update
-                current_progress = get_progress(batch_id)
-                if (
-                    current_progress["processed"] == current_progress["total"]
-                    and chunk_index == total_chunks - 1
-                ):
-                    final_stats = await mark_done(batch_id)
-                    final_update = {
-                        "event": "complete",
-                        "batch_id": batch_id,
-                        "processed": final_stats["processed"],
-                        "total": final_stats["total"],
-                        "valid": final_stats["valid"],
-                        "invalid": final_stats["invalid"],
-                        "percentage": 100,
-                        "status": "completed",
-                        "timestamp": time.time(),
-                    }
-
-                    # Send completion to specific client
-                    if client_id:
-                        await broadcast_json(client_id, final_update)
-
-                    # CRITICAL: Clean up batch tracking memory
-                    clear_batch(batch_id)
-
-            if csv_file:
-                csv_file.close()
-
-            response = BatchProcessingResponse(
-                batch_id=batch_id if batch_id else str(uuid.uuid4()),
-                total_processed=len(results),
-                valid_count=valid_count,
-                invalid_count=invalid_count,
-                results=results,
+            # Start background processing
+            asyncio.create_task(
+                process_batch_background(
+                    batch_id=batch_id, files_data=files_data, client_id=client_id
+                )
             )
-            logger.info(f"Batch processing completed. Response: {response}")
-            return response
 
-        except Exception as e:
-            if csv_file:
-                csv_file.close()
-            logger.error(f"Error in batch processing: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
+            return {
+                "batch_id": batch_id,
+                "message": "Batch processing started",
+                "status": "processing",
+            }
+
+        else:
+            raise HTTPException(status_code=400, detail="Files or URLs required")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in batch processing: {str(e)}")
+        logger.error(f"Error starting batch: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post(
     "/check-logo/batch/{batch_id}/complete",
     summary="Mark batch as complete and send email notification",
-    response_description="Batch completion confirmation",
+    response_description="Batch completion confirmation with results",
 )
 async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
     """
@@ -654,11 +401,19 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
 
+        # Read results from CSV
+        results = []
+        csv_path = metadata["csv_path"]
+        if os.path.exists(csv_path):
+            with open(csv_path, "r", newline="") as csv_file:
+                reader = csv.DictReader(csv_file)
+                for row in reader:
+                    results.append(row)
+
         # Send email notification if email is provided in metadata
         if "email" in metadata and metadata["email"]:
             try:
                 email_to = metadata["email"]
-                csv_path = metadata["csv_path"]
                 valid_count = metadata["counts"]["valid"]
                 invalid_count = metadata["counts"]["invalid"]
 
@@ -678,7 +433,7 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
                 # Log error but don't fail the batch completion
                 logger.error(f"Failed to queue email notification: {str(e)}")
 
-        return {"message": "Batch completed successfully"}
+        return {"message": "Batch completed successfully", "results": results}
     except HTTPException:
         raise
     except Exception as e:

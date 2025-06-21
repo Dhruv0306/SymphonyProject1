@@ -50,8 +50,12 @@ if (hostIP !== 'localhost') {
 console.log(`   Admin Dashboard: ${localUrl}/admin/dashboard`);
 console.log(`\n🚀 Starting React app with backend: ${backendUrl}`);
 
+// Generate WebSocket URL from backend URL
+const wsUrl = backendUrl.replace(/^http/, 'ws');
+console.log(`📡 WebSocket URL: ${wsUrl}`);
+
 // Build the command to start the React app with environment variables
-const command = `cross-env REACT_APP_BACKEND_URL=${backendUrl} HOST=${hostIP} PORT=${frontendPort} react-scripts start`;
+const command = `cross-env REACT_APP_BACKEND_URL=${backendUrl} REACT_APP_WS_URL=${wsUrl} HOST=${hostIP} PORT=${frontendPort} react-scripts start`;
 console.log('Executing command:', command);
 
 // Start the React development server with the specified environment variables
