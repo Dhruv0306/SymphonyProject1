@@ -2,8 +2,25 @@
 FastAPI Application for Logo Detection Service
 
 This module initializes the FastAPI application and registers the API routers.
+It provides endpoints for logo detection in images using YOLO models, batch processing,
+and administrative functions.
+
+Key Features:
+- Single and batch image logo detection
+- Real-time WebSocket progress updates
+- Automated cleanup of temporary files
+- Rate limiting and CORS protection
+- Administrative dashboard
 """
 
+# Standard library imports
+import logging
+import asyncio
+import os
+import sys
+import json
+
+# Third-party imports
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +28,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+# Local application imports
 from utils.logger import setup_logging
 from utils.file_ops import create_upload_dir
 from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
@@ -28,13 +48,8 @@ from routers import (
     dashboard_stats,
     websocket,
 )
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import logging
-import asyncio
-import os
-import sys
 
-# Check if custom host is provided and set YOLO_SERVICE_URL
+# Configure YOLO service URL based on host argument
 if "--host" in sys.argv:
     host_index = sys.argv.index("--host")
     if host_index + 1 < len(sys.argv):
@@ -42,29 +57,37 @@ if "--host" in sys.argv:
         if host != "localhost" and host != "127.0.0.1":
             os.environ["YOLO_SERVICE_URL"] = f"http://{host}:8001"
 
-# Setup logging
+# Initialize logging
 logger = setup_logging()
 
-# Initialize FastAPI application
+# Initialize FastAPI application with metadata
 app = FastAPI(
     title="Symphony Logo Detection API",
     description="API service for detecting Symphony logos in images using YOLO models",
     version="1.0.0",
 )
 
-# Initialize rate limiter
+# Configure rate limiting to prevent abuse
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
-# Configure request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log all incoming HTTP requests and their responses"""
+    """
+    Middleware to log all HTTP requests and responses.
+
+    Args:
+        request: The incoming HTTP request
+        call_next: The next middleware handler
+
+    Returns:
+        The HTTP response
+    """
     logger.info(f"Request: {request.method} {request.url}")
 
-    # Debug cookies for admin endpoints
+    # Log cookies for admin endpoints for debugging
     if "/api/admin/" in str(request.url):
         logger.info(f"Request cookies: {request.cookies}")
 
@@ -77,7 +100,7 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# Configure CORS for cross-origin requests
+# Configure CORS middleware for frontend integration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://10.1.2.97:3000"],
@@ -95,15 +118,22 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize application resources and start scheduled tasks"""
+    """
+    Initializes application resources and starts scheduled tasks on startup.
+
+    - Creates upload directories
+    - Performs initial cleanup
+    - Starts scheduled cleanup tasks
+    - Initializes WebSocket monitoring
+    """
     try:
         print("\nStarting application initialization...")
 
-        # Create upload directory
+        # Setup file storage
         print("Creating upload directory...")
         create_upload_dir()
 
-        # Perform initial cleanup on startup
+        # Initial cleanup
         print("Starting initial cleanup process...")
         logger.info("Performing initial cleanup on startup...")
         batch_cleaned = cleanup_old_batches(max_age_hours=24)
@@ -116,18 +146,20 @@ async def startup_event():
             f"Initial cleanup completed: {batch_cleaned} batches and {temp_cleaned} temp files removed"
         )
 
-        # Initialize and start the scheduler
+        # Initialize scheduler for periodic tasks
         print("Initializing scheduler...")
         app.state.scheduler = AsyncIOScheduler()
 
-        # Add cleanup jobs
+        # Schedule periodic cleanup jobs
         app.state.scheduler.add_job(cleanup_old_batches, "interval", hours=1, args=[24])
         app.state.scheduler.add_job(
             cleanup_temp_uploads, "interval", minutes=30, args=[30]
         )
-        # Add CSRF token cleanup job
         app.state.scheduler.add_job(
             csrf_protection.clean_expired_tokens, "interval", minutes=15
+        )
+        app.state.scheduler.add_job(
+            connection_manager.cleanup_recovery_info, "interval", hours=6
         )
 
         # Start the scheduler
@@ -135,8 +167,9 @@ async def startup_event():
         print("Scheduler started successfully")
         logger.info("Scheduler started successfully")
 
-        # Start WebSocket timeout monitor
+        # Initialize WebSocket monitoring
         async def monitor_websockets():
+            """Periodically check and remove stale WebSocket connections"""
             while True:
                 connection_manager.prune_stale_connections()
                 await asyncio.sleep(30)
@@ -152,7 +185,10 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup resources on application shutdown"""
+    """
+    Performs cleanup operations when the application shuts down.
+    Ensures graceful shutdown of the scheduler and other resources.
+    """
     try:
         print("\n[DEBUG] Starting application shutdown...")
         if hasattr(app.state, "scheduler"):
@@ -167,7 +203,10 @@ async def shutdown_event():
 
 
 async def cleanup_task():
-    """Run both cleanup operations and log results"""
+    """
+    Executes periodic cleanup of temporary files and batch processing results.
+    Logs statistics about removed files.
+    """
     print("\n[DEBUG] Running scheduled cleanup task...")
     batch_cleaned = cleanup_old_batches(max_age_hours=24)
     temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
@@ -175,31 +214,72 @@ async def cleanup_task():
     print("[DEBUG] Scheduled cleanup task complete")
 
 
-# WebSocket endpoint for real-time batch progress updates
 @app.websocket("/ws/batch/{batch_id}")
 async def websocket_endpoint(websocket: WebSocket, batch_id: str):
     """
-    WebSocket endpoint for real-time batch processing updates
-
-    Args:
-        websocket: The WebSocket connection
-        batch_id: The ID of the batch to monitor
+    WebSocket endpoint for real-time batch processing updates with ping/pong and timeout.
     """
     await connection_manager.connect(batch_id, websocket)
+
+    # Track last activity for timeout (10 minutes)
+    last_activity = asyncio.get_event_loop().time()
+    timeout_seconds = 600  # 10 minutes
+
+    async def send_ping():
+        """Send ping to keep connection alive"""
+        try:
+            await websocket.send_json(
+                {"type": "ping", "timestamp": asyncio.get_event_loop().time()}
+            )
+            return True
+        except:
+            return False
+
+    async def handle_timeout():
+        """Handle connection timeout"""
+        nonlocal last_activity
+        while True:
+            await asyncio.sleep(30)  # Check every 30 seconds
+            current_time = asyncio.get_event_loop().time()
+            if current_time - last_activity > timeout_seconds:
+                logger.info(f"WebSocket timeout for batch {batch_id}")
+                await websocket.close(code=1000, reason="Timeout due to inactivity")
+                break
+
+    # Start timeout handler
+    timeout_task = asyncio.create_task(handle_timeout())
+
     try:
         while True:
-            # Keep the connection alive and wait for client messages
-            data = await websocket.receive_text()
-            # We could process client messages here if needed
+            try:
+                # Wait for message with timeout
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                last_activity = asyncio.get_event_loop().time()
+
+                # Handle pong responses
+                try:
+                    message = json.loads(data)
+                    if message.get("type") == "pong":
+                        logger.debug(f"Pong received from batch {batch_id}")
+                        continue
+                except json.JSONDecodeError:
+                    pass
+
+            except asyncio.TimeoutError:
+                # Send ping on timeout
+                if not await send_ping():
+                    break
+
     except WebSocketDisconnect:
-        # Handle disconnection
-        connection_manager.disconnect(batch_id, websocket)
+        logger.info(f"WebSocket disconnected for batch {batch_id}")
     except Exception as e:
-        logger.error(f"WebSocket error: {str(e)}")
+        logger.error(f"WebSocket error for batch {batch_id}: {str(e)}")
+    finally:
+        timeout_task.cancel()
         connection_manager.disconnect(batch_id, websocket)
 
 
-# Include routers
+# Register API routers
 app.include_router(single.router)
 app.include_router(batch.router)
 app.include_router(export.router)
@@ -211,14 +291,15 @@ app.include_router(websocket.router)
 
 @app.get("/", include_in_schema=False)
 async def root():
-    # Redirects the root URL to the API documentation for user convenience.
+    """Redirects root URL to API documentation"""
     return RedirectResponse(url="/docs")
 
 
 @app.get("/api")
 async def api_explanation():
     """
-    Provides a summary of available API endpoints and their usage.
+    Provides a comprehensive summary of available API endpoints and their usage.
+    Returns a dictionary containing endpoint descriptions and usage information.
     """
     return {
         "description": "API for validating the presence of a logo in images using YOLO-based detection.",

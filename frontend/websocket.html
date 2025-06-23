@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Batch Monitor</title>
+    <style>
+        .progress-bar { width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; }
+        .progress-fill { height: 100%; background: #4CAF50; border-radius: 10px; transition: width 0.3s; }
+        .batch-item { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .status { font-weight: bold; }
+        .connected { color: green; }
+        .disconnected { color: red; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Batch Monitor</h1>
+    
+    <div id="connection-status" class="status disconnected">Disconnected</div>
+    
+    <div>
+        <input type="text" id="batch-id" placeholder="Enter batch ID">
+        <button onclick="addBatch()">Monitor Batch</button>
+    </div>
+    
+    <div id="batches"></div>
+
+    <script>
+        class WebSocketClient {
+            constructor() {
+                this.clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+                this.ws = null;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.activeBatches = new Set();
+                this.connect();
+            }
+
+            connect() {
+                try {
+                    this.ws = new WebSocket(`ws://localhost:8000/ws/${this.clientId}`);
+                    
+                    this.ws.onopen = () => {
+                        document.getElementById('connection-status').textContent = 'Connected';
+                        document.getElementById('connection-status').className = 'status connected';
+                        this.reconnectAttempts = 0;
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.message === "reconnected" && data.recovered_batches) {
+                            data.recovered_batches.forEach(batchId => {
+                                this.activeBatches.add(batchId);
+                                this.createBatchUI(batchId);
+                            });
+                        }
+                        
+                        if (data.type === "ping") {
+                            this.ws.send(JSON.stringify({type: "pong"}));
+                        }
+                        
+                        if (data.event === "progress") {
+                            this.updateProgress(data);
+                        }
+                        
+                        if (data.event === "complete") {
+                            this.completeProgress(data);
+                        }
+                    };
+
+                    this.ws.onclose = () => {
+                        document.getElementById('connection-status').textContent = 'Disconnected';
+                        document.getElementById('connection-status').className = 'status disconnected';
+                        this.reconnect();
+                    };
+
+                } catch (error) {
+                    this.reconnect();
+                }
+            }
+
+            reconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
+                }
+            }
+
+            addBatch(batchId) {
+                this.activeBatches.add(batchId);
+                this.createBatchUI(batchId);
+            }
+
+            createBatchUI(batchId) {
+                if (document.getElementById(`batch-${batchId}`)) return;
+                
+                const batchDiv = document.createElement('div');
+                batchDiv.id = `batch-${batchId}`;
+                batchDiv.className = 'batch-item';
+                batchDiv.innerHTML = `
+                    <h3>Batch: ${batchId}</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div>Progress: <span class="progress-text">0%</span></div>
+                    <div>Valid: <span class="valid-count">0</span> | Invalid: <span class="invalid-count">0</span></div>
+                `;
+                document.getElementById('batches').appendChild(batchDiv);
+            }
+
+            updateProgress(data) {
+                const batchDiv = document.getElementById(`batch-${data.batch_id}`);
+                if (!batchDiv) return;
+                
+                batchDiv.querySelector('.progress-fill').style.width = `${data.percentage}%`;
+                batchDiv.querySelector('.progress-text').textContent = `${data.percentage}%`;
+                batchDiv.querySelector('.valid-count').textContent = data.valid;
+                batchDiv.querySelector('.invalid-count').textContent = data.invalid;
+            }
+
+            completeProgress(data) {
+                const batchDiv = document.getElementById(`batch-${data.batch_id}`);
+                if (batchDiv) {
+                    batchDiv.style.backgroundColor = '#e8f5e8';
+                    batchDiv.innerHTML += '<div style="color: green; font-weight: bold;">✓ Completed</div>';
+                }
+                this.activeBatches.delete(data.batch_id);
+            }
+
+            sendHeartbeat() {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({event: "heartbeat"}));
+                }
+            }
+        }
+
+        const wsClient = new WebSocketClient();
+        
+        // Send heartbeat every 30 seconds
+        setInterval(() => wsClient.sendHeartbeat(), 30000);
+
+        function addBatch() {
+            const batchId = document.getElementById('batch-id').value.trim();
+            if (batchId) {
+                wsClient.addBatch(batchId);
+                document.getElementById('batch-id').value = '';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -20,6 +20,10 @@ from pydantic import BaseModel
 
 
 class InitBatchRequest(BaseModel):
+    """
+    Request model for initializing a batch.
+    """
+
     batch_id: str
     client_id: str
     total: int
@@ -45,8 +49,16 @@ import asyncio
 
 # Function to check token validity without circular imports
 def check_token_valid(token: str) -> bool:
-    """Check if a token is valid by accessing the admin_auth module's valid_tokens set"""
-    # Get the admin_auth module
+    """
+    Check if a token is valid by accessing the admin_auth module's valid_tokens set.
+
+    Args:
+        token (str): The authentication token to validate.
+
+    Returns:
+        bool: True if token is valid, False otherwise.
+    """
+    # Get the admin_auth module from sys.modules to avoid circular imports
     if "routers.admin_auth" in sys.modules:
         admin_auth = sys.modules["routers.admin_auth"]
         if hasattr(admin_auth, "valid_tokens"):
@@ -72,6 +84,7 @@ from fastapi.responses import JSONResponse
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 
+# Define the FastAPI router for batch processing endpoints
 router = APIRouter(
     prefix="/api",
     tags=["Batch Processing"],
@@ -104,8 +117,17 @@ router = APIRouter(
     response_description="Batch tracking initialized",
 )
 async def init_batch_endpoint(payload: InitBatchRequest):
-    """Initialize batch tracking with total count before uploading chunks"""
+    """
+    Initialize batch tracking with total count before uploading chunks.
+
+    Args:
+        payload (InitBatchRequest): Batch initialization data.
+
+    Returns:
+        dict: Confirmation message with batch_id and total.
+    """
     try:
+        # Initialize batch in tracker
         init_batch(payload.batch_id, payload.total)
 
         # Update metadata.json with the correct total count
@@ -167,13 +189,13 @@ async def start_batch(
     Use the returned batch_id in subsequent batch processing requests.
 
     Args:
-        request: The incoming request
-        email: Optional email address for batch completion notification
+        request (Request): The incoming request.
+        client_id (Optional[str]): Client ID for associating the batch.
+        token (Optional[str]): Optional authentication token.
+        email (Optional[str]): Email for batch completion notification.
 
     Returns:
-        BatchStartResponse: Contains the batch ID and success message
-            - batch_id: Unique identifier for the batch session
-            - message: Confirmation message
+        BatchStartResponse: Contains the batch ID and success message.
     """
     try:
         # Check if token is required (for admin dashboard)
@@ -183,6 +205,7 @@ async def start_batch(
             if not valid:
                 raise HTTPException(status_code=401, detail="Authentication required")
 
+        # Generate a unique batch ID and create batch directory
         batch_id = str(uuid.uuid4())
         batch_dir = os.path.join("exports", batch_id)
         os.makedirs(batch_dir, exist_ok=True)
@@ -300,7 +323,27 @@ async def check_logo_batch(
     ),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
-    """Start batch processing - returns immediately with batch_id for WebSocket tracking"""
+    """
+    Start batch processing - returns immediately with batch_id for WebSocket tracking.
+
+    Handles both file uploads and JSON URL lists for batch processing.
+    Initiates background processing and returns a confirmation response.
+
+    Args:
+        request (Request): The incoming request.
+        background_tasks (BackgroundTasks): FastAPI background task manager.
+        files (Optional[List[UploadFile]]): List of uploaded files.
+        batch_id (Optional[str]): Batch ID for tracking.
+        email (Optional[str]): Email for notification.
+        client_id (Optional[str]): Client ID for WebSocket updates.
+        chunk_index (Optional[int]): Index of the current chunk.
+        total_chunks (Optional[int]): Total number of chunks.
+        total_files (Optional[int]): Total number of files in batch.
+        batch_request (Optional[BatchUrlRequest]): Batch request for URL processing.
+
+    Returns:
+        dict: Confirmation message with batch_id and status.
+    """
     try:
         content_type = request.headers.get("content-type", "")
 
@@ -324,7 +367,7 @@ async def check_logo_batch(
 
             # Batch should already be initialized via /init-batch
 
-            # Start background processing
+            # Start background processing for URL list
             asyncio.create_task(
                 process_batch_background(
                     batch_id=batch_id,
@@ -351,7 +394,7 @@ async def check_logo_batch(
                     status_code=400, detail=f"Invalid batch_id: {batch_id}"
                 )
 
-            # Read files
+            # Read files into memory
             files_data = []
             for file in files:
                 content = await file.read()
@@ -359,7 +402,7 @@ async def check_logo_batch(
 
             # Batch should already be initialized via /init-batch
 
-            # Start background processing
+            # Start background processing for file uploads
             asyncio.create_task(
                 process_batch_background(
                     batch_id=batch_id, files_data=files_data, client_id=client_id
@@ -389,7 +432,14 @@ async def check_logo_batch(
 )
 async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
     """
-    Mark a batch as complete and send email notification if configured
+    Mark a batch as complete and send email notification if configured.
+
+    Args:
+        batch_id (str): The batch ID to complete.
+        background_tasks (BackgroundTasks): FastAPI background task manager.
+
+    Returns:
+        dict: Confirmation message and batch results.
     """
     try:
         batch_dir = os.path.join("exports", batch_id)
@@ -451,11 +501,11 @@ async def get_batch_status(batch_id: str):
     """
     Get the current status of a batch processing job.
 
+    Args:
+        batch_id (str): The batch ID to query.
+
     Returns:
-    - Batch ID
-    - Current status
-    - Count statistics
-    - Progress percentage
+        BatchStatusResponse: Batch status, counts, and progress.
     """
     try:
         batch_dir = os.path.join("exports", batch_id)
@@ -518,15 +568,17 @@ async def retry_chunk(
     a specific chunk for retry scenarios.
 
     Args:
-        request: The incoming request
-        batch_id: The batch ID to retry chunk for
-        chunk_index: Index of the chunk to retry
-        files: List of files to retry (for file uploads)
-        client_id: Client ID for WebSocket progress updates
-        batch_request: JSON request for URL retries
+        request (Request): The incoming request.
+        batch_id (str): The batch ID to retry chunk for.
+        chunk_index (int): Index of the chunk to retry.
+        files (Optional[List[UploadFile]]): List of files to retry (for file uploads).
+        client_id (Optional[str]): Client ID for WebSocket progress updates.
+        total_chunks (Optional[int]): Total number of chunks.
+        total_files (Optional[int]): Total number of files in batch.
+        batch_request (Optional[BatchUrlRequest]): JSON request for URL retries.
 
     Returns:
-        BatchProcessingResponse: Results of the retry attempt
+        BatchProcessingResponse: Results of the retry attempt.
     """
     logger.info(f"Retrying chunk {chunk_index} for batch {batch_id}")
 

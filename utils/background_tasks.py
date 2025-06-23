@@ -8,6 +8,8 @@ from utils.batch_tracker import (
     clear_batch,
     is_complete_sent,
     mark_complete_sent,
+    start_retry_phase,
+    update_retry_progress,
 )
 from utils.websocket import broadcast_json
 import csv
@@ -15,18 +17,49 @@ import json
 import os
 import time
 
+# Configure logging for this module
 logger = logging.getLogger(__name__)
 
 
 async def process_image_async(
-    filename: str, file_data: bytes, batch_id: str, client_id: str, csv_path: str
+    filename: str,
+    file_data: bytes,
+    batch_id: str,
+    client_id: str,
+    csv_path: str,
+    failed_requests: list = None,
 ):
-    """Process single image asynchronously"""
+    """
+    Process a single image file asynchronously through the YOLO logo detection model.
+
+    Args:
+        filename (str): Name of the image file being processed
+        file_data (bytes): Raw bytes of the image file
+        batch_id (str): Unique identifier for the current batch
+        client_id (str): ID of the client to send progress updates to
+        csv_path (str): Path to CSV file for storing results
+
+    Returns:
+        dict: Detection results containing validation status and metadata
+    """
     try:
+        # Send image to YOLO model for logo detection
         result = await yolo_client.check_logo(file_data=file_data, filename=filename)
         result["Image_Path_or_URL"] = filename
 
-        # Write to CSV
+        # Check if it's a timeout error and collect for retry
+        if result.get("Is_Timeout") and failed_requests is not None:
+            failed_requests.append(
+                {
+                    "type": "file",
+                    "filename": filename,
+                    "file_data": file_data,
+                    "error": result.get("Error"),
+                }
+            )
+            return result
+
+        # Write detection results to CSV file
         with open(csv_path, "a", newline="") as csv_file:
             writer = csv.DictWriter(
                 csv_file,
@@ -41,10 +74,10 @@ async def process_image_async(
             )
             writer.writerow(result)
 
-        # Update progress
+        # Update batch progress metrics
         progress = await update_batch(batch_id, result["Is_Valid"] == "Valid")
 
-        # Send progress update
+        # Send progress update to client if client_id provided
         if client_id:
             await broadcast_json(
                 client_id,
@@ -67,17 +100,39 @@ async def process_image_async(
         return result
 
     except Exception as e:
+        # Log error and update batch with failed status
         logger.error(f"Error processing {filename}: {e}")
         await update_batch(batch_id, False)
         return {"Image_Path_or_URL": filename, "Is_Valid": "Invalid", "Error": str(e)}
 
 
-async def process_url_async(url: str, batch_id: str, client_id: str, csv_path: str):
-    """Process single URL asynchronously"""
+async def process_url_async(
+    url: str, batch_id: str, client_id: str, csv_path: str, failed_requests: list = None
+):
+    """
+    Process a single image URL asynchronously through the YOLO logo detection model.
+
+    Args:
+        url (str): URL of the image to process
+        batch_id (str): Unique identifier for the current batch
+        client_id (str): ID of the client to send progress updates to
+        csv_path (str): Path to CSV file for storing results
+
+    Returns:
+        dict: Detection results containing validation status and metadata
+    """
     try:
+        # Send image URL to YOLO model for logo detection
         result = await yolo_client.check_logo(image_path=url)
 
-        # Write to CSV
+        # Check if it's a timeout error and collect for retry
+        if result.get("Is_Timeout") and failed_requests is not None:
+            failed_requests.append(
+                {"type": "url", "url": url, "error": result.get("Error")}
+            )
+            return result
+
+        # Write detection results to CSV file
         with open(csv_path, "a", newline="") as csv_file:
             writer = csv.DictWriter(
                 csv_file,
@@ -92,10 +147,10 @@ async def process_url_async(url: str, batch_id: str, client_id: str, csv_path: s
             )
             writer.writerow(result)
 
-        # Update progress
+        # Update batch progress metrics
         progress = await update_batch(batch_id, result["Is_Valid"] == "Valid")
 
-        # Send progress update
+        # Send progress update to client if client_id provided
         if client_id:
             await broadcast_json(
                 client_id,
@@ -118,6 +173,7 @@ async def process_url_async(url: str, batch_id: str, client_id: str, csv_path: s
         return result
 
     except Exception as e:
+        # Log error and update batch with failed status
         logger.error(f"Error processing {url}: {e}")
         await update_batch(batch_id, False)
         return {"Image_Path_or_URL": url, "Is_Valid": "Invalid", "Error": str(e)}
@@ -129,9 +185,17 @@ async def process_batch_background(
     image_urls: List[str] = None,
     client_id: str = None,
 ):
-    """Process entire batch in background"""
+    """
+    Process a batch of images asynchronously in the background.
+
+    Args:
+        batch_id (str): Unique identifier for this batch
+        files_data (List[Tuple[str, bytes]], optional): List of (filename, file_data) tuples
+        image_urls (List[str], optional): List of image URLs to process
+        client_id (str, optional): ID of client to send progress updates to
+    """
     try:
-        # Get CSV path from metadata
+        # Load batch metadata to get CSV output path
         batch_dir = os.path.join("exports", batch_id)
         metadata_path = os.path.join(batch_dir, "metadata.json")
 
@@ -139,34 +203,71 @@ async def process_batch_background(
             metadata = json.load(f)
         csv_path = metadata["csv_path"]
 
-        # Process files
+        # Collect failed requests for retry
+        failed_requests = []
+
+        # Limit concurrent requests to prevent server overload
+        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent YOLO requests
+
+        async def process_with_limit(task_func, *args):
+            async with semaphore:
+                return await task_func(*args)
+
+        # Process local image files if provided
         if files_data:
             tasks = [
-                process_image_async(filename, file_data, batch_id, client_id, csv_path)
+                process_with_limit(
+                    process_image_async,
+                    filename,
+                    file_data,
+                    batch_id,
+                    client_id,
+                    csv_path,
+                    failed_requests,
+                )
                 for filename, file_data in files_data
             ]
             await asyncio.gather(*tasks)
 
-        # Process URLs
+        # Process image URLs if provided
         if image_urls:
             tasks = [
-                process_url_async(url, batch_id, client_id, csv_path)
+                process_with_limit(
+                    process_url_async,
+                    url,
+                    batch_id,
+                    client_id,
+                    csv_path,
+                    failed_requests,
+                )
                 for url in image_urls
             ]
             await asyncio.gather(*tasks)
 
-        # Check if batch is complete and send final event only once
+        # Retry failed requests if any
+        if failed_requests:
+            await retry_failed_requests(failed_requests, batch_id, client_id, csv_path)
+
+        # Check if batch processing is complete
         from utils.batch_tracker import get_progress
 
         current_progress = get_progress(batch_id)
 
-        if current_progress["processed"] >= current_progress[
-            "total"
-        ] and not is_complete_sent(batch_id):
-
+        # Handle batch completion and send final update
+        retry_complete = not current_progress.get(
+            "retry_phase"
+        ) or current_progress.get("retry_processed", 0) >= current_progress.get(
+            "retry_total", 0
+        )
+        if (
+            current_progress["processed"] >= current_progress["total"]
+            and retry_complete
+            and not is_complete_sent(batch_id)
+        ):
+            logger.info(f"Batch completion triggered - sending complete event")
             final_stats = await mark_done(batch_id)
 
-            # Update metadata.json with final counts and completion time
+            # Update metadata with final statistics
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
 
@@ -179,6 +280,7 @@ async def process_batch_background(
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f)
 
+            # Send completion event to client
             if client_id:
                 await broadcast_json(
                     client_id,
@@ -194,10 +296,11 @@ async def process_batch_background(
                         "timestamp": time.time(),
                     },
                 )
-
+            # Clean up batch tracking data
             clear_batch(batch_id)
 
     except Exception as e:
+        # Log error and notify client
         logger.error(f"Background processing error for batch {batch_id}: {e}")
         if client_id:
             await broadcast_json(
@@ -209,3 +312,103 @@ async def process_batch_background(
                     "timestamp": time.time(),
                 },
             )
+
+
+async def retry_failed_requests(
+    failed_requests: list, batch_id: str, client_id: str, csv_path: str
+):
+    """
+    Retry failed timeout requests with different settings.
+
+    Args:
+        failed_requests (list): List of failed request details
+        batch_id (str): Batch identifier
+        client_id (str): Client ID for progress updates
+        csv_path (str): Path to CSV file for results
+    """
+    if not failed_requests:
+        return
+
+    logger.info(f"Starting retry phase for {len(failed_requests)} failed requests")
+    await start_retry_phase(batch_id, len(failed_requests))
+
+    # Notify client about retry phase
+    if client_id:
+        await broadcast_json(
+            client_id,
+            {
+                "event": "retry_start",
+                "batch_id": batch_id,
+                "retry_total": len(failed_requests),
+                "timestamp": time.time(),
+            },
+        )
+
+    # Process failed requests with longer timeout
+    for request in failed_requests:
+        try:
+            if request["type"] == "file":
+                result = await yolo_client.check_logo(
+                    file_data=request["file_data"],
+                    filename=request["filename"],
+                    retries=2,  # Fewer retries for second attempt
+                )
+                result["Image_Path_or_URL"] = request["filename"]
+            else:
+                result = await yolo_client.check_logo(
+                    image_path=request["url"], retries=2
+                )
+
+            # Write result to CSV
+            with open(csv_path, "a", newline="") as csv_file:
+                writer = csv.DictWriter(
+                    csv_file,
+                    fieldnames=[
+                        "Image_Path_or_URL",
+                        "Is_Valid",
+                        "Confidence",
+                        "Detected_By",
+                        "Bounding_Box",
+                        "Error",
+                    ],
+                )
+                writer.writerow(result)
+
+            # Update retry progress
+            progress = await update_retry_progress(
+                batch_id, result["Is_Valid"] == "Valid"
+            )
+
+            # Send retry progress update
+            if client_id:
+                await broadcast_json(
+                    client_id,
+                    {
+                        "event": "progress",
+                        "batch_id": batch_id,
+                        "processed": progress["processed"],
+                        "total": progress["total"],
+                        "valid": progress["valid"],
+                        "invalid": progress["invalid"],
+                        "percentage": round(
+                            (progress["processed"] / progress["total"]) * 100, 2
+                        ),
+                        "current_item": result["Image_Path_or_URL"],
+                        "current_status": result["Is_Valid"],
+                        "timestamp": time.time(),
+                    },
+                )
+
+        except Exception as e:
+            logger.error(f"Retry failed for {request}: {e}")
+            await update_retry_progress(batch_id, False)
+
+    logger.info(f"Retry phase completed for batch {batch_id}")
+
+    # Check completion status after retry
+    from utils.batch_tracker import get_progress
+
+    final_progress = get_progress(batch_id)
+    logger.info(
+        f"Post-retry progress: processed={final_progress.get('processed')}/{final_progress.get('total')}, retry_processed={final_progress.get('retry_processed')}/{final_progress.get('retry_total')}"
+    )

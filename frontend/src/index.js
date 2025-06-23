@@ -1,15 +1,31 @@
 /**
  * Application Entry Point
+ * 
+ * This file initializes the React application, applies the custom MUI theme,
+ * and sets up performance monitoring. It also disables warnings before any
+ * other imports.
+ * 
+ * In production, ensure that:
+ * - Debugging tools and verbose logging are disabled.
+ * - reportWebVitals is configured to send metrics to your analytics endpoint.
+ * - Any development-only code is removed or guarded by environment checks.
  */
-import './disableWarnings'; // Import first to disable warnings
+
+import './disableWarnings'; // Import first to disable warnings (see disableWarnings.js for details)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import './index.css'; // Global styles
+import App from './App'; // Main application component
+import reportWebVitals from './reportWebVitals'; // Performance monitoring
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
-// Create theme with Symphony brand colors
+/**
+ * Create a custom Material-UI theme using Symphony brand colors.
+ * Adjust the palette, shape, and component overrides as needed.
+ * 
+ * In production, consider extracting theme configuration to a separate file
+ * for easier maintenance and reuse.
+ */
 const theme = createTheme({
   palette: {
     primary: {
@@ -68,10 +84,19 @@ const theme = createTheme({
   },
 });
 
-// Create root element for React application
+/**
+ * Create the root element for the React application.
+ * 
+ * In production, ensure the root element exists in your HTML template.
+ */
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-// Render the application with ThemeProvider
+/**
+ * Render the application wrapped in ThemeProvider and StrictMode.
+ * 
+ * In production, you may remove React.StrictMode for performance,
+ * but it is recommended during development for highlighting potential issues.
+ */
 root.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
@@ -80,5 +105,11 @@ root.render(
   </React.StrictMode>
 );
 
-// Initialize performance monitoring
+/**
+ * Initialize performance monitoring.
+ * 
+ * In production, configure reportWebVitals to send metrics to your analytics endpoint.
+ * Example:
+ *   reportWebVitals(metric => sendToAnalytics(metric));
+ */
 reportWebVitals();

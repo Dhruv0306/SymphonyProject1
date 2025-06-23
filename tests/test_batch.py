@@ -11,6 +11,13 @@ client = TestClient(app)
 
 @pytest.fixture(scope="function")
 def setup_test_images():
+    """
+    Pytest fixture that creates test image files and cleans them up after tests.
+
+    Creates a test directory with sample JPG images for testing batch processing.
+    Yields the list of test image filenames.
+    Cleans up the test directory after tests complete.
+    """
     # Create test directory if it doesn't exist
     os.makedirs("tests/test_images", exist_ok=True)
 
@@ -30,6 +37,17 @@ def setup_test_images():
 
 
 def test_batch_multiple_files(setup_test_images):
+    """
+    Test batch processing of multiple image files.
+
+    Tests the complete batch processing workflow:
+    1. Starting a new batch
+    2. Initializing the batch with file count
+    3. Uploading and processing multiple files
+
+    Args:
+        setup_test_images: Fixture providing test image files
+    """
     # Step 1: Start batch
     batch_response = client.post("/api/start-batch")
     assert batch_response.status_code == 201
@@ -50,6 +68,7 @@ def test_batch_multiple_files(setup_test_images):
     files = []
     file_handles = []
 
+    # Open and prepare each test image for upload
     for img_name in setup_test_images:
         img_file = open(f"tests/test_images/{img_name}", "rb")
         file_handles.append(img_file)
@@ -65,11 +84,21 @@ def test_batch_multiple_files(setup_test_images):
         assert "message" in result
         assert result["status"] == "processing"
     finally:
+        # Ensure all file handles are properly closed
         for fh in file_handles:
             fh.close()
 
 
 def test_batch_status():
+    """
+    Test retrieving batch processing status.
+
+    Verifies that batch status endpoint returns correct status information including:
+    - Batch ID
+    - Processing status
+    - Progress counts
+    - Overall progress
+    """
     # Start and initialize batch
     batch_response = client.post("/api/start-batch")
     batch_id = batch_response.json()["batch_id"]
@@ -90,6 +119,13 @@ def test_batch_status():
 
 
 def test_batch_invalid_id():
+    """
+    Test error handling for invalid batch IDs.
+
+    Verifies that appropriate error responses are returned when:
+    - Checking status of non-existent batch
+    - Attempting to process files with invalid batch ID
+    """
     fake_batch_id = "non-existent-batch-id"
 
     # Test status with invalid ID
@@ -106,6 +142,12 @@ def test_batch_invalid_id():
 
 
 def test_batch_with_urls():
+    """
+    Test batch processing using image URLs instead of file uploads.
+
+    Verifies that the batch processing endpoint correctly handles image URLs
+    and initiates processing.
+    """
     # Start and initialize batch
     batch_response = client.post("/api/start-batch")
     batch_id = batch_response.json()["batch_id"]
@@ -133,6 +175,12 @@ def test_batch_with_urls():
 
 
 def test_batch_no_files():
+    """
+    Test error handling when no files or URLs are provided.
+
+    Verifies that appropriate error response is returned when attempting
+    to process a batch without providing any files or URLs.
+    """
     # Step 1: Start batch
     batch_response = client.post("/api/start-batch")
     assert batch_response.status_code == 201
@@ -145,6 +193,15 @@ def test_batch_no_files():
 
 
 def test_batch_single_file(setup_test_images):
+    """
+    Test batch processing with a single file.
+
+    Verifies that batch processing works correctly when uploading
+    and processing just one file.
+
+    Args:
+        setup_test_images: Fixture providing test image files
+    """
     # Step 1: Start batch
     batch_response = client.post("/api/start-batch")
     assert batch_response.status_code == 201
@@ -174,6 +231,16 @@ def test_batch_single_file(setup_test_images):
 
 
 def test_batch_mixed_valid_invalid_files(setup_test_images):
+    """
+    Test batch processing with a mix of valid and invalid files.
+
+    Verifies that batch processing handles a combination of:
+    - Valid image files
+    - Invalid non-image files
+
+    Args:
+        setup_test_images: Fixture providing test image files
+    """
     # Step 1: Start batch
     batch_response = client.post("/api/start-batch")
     assert batch_response.status_code == 201

@@ -2,7 +2,16 @@
 Email Notification Utility for Batch Processing
 
 This module provides functionality to send email notifications with CSV attachments
-when batch processing jobs are completed.
+when batch processing jobs are completed. It handles email configuration, content 
+creation, and secure SMTP communication.
+
+The module requires the following environment variables to be set:
+    - SMTP_SERVER: SMTP server hostname
+    - SMTP_PORT: SMTP server port (defaults to 587)
+    - SMTP_USERNAME: SMTP authentication username 
+    - SMTP_PASSWORD: SMTP authentication password
+    - SENDER_EMAIL: Email address to send from
+    - SENDER_NAME: Display name for sender (defaults to "Symphony Logo Detection")
 """
 
 import os
@@ -16,38 +25,45 @@ from email import encoders
 from typing import Optional
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
+# Configure module logger
 logger = logging.getLogger(__name__)
 
 
 def send_batch_summary_email(
     email_to: str, batch_id: str, csv_path: str, valid_count: int, invalid_count: int
-):
+) -> bool:
     """
-    Send an email with batch processing summary and CSV attachment
+    Send an email with batch processing summary and CSV attachment.
+
+    Creates and sends an HTML email containing a summary of batch processing results,
+    including statistics on valid/invalid images and a CSV attachment with detailed results.
 
     Args:
-        email_to: The recipient's email address
-        batch_id: The ID of the completed batch
-        csv_path: Path to the CSV file to attach
-        valid_count: Number of valid images in the batch
-        invalid_count: Number of invalid images in the batch
+        email_to (str): The recipient's email address
+        batch_id (str): The ID of the completed batch job
+        csv_path (str): File system path to the CSV results file
+        valid_count (int): Number of successfully processed images
+        invalid_count (int): Number of images that failed processing
 
     Returns:
-        bool: True if the email was sent successfully, False otherwise
+        bool: True if email sent successfully, False if any errors occurred
+
+    Raises:
+        No exceptions are raised - errors are caught and logged
     """
     try:
-        # Get email configuration from environment variables
+        # Retrieve email configuration from environment variables
         smtp_server = os.getenv("SMTP_SERVER")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))  # Default to standard TLS port
         smtp_username = os.getenv("SMTP_USERNAME")
         smtp_password = os.getenv("SMTP_PASSWORD")
         sender_email = os.getenv("SENDER_EMAIL")
         sender_name = os.getenv("SENDER_NAME", "Symphony Logo Detection")
 
-        # Check if SMTP credentials are configured
+        # Validate required SMTP credentials are configured
         if (
             not smtp_server
             or not smtp_username
@@ -59,17 +75,17 @@ def send_batch_summary_email(
             )
             return False
 
-        # Create the email message
+        # Initialize multipart MIME email message
         msg = MIMEMultipart()
         msg["Subject"] = f"Batch {batch_id} Processing Summary"
         msg["From"] = f"{sender_name} <{sender_email}>"
         msg["To"] = email_to
 
-        # Calculate statistics
+        # Calculate batch processing statistics
         total_images = valid_count + invalid_count
         valid_percentage = (valid_count / total_images * 100) if total_images > 0 else 0
 
-        # Create the email content
+        # Generate HTML email content with styling
         email_content = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6;">
@@ -97,16 +113,16 @@ def send_batch_summary_email(
         </html>
         """
 
-        # Set the HTML content
+        # Add HTML content to email message
         msg.attach(MIMEText(email_content, "html"))
 
-        # Attach the CSV file
+        # Attach CSV results file if it exists
         if os.path.exists(csv_path):
             with open(csv_path, "rb") as attachment:
                 part = MIMEBase("application", "octet-stream")
                 part.set_payload(attachment.read())
 
-            # Encode and add header
+            # Base64 encode attachment and set filename
             encoders.encode_base64(part)
             part.add_header(
                 "Content-Disposition",
@@ -116,9 +132,12 @@ def send_batch_summary_email(
         else:
             logger.warning(f"CSV file not found at {csv_path}")
 
-        # Send the email
+        # Establish secure SMTP connection and send email
         with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
+            server.starttls()  # Enable TLS encryption
+            logger.info(
+                "Connecting to SMTP server... : %s : %s", smtp_server, smtp_port
+            )
             server.login(smtp_username, smtp_password)
             server.send_message(msg)
 
