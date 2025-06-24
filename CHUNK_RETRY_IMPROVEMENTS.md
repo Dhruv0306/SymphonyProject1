@@ -1,5 +1,12 @@
 # Chunk Failure Handling & Retry Logic Implementation
 
+## 🏗️ System Architecture Context
+This retry system is integrated into the Symphony Logo Detection System's batch processing pipeline:
+- **FastAPI Backend** (App.py) with batch processing routers
+- **5 Sequential YOLO Models** (YOLOv8s and YOLOv11s variants)
+- **React Frontend** with real-time WebSocket progress updates
+- **Automated Cleanup** via APScheduler for resource management
+
 ## 🎯 Problem Solved
 Previously, when chunk #3 of 5 failed due to network or image errors:
 - Backend would skip it silently, causing incorrect progress

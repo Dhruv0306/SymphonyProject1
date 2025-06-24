@@ -6,7 +6,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (menuToggle) {
         menuToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
+            const isActive = sidebar.classList.toggle('active');
+            menuToggle.setAttribute('aria-expanded', isActive);
+            
+            // Trap focus in sidebar when open
+            if (isActive) {
+                const firstLink = sidebar.querySelector('.nav-links a');
+                if (firstLink) firstLink.focus();
+            }
         });
     }
 
@@ -16,41 +23,108 @@ document.addEventListener('DOMContentLoaded', function() {
             const isClickInside = sidebar.contains(event.target) || menuToggle.contains(event.target);
             if (!isClickInside && sidebar.classList.contains('active')) {
                 sidebar.classList.remove('active');
+                menuToggle.setAttribute('aria-expanded', 'false');
             }
         }
     });
+    
+    // Close sidebar with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && sidebar.classList.contains('active')) {
+            sidebar.classList.remove('active');
+            menuToggle.setAttribute('aria-expanded', 'false');
+            menuToggle.focus();
+        }
+    });
 
-    // Enhanced search functionality with highlighting
+    // Enhanced search functionality with highlighting and clear button
     const searchInput = document.querySelector('.search-box input');
+    const searchClear = document.querySelector('.search-clear');
+    
     if (searchInput) {
+        // Debounced search
+        let searchTimeout;
         searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
             const searchTerm = e.target.value.toLowerCase();
-            const contentSections = document.querySelectorAll('.content-section');
             
-            // Reset previous highlights
-            document.querySelectorAll('.search-highlight').forEach(el => {
-                el.outerHTML = el.innerHTML;
-            });
-            
-            if (searchTerm.length < 2) {
-                contentSections.forEach(section => {
-                    section.style.display = 'block';
-                });
-                return;
+            // Show/hide clear button
+            if (searchTerm.length > 0) {
+                searchClear.style.display = 'block';
+            } else {
+                searchClear.style.display = 'none';
             }
             
-            contentSections.forEach(section => {
-                const text = section.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    section.style.display = 'block';
-                    
-                    // Highlight matching text
-                    highlightText(section, searchTerm);
-                } else {
-                    section.style.display = 'none';
-                }
-            });
+            searchTimeout = setTimeout(() => {
+                performSearch(searchTerm);
+            }, 300);
         });
+        
+        // Clear search functionality
+        if (searchClear) {
+            searchClear.addEventListener('click', function() {
+                searchInput.value = '';
+                searchClear.style.display = 'none';
+                performSearch('');
+                searchInput.focus();
+            });
+        }
+    }
+    
+    function performSearch(searchTerm) {
+        const contentSections = document.querySelectorAll('.content-section');
+        
+        // Reset previous highlights
+        document.querySelectorAll('.search-highlight').forEach(el => {
+            el.outerHTML = el.innerHTML;
+        });
+        
+        if (searchTerm.length < 2) {
+            contentSections.forEach(section => {
+                section.style.display = 'block';
+            });
+            return;
+        }
+        
+        let hasResults = false;
+        contentSections.forEach(section => {
+            const text = section.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                section.style.display = 'block';
+                hasResults = true;
+                
+                // Highlight matching text
+                highlightText(section, searchTerm);
+            } else {
+                section.style.display = 'none';
+            }
+        });
+        
+        // Show no results message
+        if (!hasResults && searchTerm.length >= 2) {
+            showNoResultsMessage();
+        } else {
+            hideNoResultsMessage();
+        }
+    }
+    
+    function showNoResultsMessage() {
+        let noResultsMsg = document.getElementById('no-results-message');
+        if (!noResultsMsg) {
+            noResultsMsg = document.createElement('div');
+            noResultsMsg.id = 'no-results-message';
+            noResultsMsg.className = 'no-results';
+            noResultsMsg.innerHTML = '<i class="fas fa-search"></i><p>No results found. Try different keywords.</p>';
+            document.querySelector('.main-content').appendChild(noResultsMsg);
+        }
+        noResultsMsg.style.display = 'block';
+    }
+    
+    function hideNoResultsMessage() {
+        const noResultsMsg = document.getElementById('no-results-message');
+        if (noResultsMsg) {
+            noResultsMsg.style.display = 'none';
+        }
     }
     
     // Function to highlight search terms
@@ -384,6 +458,47 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.addEventListener('touchend', () => {
             isDragging = false;
+        });
+    });
+    
+    // Back to Top Button functionality
+    const backToTop = document.getElementById('backToTop');
+    if (backToTop) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTop.style.display = 'flex';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        });
+        
+        backToTop.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+    
+    // Deep linking support
+    if (window.location.hash) {
+        setTimeout(() => {
+            const target = document.querySelector(window.location.hash);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    }
+    
+    // Keyboard navigation for sidebar
+    document.querySelectorAll('.nav-links a').forEach((link, index, links) => {
+        link.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const nextIndex = (index + 1) % links.length;
+                links[nextIndex].focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prevIndex = (index - 1 + links.length) % links.length;
+                links[prevIndex].focus();
+            }
         });
     });
     

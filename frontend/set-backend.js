@@ -84,4 +84,20 @@ console.log('Executing command:', command);
 
 // Start the React development server with the specified environment variables
 // Production: This should be replaced with production server deployment
-exec(command, { stdio: 'inherit', shell: true });
+const child = exec(command, { shell: true });
+
+// Pipe output to parent process
+child.stdout.pipe(process.stdout);
+child.stderr.pipe(process.stderr);
+
+// Handle process exit
+child.on('exit', (code) => {
+    console.log(`React app exited with code ${code}`);
+    process.exit(code);
+});
+
+// Handle errors
+child.on('error', (error) => {
+    console.error('Error starting React app:', error);
+    process.exit(1);
+});

@@ -9,17 +9,19 @@
     <link rel="icon" type="image/png" href="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="documentation-container">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header">
                 <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972" alt="Symphony Logo" class="logo">
                 <h2>Documentation</h2>
-                <button id="menuToggle" class="menu-toggle">
-                    <i class="fas fa-bars"></i>
+                <button id="menuToggle" class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
             </div>
             <ul class="nav-links">
+                <li><a href="#overview"><i class="fas fa-home"></i> Overview</a></li>
                 <li><a href="#getting-started" class="active"><i class="fas fa-rocket"></i> Quick Start</a></li>
                 <li><a href="#features"><i class="fas fa-star"></i> Key Features</a></li>
                 <li><a href="#models"><i class="fas fa-brain"></i> Detection Models</a></li>
@@ -32,15 +34,30 @@
         </nav>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content" id="main-content">
             <header class="header">
                 <h1>Image Validation Using Logo Detection</h1>
                 <p class="subtitle">Enterprise-Grade Logo Detection System by Symphony Limited</p>
                 <div class="search-box">
-                    <input type="text" placeholder="Search the documentation...">
-                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search the documentation..." aria-label="Search documentation">
+                    <i class="fas fa-search" aria-hidden="true"></i>
+                    <button class="search-clear" title="Clear search" style="display: none;"><i class="fas fa-times"></i></button>
                 </div>
             </header>
+
+            <!-- Overview Section -->
+            <section id="overview" class="content-section">
+                <h2>Overview</h2>
+                <div class="card overview">
+                    <div class="status-badges">
+                        <span class="tech-badge">FastAPI v0.115.12</span>
+                        <span class="tech-badge">React v19.1.0</span>
+                        <span class="tech-badge">YOLOv8/v11</span>
+                        <span class="status-indicator online"><i class="fas fa-circle"></i> System Online</span>
+                    </div>
+                    <p>Enterprise-grade logo detection system powered by 5 specialized YOLO models with real-time batch processing capabilities. Built for Symphony Limited's image validation requirements.</p>
+                </div>
+            </section>
 
             <!-- Quick Start Section -->
             <section id="getting-started" class="content-section">
@@ -426,36 +443,149 @@
                 </div>
                 <div class="card api-overview">
                     <h3>Key Endpoints</h3>
-                    <ul>
-                        <li>
-                            <strong>Single Image Detection:</strong>
-                            <code>POST /api/check-logo/single/</code>
-                        </li>
-                        <li>
-                            <strong>Start Batch Session:</strong>
-                            <code>POST /api/start-batch</code>
-                        </li>
-                        <li>
-                            <strong>Batch Processing:</strong>
-                            <code>POST /api/check-logo/batch/</code>
-                        </li>
-                        <li>
-                            <strong>CSV Export:</strong>
-                            <code>GET /api/check-logo/batch/export-csv/{batch_id}</code>
-                        </li>
-                        <li>
-                            <strong>Admin Login:</strong>
-                            <code>POST /api/admin/login</code>
-                        </li>
-                        <li>
-                            <strong>Batch History:</strong>
-                            <code>GET /api/admin/batch-history</code>
-                        </li>
-                        <li>
-                            <strong>WebSocket Updates:</strong>
-                            <code>WS /ws/batch/{batch_id}</code>
-                        </li>
-                    </ul>
+                    
+                    <!-- Single Image Detection -->
+                    <div class="api-endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/check-logo/single/</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>Single Image Detection</h4>
+                            <p>Detect Symphony logo in a single image file or URL.</p>
+                            
+                            <h5>Request Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">Request</div>
+                                <pre><code>curl -X POST "http://localhost:8000/api/check-logo/single/" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@image.jpg"</code></pre>
+                            </div>
+                            
+                            <h5>Response Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">Response</div>
+                                <pre><code>{
+  "valid": true,
+  "confidence": 0.87,
+  "model_used": "yolov8s_logo_detection",
+  "bounding_box": [120, 45, 280, 180],
+  "processing_time": 0.234
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Batch Processing -->
+                    <div class="api-endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/start-batch</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>Start Batch Session</h4>
+                            <p>Initialize a new batch processing session.</p>
+                            
+                            <h5>Response Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">Response</div>
+                                <pre><code>{
+  "batch_id": "batch_20241201_143052_abc123",
+  "status": "initialized",
+  "created_at": "2024-12-01T14:30:52Z"
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Batch Image Detection -->
+                    <div class="api-endpoint">
+                        <div class="endpoint-header">
+                            <span class="method post">POST</span>
+                            <code>/api/check-logo/batch/</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>Batch Image Detection</h4>
+                            <p>Process multiple images in a batch session.</p>
+                            
+                            <h5>Request Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">Request</div>
+                                <pre><code>curl -X POST "http://localhost:8000/api/check-logo/batch/" \
+  -H "Content-Type: multipart/form-data" \
+  -F "batch_id=batch_20241201_143052_abc123" \
+  -F "files=@image1.jpg" \
+  -F "files=@image2.png" \
+  -F "files=@image3.jpg"</code></pre>
+                            </div>
+                            
+                            <h5>Response Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">Response</div>
+                                <pre><code>{
+  "batch_id": "batch_20241201_143052_abc123",
+  "status": "processing",
+  "total_files": 3,
+  "processed_files": 0,
+  "message": "Batch processing started"
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CSV Export -->
+                    <div class="api-endpoint">
+                        <div class="endpoint-header">
+                            <span class="method get">GET</span>
+                            <code>/api/check-logo/batch/export-csv/{batch_id}</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>CSV Export</h4>
+                            <p>Download batch results as CSV file.</p>
+                            
+                            <h5>Request Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">Request</div>
+                                <pre><code>curl -X GET "http://localhost:8000/api/check-logo/batch/export-csv/batch_20241201_143052_abc123" \
+  -H "Accept: text/csv" \
+  -o results.csv</code></pre>
+                            </div>
+                            
+                            <h5>CSV Format:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">CSV Output</div>
+                                <pre><code>filename,valid,confidence,model_used,bounding_box,processing_time
+image1.jpg,true,0.87,yolov8s_logo_detection,"[120,45,280,180]",0.234
+image2.png,false,0.12,yolov11s3_logo_detection,"[]",0.189
+image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- WebSocket -->
+                    <div class="api-endpoint">
+                        <div class="endpoint-header">
+                            <span class="method ws">WS</span>
+                            <code>/ws/batch/{batch_id}</code>
+                        </div>
+                        <div class="endpoint-content">
+                            <h4>WebSocket Updates</h4>
+                            <p>Real-time batch processing progress updates.</p>
+                            
+                            <h5>Message Example:</h5>
+                            <div class="code-block">
+                                <div class="code-block-label">WebSocket Message</div>
+                                <pre><code>{
+  "type": "progress",
+  "batch_id": "batch_20241201_143052_abc123",
+  "processed": 15,
+  "total": 50,
+  "current_file": "image_015.jpg",
+  "status": "processing"
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -629,6 +759,25 @@
             </section>
         </main>
     </div>
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972" alt="Symphony Logo" class="footer-logo">
+                <p>&copy; 2024 Symphony Limited. All rights reserved.</p>
+            </div>
+            <div class="footer-links">
+                <a href="#overview">Documentation</a>
+                <a href="#api-integration">API Reference</a>
+                <a href="#troubleshooting">Support</a>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Back to Top Button -->
+    <button id="backToTop" class="back-to-top" title="Back to Top" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
+    
     <script src="js/main.js"></script>
 </body>
 </html> 
