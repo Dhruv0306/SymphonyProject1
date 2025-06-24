@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { API_BASE_URL, WS_BASE_URL } from '../config';
+import { WS_BASE_URL } from '../config';
 
 /**
  * Real-time progress bar component using WebSocket connection
@@ -106,7 +106,7 @@ const ProgressBar = ({ batchId }) => {
         ws.close();
       }
     };
-  }, [batchId]);
+  }, [batchId, progress.status, startTime]);
   
   // Calculate elapsed time
   const [elapsedTime, setElapsedTime] = useState(0);

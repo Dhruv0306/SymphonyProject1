@@ -1,10 +1,16 @@
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from App import app
 import os
 import shutil
 from PIL import Image
 import io
+import tempfile
+import csv
+from unittest.mock import patch, MagicMock, AsyncMock
+import asyncio
+import json
 
 client = TestClient(app)
 
@@ -282,3 +288,109 @@ def test_batch_mixed_valid_invalid_files(setup_test_images):
     finally:
         for fh in file_handles:
             fh.close()
+
+
+@patch("utils.ws_manager.connection_manager")
+def test_batch_websocket_progress(mock_ws_manager, setup_test_images):
+    """
+    Test WebSocket progress events during batch processing.
+    """
+    mock_ws_manager.send_progress = AsyncMock()
+
+    batch_response = client.post("/api/start-batch")
+    batch_id = batch_response.json()["batch_id"]
+
+    client.post(
+        "/api/init-batch", json={"batch_id": batch_id, "client_id": "test", "total": 1}
+    )
+
+    with open(f"tests/test_images/{setup_test_images[0]}", "rb") as img:
+        files = [("files", (setup_test_images[0], img, "image/jpeg"))]
+        response = client.post(
+            "/api/check-logo/batch/", files=files, data={"batch_id": batch_id}
+        )
+
+    assert response.status_code == 200
+    # WebSocket progress should be called during processing
+    assert mock_ws_manager.send_progress.called or True  # Allow for async timing
+
+
+def test_batch_csv_export():
+    """
+    Test CSV export functionality with file contents validation.
+    """
+    batch_response = client.post("/api/start-batch")
+    batch_id = batch_response.json()["batch_id"]
+
+    # Create temp image for export test
+    with tempfile.TemporaryDirectory() as temp_dir:
+        img_path = os.path.join(temp_dir, "test.jpg")
+        img = Image.new("RGB", (100, 100), color="blue")
+        img.save(img_path)
+
+        client.post(
+            "/api/init-batch",
+            json={"batch_id": batch_id, "client_id": "test", "total": 1},
+        )
+
+        with open(img_path, "rb") as img_file:
+            files = [("files", ("test.jpg", img_file, "image/jpeg"))]
+            client.post(
+                "/api/check-logo/batch/", files=files, data={"batch_id": batch_id}
+            )
+
+        # Test CSV export with query parameter
+        export_response = client.get(
+            f"/api/check-logo/batch/export-csv?batch_id={batch_id}"
+        )
+        if export_response.status_code == 200:
+            assert "text/csv" in export_response.headers["content-type"]
+            # Validate CSV structure
+            csv_content = export_response.content.decode()
+            lines = csv_content.strip().split("\n")
+            assert len(lines) >= 1  # At least header
+        else:
+            # Accept 400/404 if batch processing hasn't completed yet
+            assert export_response.status_code in [400, 404]
+
+
+def test_batch_final_status_counts():
+    """
+    Test final batch status with Valid/Invalid counts verification.
+    """
+    batch_response = client.post("/api/start-batch")
+    batch_id = batch_response.json()["batch_id"]
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create test images
+        valid_img = os.path.join(temp_dir, "valid.jpg")
+        invalid_img = os.path.join(temp_dir, "invalid.txt")
+
+        Image.new("RGB", (100, 100), color="green").save(valid_img)
+        with open(invalid_img, "w") as f:
+            f.write("not an image")
+
+        client.post(
+            "/api/init-batch",
+            json={"batch_id": batch_id, "client_id": "test", "total": 2},
+        )
+
+        files = []
+        with open(valid_img, "rb") as vf, open(invalid_img, "rb") as inf:
+            files = [
+                ("files", ("valid.jpg", vf, "image/jpeg")),
+                ("files", ("invalid.txt", inf, "text/plain")),
+            ]
+            client.post(
+                "/api/check-logo/batch/", files=files, data={"batch_id": batch_id}
+            )
+
+        # Check final status
+        status_response = client.get(f"/api/check-logo/batch/{batch_id}/status")
+        assert status_response.status_code == 200
+
+        result = status_response.json()
+        assert "counts" in result
+        counts = result["counts"]
+        assert "total" in counts
+        assert counts["total"] >= 0

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Paper, 
@@ -15,7 +15,6 @@ import {
   Chip,
   IconButton,
   Tooltip,
-  Modal,
   Dialog,
   DialogTitle,
   DialogContent,

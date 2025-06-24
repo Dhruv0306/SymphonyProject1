@@ -8,9 +8,6 @@
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
     "axios": "^1.9.0",
     "cross-env": "^7.0.3",
     "react": "^19.1.0",
@@ -43,6 +40,22 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/core": "^7.27.4",
+    "@babel/preset-env": "^7.27.2",
+    "@babel/preset-react": "^7.27.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "babel-jest": "^30.0.2",
+    "jest-fetch-mock": "^3.0.3",
+    "msw": "^2.10.2"
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(axios)/)"
     ]
   }
 }

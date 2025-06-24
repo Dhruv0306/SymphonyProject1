@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Container, 
@@ -90,7 +90,7 @@ const Dashboard = () => {
   }, [navigate]);
   
   // Fetch dashboard stats
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (checkingSession) return;
     
     try {
@@ -117,7 +117,7 @@ const Dashboard = () => {
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     }
-  };
+  }, [checkingSession]);
   
   useEffect(() => {
     fetchStats();
@@ -126,7 +126,7 @@ const Dashboard = () => {
     const intervalId = setInterval(fetchStats, 5 * 60 * 1000);
     
     return () => clearInterval(intervalId);
-  }, [checkingSession]);
+  }, [checkingSession, fetchStats]);
 
   const handleLogout = async () => {
     try {

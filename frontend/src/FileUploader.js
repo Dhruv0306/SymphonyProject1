@@ -34,7 +34,7 @@ import axios from 'axios';
 
 // Internal imports
 import { API_BASE_URL, WS_BASE_URL } from './config';
-import { chunkImages, processImageChunks, retryFailedChunks } from './utils/imageChunker';
+import { chunkImages, processImageChunks} from './utils/imageChunker';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
 import { getClientId } from './utils/clientId';
@@ -148,17 +148,12 @@ const FileUploader = ({ onFilesSelected }) => {
   const [emailNotification, setEmailNotification] = useState(''); // Email address for batch completion notifications
   
   // Client identification
-  const [clientID, setClientID] = useState(getClientId()); // Unique client identifier for WebSocket
+  const [clientID] = useState(getClientId()); // Unique client identifier for WebSocket
   
   // ==================== RESPONSIVE DESIGN HOOKS ====================
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  /**
-   * Predefined batch size options for optimal processing performance
-   * Smaller batch sizes reduce memory usage and improve error recovery
-   */
-  const batchSizeOptions = [5, 10, 20, 50];
 
   /**
    * Utility function to format milliseconds into human-readable time string
@@ -264,7 +259,7 @@ const FileUploader = ({ onFilesSelected }) => {
       }
       wsRef.current = null;
     };
-  }, []);
+  }, [clientID]);
 
   /**
    * WebSocket Heartbeat Effect
@@ -279,7 +274,7 @@ const FileUploader = ({ onFilesSelected }) => {
     }, 30000); // Send heartbeat every 30 seconds
 
     return () => clearInterval(heartbeatInterval);
-  }, [websocket]);
+  }, [websocket, clientID]);
 
   /**
    * Batch Completion Handler Effect
@@ -306,7 +301,7 @@ const FileUploader = ({ onFilesSelected }) => {
     };
 
     handleBatchComplete();
-  }, [batchRunning, batchId]);
+  }, [batchRunning, batchId, clientID]);
 
   /**
    * Toggle mobile navigation drawer visibility

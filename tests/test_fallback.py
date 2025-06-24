@@ -6,6 +6,7 @@ from PIL import Image
 import numpy as np
 import sys
 import logging
+import tempfile
 
 # Configure logging for test execution
 logging.basicConfig(level=logging.DEBUG)
@@ -47,25 +48,13 @@ from detect_logo import check_logo, MODEL_PATHS, CONFIDENCE_THRESHOLD
 @pytest.fixture(scope="function")
 def setup_test_images():
     """
-    Fixture to create and manage test image files.
-    Creates a test directory and sample image, then cleans up after tests.
-
-    Returns:
-        str: Path to the test image file
+    Fixture using tempfile for better test isolation and cleanup.
     """
-    # Create test directory if it doesn't exist
-    os.makedirs("tests/test_images", exist_ok=True)
-
-    # Create a sample test image with actual image data
-    test_image_path = "tests/test_images/sample_valid.jpg"
-    img = Image.new("RGB", (100, 100), color="red")
-    img.save(test_image_path)
-
-    yield test_image_path
-
-    # Cleanup test files after test completion
-    if os.path.exists("tests/test_images"):
-        shutil.rmtree("tests/test_images")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        test_image_path = os.path.join(temp_dir, "sample_valid.jpg")
+        img = Image.new("RGB", (100, 100), color="red")
+        img.save(test_image_path)
+        yield test_image_path
 
 
 @pytest.fixture(scope="function")
@@ -245,3 +234,17 @@ def test_fallback_chain(
     assert result["Is_Valid"] == "Valid"
     assert result["Confidence"] > 0.9
     assert "Bounding_Box" in result
+
+
+@patch("detect_logo.models")
+def test_enhanced_mocking_with_pytest_mock(mock_models_patch, setup_test_images):
+    """
+    Test enhanced mocking capabilities using pytest-mock patterns.
+    """
+    # Setup mock model with specific behavior
+    mock_model = MockYOLO("test_model.pt")
+    mock_model.predict = MagicMock(return_value=[Results(boxes=[])])
+    mock_models_patch.__iter__.return_value = iter([(mock_model, "test_model.pt")])
+
+    result = check_logo(setup_test_images)
+    assert result["Is_Valid"] == "Invalid"
