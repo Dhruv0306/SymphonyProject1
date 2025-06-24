@@ -26,7 +26,8 @@ import sys
 import os
 import logging
 from pathlib import Path
-from PIL import Image, ImageOps
+from PIL import Image
+import numpy as np
 import requests
 from io import BytesIO
 from ultralytics import YOLO
@@ -71,7 +72,15 @@ def add_boundary(img, boundary_size=10, color=(255, 255, 255)):
         >>> img = Image.open('logo.jpg')
         >>> framed_img = add_boundary(img, boundary_size=15)
     """
-    return ImageOps.expand(img, border=boundary_size, fill=color)
+    arr = np.array(img)
+    h, w, c = arr.shape
+    padded = (
+        np.ones((h + 2 * boundary_size, w + 2 * boundary_size, c), dtype=np.uint8) * 255
+    )
+    padded[boundary_size : boundary_size + h, boundary_size : boundary_size + w, :] = (
+        arr
+    )
+    return Image.fromarray(padded)
 
 
 def is_url(path):
