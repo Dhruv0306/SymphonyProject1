@@ -161,11 +161,13 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - Automated maintenance and housekeeping tasks
 
 - **🚀 Scalability & Performance**
-  - Microservice architecture (Main API + YOLO Service)
-  - Concurrent batch processing with progress tracking
-  - Efficient model loading and caching
-  - Optimized image processing pipeline
-  - Load balancing ready architecture
+  - **Microservice Architecture**: Decoupled Main API (App.py) and YOLO Service (yolo_service/)
+  - **Service Communication**: services/yolo_client.py handles inter-service communication
+  - **Independent Scaling**: YOLO service can be scaled separately from main API
+  - **Concurrent Processing**: Batch processing with progress tracking via utils/batch_tracker.py
+  - **Efficient Model Loading**: Cached model weights in runs/detect/ directories
+  - **Optimized Pipeline**: Streamlined image processing with utils/file_ops.py
+  - **Load Balancing Ready**: Stateless architecture with external state management
 
 ---
 
@@ -191,22 +193,27 @@ graph TD
         A2 -->|"Auth Requests"| B
     end
 
-    subgraph "API Router Layer"
+    subgraph "API Router Layer (routers/)"
         style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Route Single Images"| C1["single.py Router<br/>POST /api/check-logo/single"]
-        B -->|"Route Batch Requests"| C2["batch.py Router<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/<br/>GET /api/check-logo/batch/{id}/status"]
-        B -->|"Route CSV Exports"| C3["export.py Router<br/>GET /api/check-logo/batch/export-csv/{id}"]
-        B -->|"Route Admin Login"| C4["admin_auth.py Router<br/>POST /api/admin/login<br/>POST /api/admin/logout"]
-        B -->|"Route WebSocket"| C5["websocket.py Router<br/>WS /ws/{client_id}"]
+        style C6 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style C7 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Route Single Images"| C1["routers/single.py<br/>POST /api/check-logo/single"]
+        B -->|"Route Batch Requests"| C2["routers/batch.py<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/"]
+        B -->|"Route CSV Exports"| C3["routers/export.py<br/>GET /api/check-logo/batch/export-csv/{id}"]
+        B -->|"Route Admin Auth"| C4["routers/admin_auth.py<br/>POST /api/admin/login"]
+        B -->|"Route WebSocket"| C5["routers/websocket.py<br/>WS /ws/{client_id}"]
+        B -->|"Route Dashboard"| C6["routers/dashboard_stats.py<br/>GET /api/admin/dashboard"]
+        B -->|"Route Batch History"| C7["routers/batch_history.py<br/>GET /api/admin/batch-history"]
     end
 
-    subgraph "Core Detection Engine"
+    subgraph "Microservice Detection Engine"
         style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style D2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
@@ -214,24 +221,29 @@ graph TD
         style E5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         C1 -->|"Call check_logo()"| D["detect_logo.py<br/>Sequential model testing<br/>Confidence threshold 0.35"]
         C2 -->|"Call check_logo()"| D
-        D -->|"Load Model 1"| E1["yolov8s_logo_detection<br/>Primary detection model"]
-        D -->|"Load Model 2"| E2["yolov8s_logo_detection2<br/>Secondary YOLOv8 variant"]
-        D -->|"Load Model 3"| E3["yolov8s_logo_detection3<br/>Tertiary YOLOv8 variant"]
-        D -->|"Load Model 4"| E4["yolov11s_logo_detection<br/>Primary YOLOv11 model"]
-        D -->|"Load Model 5"| E5["yolov11s3_logo_detection<br/>Secondary YOLOv11 model"]
+        D -->|"Via services/yolo_client.py"| D2["yolo_service/<br/>Microservice Architecture<br/>main.py + start.py"]
+        D2 -->|"Load Model 1"| E1["runs/detect/yolov8s_logo_detection/<br/>weights/best.pt"]
+        D2 -->|"Load Model 2"| E2["runs/detect/yolov8s_logo_detection2/<br/>weights/best.pt"]
+        D2 -->|"Load Model 3"| E3["runs/detect/yolov8s_logo_detection3/<br/>weights/best.pt"]
+        D2 -->|"Load Model 4"| E4["runs/detect/yolov11s_logo_detection/<br/>weights/best.pt"]
+        D2 -->|"Load Model 5"| E5["runs/detect/yolov11s3_logo_detection/<br/>weights/best.pt"]
     end
 
-    subgraph "Utility Services"
+    subgraph "Utility Services (utils/)"
         style F1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F4 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F5 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Track Batch State"| F1["batch_tracker.py<br/>JSON state management<br/>24h retention"]
-        B -->|"Manage WebSocket"| F2["ws_manager.py<br/>Real-time progress updates<br/>Client connections"]
-        B -->|"Schedule Cleanup"| F3["cleanup.py<br/>APScheduler tasks<br/>Resource management"]
-        B -->|"Apply Security"| F4["security.py<br/>CORS, rate limiting<br/>SlowAPI integration"]
-        B -->|"Write Logs"| F5["logger.py<br/>Structured logging<br/>10MB rotation"]
+        style F6 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style F7 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Track Batch State"| F1["utils/batch_tracker.py<br/>JSON state management<br/>24h retention"]
+        B -->|"Manage WebSocket"| F2["utils/ws_manager.py<br/>Real-time progress updates<br/>Client connections"]
+        B -->|"Schedule Cleanup"| F3["utils/cleanup.py<br/>APScheduler tasks<br/>Resource management"]
+        B -->|"Apply Security"| F4["utils/security.py<br/>CORS, rate limiting<br/>SlowAPI integration"]
+        B -->|"Write Logs"| F5["utils/logger.py<br/>Structured logging<br/>10MB rotation"]
+        B -->|"File Operations"| F6["utils/file_ops.py<br/>File handling utilities"]
+        B -->|"Background Tasks"| F7["utils/background_tasks.py<br/>Async task management"]
     end
 
     subgraph "Storage & Data"
@@ -245,15 +257,17 @@ graph TD
         F1 -->|"Store Batch Data"| G4["data/<br/>{batch_id}.json<br/>State persistence"]
     end
 
-    subgraph "Testing & Quality"
+    subgraph "Testing & Quality (tests/)"
         style H1 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
         style H2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
-        C2 -->|"Test Coverage"| H1["test_batch.py<br/>Pytest test suite<br/>Batch lifecycle testing"]
-        H1 -->|"Test Scenarios"| H2["Test Cases:<br/>- Multiple file upload<br/>- URL processing<br/>- Invalid batch handling<br/>- Mixed file types<br/>- Status checking"]
+        style H3 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
+        C2 -->|"Test Coverage"| H1["tests/test_batch.py<br/>tests/test_single.py<br/>tests/test_detect_logo.py"]
+        H1 -->|"Frontend Tests"| H2["frontend/src/__tests__/<br/>React component testing<br/>Jest + React Testing Library"]
+        H1 -->|"Test Config"| H3["tests/pytest.ini<br/>Test configuration<br/>Coverage reporting"]
     end
 ```
 
-**Fallback Description:** The system consists of a React Frontend (port 3000) connecting to FastAPI App.py (port 8000) through API Router Layer (single.py, batch.py, export.py, admin_auth.py, websocket.py). The Core Detection Engine uses detect_logo.py with 5 YOLO models (yolov8s variants and yolov11s variants). Utility Services include batch_tracker.py, ws_manager.py, cleanup.py, security.py, and logger.py. Storage & Data layer manages temp_uploads/, exports/, logs/, and data/ directories. Testing & Quality includes test_batch.py with comprehensive test scenarios.
+**Fallback Description:** The system consists of a React Frontend (port 3000) connecting to FastAPI App.py (port 8000) through API Router Layer (routers/ directory with single.py, batch.py, export.py, admin_auth.py, websocket.py, dashboard_stats.py, batch_history.py). The Microservice Detection Engine uses detect_logo.py with services/yolo_client.py connecting to yolo_service/ microservice, loading 5 YOLO models from runs/detect/ directories. Utility Services (utils/ directory) include batch_tracker.py, ws_manager.py, cleanup.py, security.py, logger.py, file_ops.py, and background_tasks.py. Storage & Data layer manages temp_uploads/, exports/, logs/, and data/ directories. Testing & Quality includes tests/ directory with pytest configuration and frontend/src/__tests__/ for React components.
 
 </details>
 
