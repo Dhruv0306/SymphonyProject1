@@ -236,15 +236,26 @@ const FileUploader = ({ onFilesSelected }) => {
           endTime: processEndTime
         });
         setLoading(false);
+      } else if (data.event === 'heartbeat_ack') {
+        console.log('Heartbeat acknowledged by server');
       }
     };
 
     ws.onclose = (event) => {
-      if (event.wasClean) {
-        console.log('WebSocket disconnected cleanly');
-      }
       setWebsocket(null);
       wsRef.current = null;
+      
+      if (!event.wasClean && batchRunning) {
+        console.warn('WebSocket disconnected unexpectedly, retrying...');
+        setTimeout(() => {
+          console.log('Attempting WebSocket reconnection...');
+          const newWs = new WebSocket(wsUrl);
+          wsRef.current = newWs;
+          setWebsocket(newWs);
+        }, 5000);
+      } else {
+        console.log('WebSocket disconnected cleanly');
+      }
     };
 
     ws.onerror = (error) => {
@@ -259,7 +270,7 @@ const FileUploader = ({ onFilesSelected }) => {
       }
       wsRef.current = null;
     };
-  }, [clientID]);
+  }, [clientID, batchRunning]);
 
   /**
    * WebSocket Heartbeat Effect
@@ -269,7 +280,12 @@ const FileUploader = ({ onFilesSelected }) => {
   useEffect(() => {
     const heartbeatInterval = setInterval(() => {
       if (websocket?.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({ event: "heartbeat", client_id: clientID }));
+        console.log('Sending heartbeat...');
+        websocket.send(JSON.stringify({ 
+          event: "heartbeat", 
+          client_id: clientID,
+          timestamp: Date.now()
+        }));
       }
     }, 30000); // Send heartbeat every 30 seconds
 
