@@ -277,6 +277,7 @@ This diagram shows the internal structure of the FastAPI application, detailing 
 
 <details>
 <summary><strong>⚙️ FastAPI Architecture Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
@@ -350,6 +351,7 @@ This diagram illustrates the React frontend's component hierarchy, showing how t
 
 <details>
 <summary><strong>⚙️ React Frontend Architecture Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
@@ -421,6 +423,7 @@ This diagram demonstrates the core AI detection logic, showing how images (files
 
 <details>
 <summary><strong>🤖 AI Model Processing Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
@@ -479,6 +482,7 @@ This sequence diagram shows the complete batch processing workflow from initiali
 
 <details>
 <summary><strong>🔄 Batch Processing Sequence Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
@@ -580,6 +584,7 @@ This detailed sequence diagram expands on the batch processing pipeline, showing
 
 <details>
 <summary><strong>🎯 Detailed YOLO Detection Sequence</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '20px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
@@ -723,6 +728,7 @@ This diagram illustrates the comprehensive error handling system, showing error 
 
 <details>
 <summary><strong>⚠️ Error Handling & Monitoring Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
@@ -776,6 +782,7 @@ This diagram shows the file management architecture, illustrating how multipart 
 
 <details>
 <summary><strong>🗄️ File Storage & Cleanup Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 graph TD
@@ -840,6 +847,7 @@ This sequence diagram details the CSV export process, showing the complete workf
 
 <details>
 <summary><strong>📄 CSV Export Sequence Diagram</strong> (Click to expand)</summary>
+  
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
 sequenceDiagram
