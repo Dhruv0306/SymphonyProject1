@@ -28,8 +28,11 @@ class YOLOClient:
         self.base_url = base_url or os.getenv(
             "YOLO_SERVICE_URL", "http://localhost:8001"
         )
-        # Initialize httpx client with timeout - currently disabled
-        # self.client = httpx.AsyncClient(timeout=60.0)
+        # Configure httpx client with connection pooling and limits
+        self.client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=20)
+        )
 
     async def check_logo(
         self,
@@ -55,23 +58,21 @@ class YOLOClient:
         # Implement retry logic with exponential backoff
         for attempt in range(retries):
             try:
-                # Create a new client for each request with 60 second timeout
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    if file_data and filename:
-                        # Handle raw file data upload
-                        files = {"file": (filename, file_data)}
-                        response = await client.post(
-                            f"{self.base_url}/detect", files=files
-                        )
-                    else:
-                        # Handle image path/URL
-                        data = {"image_path": image_path}
-                        response = await client.post(
-                            f"{self.base_url}/detect", data=data
-                        )
+                if file_data and filename:
+                    # Handle raw file data upload
+                    files = {"file": (filename, file_data)}
+                    response = await self.client.post(
+                        f"{self.base_url}/detect", files=files
+                    )
+                else:
+                    # Handle image path/URL
+                    data = {"image_path": image_path}
+                    response = await self.client.post(
+                        f"{self.base_url}/detect", data=data
+                    )
 
-                    response.raise_for_status()
-                    return response.json()
+                response.raise_for_status()
+                return response.json()
 
             except httpx.RequestError as e:
                 # Handle network-related errors with retry logic
@@ -80,8 +81,9 @@ class YOLOClient:
                     f"[Attempt {attempt+1}/{retries}] YOLO service request failed: {error_info}"
                 )
                 if attempt < retries - 1:
-                    # Implement exponential backoff between retries
-                    await asyncio.sleep(backoff_factor * (2**attempt))
+                    # Implement exponential backoff: 3s, 6s, 12s
+                    delay = 3 * (2 ** attempt)
+                    await asyncio.sleep(delay)
                 else:
                     # Log final failure and return error response with timeout flag
                     logger.error(f"Final retry failed: {error_info}")
@@ -115,9 +117,14 @@ class YOLOClient:
         error_name = type(error).__name__
         error_str = str(error)
         return (
-            error_name in ["WriteTimeout", "ReadTimeout"]
+            error_name in ["WriteTimeout", "ReadTimeout", "ConnectTimeout"]
             or "timeout" in error_str.lower()
         )
+
+    async def close(self):
+        """Close the httpx client and cleanup resources."""
+        if hasattr(self, 'client'):
+            await self.client.aclose()
 
 
 # Create a default instance of the YOLO client

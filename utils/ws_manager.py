@@ -209,6 +209,8 @@ class ConnectionManager:
             logger.info(
                 f"Recovering connection for client {client_id} with batches: {recovery_info['batches']}"
             )
+            self.connect_client(client_id, websocket)
+            self.client_batch_map[client_id] = recovery_info["batches"]
             return recovery_info["batches"]
         return []
 

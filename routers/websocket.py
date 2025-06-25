@@ -54,7 +54,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 
                 # Handle heartbeat messages to track client liveness
                 if message.get("event") == "heartbeat":
-                    logger.debug(f"Heartbeat received from {client_id}")
+                    logger.info(f"Heartbeat received from {client_id}")
                     connection_manager.mark_alive(client_id)
                     # Send heartbeat acknowledgment back to client
                     await websocket.send_json({"event": "heartbeat_ack", "timestamp": message.get("timestamp")})

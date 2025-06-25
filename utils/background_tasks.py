@@ -44,11 +44,11 @@ async def process_image_async(
     """
     try:
         # Send image to YOLO model for logo detection
-        result = await yolo_client.check_logo(file_data=file_data, filename=filename)
+        result = await yolo_client.check_logo(file_data=file_data, filename=filename, retries=3)
         result["Image_Path_or_URL"] = filename
 
         # Check if it's a timeout error and collect for retry
-        if result.get("Is_Timeout") and failed_requests is not None:
+        if result.get("Is_Timeout"):
             failed_requests.append(
                 {
                     "type": "file",
@@ -123,10 +123,10 @@ async def process_url_async(
     """
     try:
         # Send image URL to YOLO model for logo detection
-        result = await yolo_client.check_logo(image_path=url)
+        result = await yolo_client.check_logo(image_path=url, retries=3)
 
         # Check if it's a timeout error and collect for retry
-        if result.get("Is_Timeout") and failed_requests is not None:
+        if result.get("Is_Timeout"):
             failed_requests.append(
                 {"type": "url", "url": url, "error": result.get("Error")}
             )
@@ -206,9 +206,13 @@ async def process_batch_background(
         # Collect failed requests for retry
         failed_requests = []
 
-        # Limit concurrent requests to prevent server overload
-        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent YOLO requests
-
+        # Limit concurrent requests based on system resources
+        cpu_count = os.cpu_count() or 1
+        max_concurrent = min(max(2, cpu_count - 2), 4)  # Keep 1 CPU free, cap at 10
+        logger.info(
+            f"Processing batch {batch_id} with max concurrent requests: {max_concurrent}"
+        )
+        semaphore = asyncio.Semaphore(max_concurrent)  # Dynamic concurrent YOLO requests
         async def process_with_limit(task_func, *args):
             async with semaphore:
                 return await task_func(*args)

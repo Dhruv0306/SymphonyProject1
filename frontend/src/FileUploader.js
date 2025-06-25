@@ -35,6 +35,7 @@ import axios from 'axios';
 // Internal imports
 import { API_BASE_URL, WS_BASE_URL } from './config';
 import { chunkImages, processImageChunks} from './utils/imageChunker';
+import { calculateDelay, sleep } from './utils/delayCalculator';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
 import { getClientId } from './utils/clientId';
@@ -138,6 +139,7 @@ const FileUploader = ({ onFilesSelected }) => {
   // WebSocket communication
   const [websocket, setWebsocket] = useState(null);     // WebSocket connection instance
   const wsRef = useRef(null);                           // WebSocket reference for cleanup
+  const batchRunningRef = useRef(false);                // Ref to track batch running state
   
   // Timing and performance tracking
   const processStartTimeRef = useRef(null);             // Process start timestamp
@@ -226,6 +228,7 @@ const FileUploader = ({ onFilesSelected }) => {
         });
       } else if (data.event === 'complete') {
         setBatchRunning(false);
+        batchRunningRef.current = false;
         setProgress(null);
         const processEndTime = Date.now();
         setProcessSummary({
@@ -245,13 +248,11 @@ const FileUploader = ({ onFilesSelected }) => {
       setWebsocket(null);
       wsRef.current = null;
       
-      if (!event.wasClean && batchRunning) {
-        console.warn('WebSocket disconnected unexpectedly, retrying...');
+      if (batchRunningRef.current) {
+        console.warn('WebSocket disconnected during batch processing, retrying...');
         setTimeout(() => {
           console.log('Attempting WebSocket reconnection...');
-          const newWs = new WebSocket(wsUrl);
-          wsRef.current = newWs;
-          setWebsocket(newWs);
+          // Clear refs and let useEffect create new connection
         }, 5000);
       } else {
         console.log('WebSocket disconnected cleanly');
@@ -270,7 +271,7 @@ const FileUploader = ({ onFilesSelected }) => {
       }
       wsRef.current = null;
     };
-  }, [clientID, batchRunning]);
+  }, [clientID]);
 
   /**
    * WebSocket Heartbeat Effect
@@ -472,6 +473,7 @@ const FileUploader = ({ onFilesSelected }) => {
 
     if (mode === 'batch') {
       setBatchRunning(true);
+      batchRunningRef.current = true;
     }
 
     try {
@@ -559,8 +561,9 @@ const FileUploader = ({ onFilesSelected }) => {
 
           const processChunk = async (chunk, chunkIndex) => {
             return await retryWithBackoff(async () => {
-              // Add some delay to avoid overwhelming the server (min, max) = (0.5015s, 1.9835s)
-              await new Promise(resolve => setTimeout(resolve, 1.5 * batchSize + 500));
+              // Calculate intelligent delay based on batch size and chunk index
+              const delay = calculateDelay(chunk.length, chunkIndex, chunks.length);
+              await sleep(delay);
               const formData = new FormData();
 
               // Set uploading status for each file in the chunk
@@ -633,8 +636,9 @@ const FileUploader = ({ onFilesSelected }) => {
 
           const processChunk = async (chunk, chunkIndex) => {
             return await retryWithBackoff(async () => {
-              // Add some delay to avoid overwhelming the server (min, max) = (1.003s, 3.997s)
-              await new Promise(resolve => setTimeout(resolve, 3 * batchSize + 1000));
+              // Calculate intelligent delay based on batch size and chunk index
+              const delay = calculateDelay(chunk.length, chunkIndex, chunks.length);
+              await sleep(delay);
               
               // Set uploading status for each URL in the chunk
               chunk.forEach(url => {
