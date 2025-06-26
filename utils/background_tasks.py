@@ -129,6 +129,7 @@ async def process_url_async(
 
         # Check if it's a timeout error and collect for retry
         if result.get("Is_Timeout"):
+            print(f"results: {result}")
             failed_requests.append(
                 {"type": "url", "url": url, "error": result.get("Error")}
             )

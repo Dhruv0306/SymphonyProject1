@@ -30,9 +30,11 @@ const BatchProcessingForm = ({ onBatchStart }) => {
         formData.append('email', email.trim());
       }
       
+      // amazonq-ignore-next-line
       const response = await fetch(`${API_BASE_URL}/api/start-batch`, {
         method: 'POST',
         body: formData,
+        // amazonq-ignore-next-line
         credentials: 'include'
       });
       

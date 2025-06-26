@@ -117,7 +117,8 @@ class YOLOClient:
         error_name = type(error).__name__
         error_str = str(error)
         return (
-            error_name in ["WriteTimeout", "ReadTimeout", "ConnectTimeout"]
+            error_name
+            in ["WriteTimeout", "ReadTimeout", "ConnectTimeout", "PoolTimeout"]
             or "timeout" in error_str.lower()
         )
 

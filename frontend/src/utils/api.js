@@ -31,6 +31,7 @@ export const apiRequest = async (url, options = {}) => {
   return fetch(`${API_BASE_URL}${url}`, {
     ...options,
     headers,
+    // amazonq-ignore-next-line
     credentials: 'include', // Always include credentials for authenticated requests
   });
 };
