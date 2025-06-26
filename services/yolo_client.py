@@ -31,7 +31,7 @@ class YOLOClient:
         # Configure httpx client with connection pooling and limits
         self.client = httpx.AsyncClient(
             timeout=httpx.Timeout(30.0, connect=10.0),
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=20)
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=20),
         )
 
     async def check_logo(
@@ -82,7 +82,7 @@ class YOLOClient:
                 )
                 if attempt < retries - 1:
                     # Implement exponential backoff: 3s, 6s, 12s
-                    delay = 3 * (2 ** attempt)
+                    delay = 3 * (2**attempt)
                     await asyncio.sleep(delay)
                 else:
                     # Log final failure and return error response with timeout flag
@@ -123,7 +123,7 @@ class YOLOClient:
 
     async def close(self):
         """Close the httpx client and cleanup resources."""
-        if hasattr(self, 'client'):
+        if hasattr(self, "client"):
             await self.client.aclose()
 
 
