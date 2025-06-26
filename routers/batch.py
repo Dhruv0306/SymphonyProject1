@@ -564,9 +564,13 @@ async def send_batch_email(batch_id: str, background_tasks: BackgroundTasks):
                 return {"message": "Email notification queued"}
             except Exception as e:
                 logger.error(f"Failed to queue email notification: {str(e)}")
-                raise HTTPException(status_code=500, detail="Failed to queue email notification")
+                raise HTTPException(
+                    status_code=500, detail="Failed to queue email notification"
+                )
         else:
-            raise HTTPException(status_code=400, detail="No email configured for this batch")
+            raise HTTPException(
+                status_code=400, detail="No email configured for this batch"
+            )
     except HTTPException:
         raise
     except Exception as e:
