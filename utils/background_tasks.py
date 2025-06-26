@@ -16,6 +16,7 @@ import csv
 import json
 import os
 import time
+import httpx
 
 # Configure logging for this module
 logger = logging.getLogger(__name__)
@@ -210,7 +211,9 @@ async def process_with_chunks(
     def chunk_list(lst, size):
         for i in range(0, len(lst), size):
             yield lst[i : i + size]
-
+    
+    chunk_index = 0
+    
     if files_data:
         file_chunks = list(chunk_list(files_data, chunk_size))
         for idx, file_chunk in enumerate(file_chunks):
@@ -221,7 +224,9 @@ async def process_with_chunks(
                 client_id=client_id,
             )
             if idx < len(file_chunks) - 1:
-                await asyncio.sleep(3 + 0.2 * (idx + 1))
+                if chunk_size > 50 : await asyncio.sleep(3 + 0.2 * (chunk_index + 1))
+                else: await asyncio.sleep(3 + 0.05 * (chunk_index + 1))
+                chunk_index += 1
     elif image_urls:
         url_chunks = list(chunk_list(image_urls, chunk_size))
         for idx, url_chunk in enumerate(url_chunks):
@@ -232,7 +237,17 @@ async def process_with_chunks(
                 client_id=client_id,
             )
             if idx < len(url_chunks) - 1:
-                await asyncio.sleep(3 + 0.2 * (idx + 1))
+                if chunk_size > 50 : await asyncio.sleep(3 + 0.2 * (chunk_index + 1))
+                else: await asyncio.sleep(3 + 0.05 * (chunk_index + 1))
+                chunk_index += 1
+    
+    # After all chunks are processed, trigger email sending
+    try:
+        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        async with httpx.AsyncClient() as client:
+            await client.post(f"{base_url}/api/check-logo/batch/{batch_id}/send-email")
+    except Exception as e:
+        logger.error(f"Failed to send email for batch {batch_id}: {e}")
 
 
 async def process_batch_background(

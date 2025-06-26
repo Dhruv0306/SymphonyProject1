@@ -12,10 +12,10 @@
 
 // React and Material-UI imports
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Box, Container, Typography, Paper, Button, CircularProgress, 
-  Radio, RadioGroup, FormControlLabel, FormControl, TextField, 
-  Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, Slider 
+import {
+  Box, Container, Typography, Paper, Button, CircularProgress,
+  Radio, RadioGroup, FormControlLabel, FormControl, TextField,
+  Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, Slider
 } from '@mui/material';
 
 // Material-UI Icons
@@ -34,8 +34,6 @@ import axios from 'axios';
 
 // Internal imports
 import { API_BASE_URL, WS_BASE_URL } from './config';
-import { chunkImages, processImageChunks} from './utils/imageChunker';
-import { calculateDelay, sleep } from './utils/delayCalculator';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
 import { getClientId } from './utils/clientId';
@@ -57,45 +55,6 @@ const symphonyDarkBlue = '#005299';  // Hover/active state - interactive element
 const SIDEBAR_WIDTH = 280; // Sidebar width for responsive layout (pixels)
 
 /**
- * Enhanced retry utility function with exponential backoff
- * Implements robust error handling for network requests with intelligent retry logic
- * 
- * @param {Function} fn - The async function to retry
- * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
- * @param {number} initialDelay - Initial delay in milliseconds (default: 1000)
- * @param {number|null} chunkIndex - Optional chunk index for logging purposes
- * @returns {Promise} - Resolves with function result or throws final error
- * @throws {Error} - Throws the last encountered error after all retries exhausted
- */
-const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000, chunkIndex = null) => {
-  let retries = 0;
-  while (retries < maxRetries) {
-    try {
-      return await fn();
-    } catch (error) {
-      retries++;
-      const isRetryableError =
-        error.response?.status === 429 || // Rate limit
-        error.response?.status >= 500 || // Server errors
-        error.code === 'NETWORK_ERROR' || // Network issues
-        !error.response; // Network timeout/connection issues
-
-      if (isRetryableError && retries < maxRetries) {
-        const delay = initialDelay * Math.pow(2, retries - 1);
-        const chunkInfo = chunkIndex !== null ? ` (Chunk ${chunkIndex + 1})` : '';
-        console.log(`Upload failed${chunkInfo}. Retrying in ${delay}ms... (Attempt ${retries} of ${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      } else {
-        // Log final failure
-        const chunkInfo = chunkIndex !== null ? ` for chunk ${chunkIndex + 1}` : '';
-        console.error(`Upload failed${chunkInfo} after ${retries} attempts:`, error);
-        throw error;
-      }
-    }
-  }
-};
-
-/**
  * FileUploader Component
  * Main component for handling image uploads and logo detection processing
  * 
@@ -105,53 +64,53 @@ const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000, chunkIn
  */
 const FileUploader = ({ onFilesSelected }) => {
   // ==================== STATE MANAGEMENT ====================
-  
+
   // File handling state
   const [files, setFiles] = useState([]);                 // Array of uploaded File objects
   const [preview, setPreview] = useState(null);           // Single image preview URL
   const [previews, setPreviews] = useState([]);          // Array of batch image preview objects
   const [results, setResults] = useState([]);            // Array of logo detection results
-  
+
   // UI state management
   const [loading, setLoading] = useState(false);         // Global loading state indicator
   const [error, setError] = useState(null);              // Error message string
   const [mobileOpen, setMobileOpen] = useState(false);   // Mobile navigation drawer state
-  
+
   // Processing mode configuration
   const [mode, setMode] = useState('single');            // Processing mode: 'single' or 'batch'
   const [inputMethod, setInputMethod] = useState('upload'); // Input method: 'upload' or 'url'
-  
+
   // URL input state
   const [imageUrl, setImageUrl] = useState('');          // Single image URL input
   const [batchUrls, setBatchUrls] = useState('');        // Batch image URLs (newline-separated)
-  
+
   // Progress tracking and batch processing
   const [progress, setProgress] = useState(null);        // Real-time progress data object
   const [processSummary, setProcessSummary] = useState(null); // Final processing summary
   const [batchId, setBatchId] = useState(null);          // Unique batch identifier
-  const [batchSize, setBatchSize] = useState(10);        // Images per batch chunk (optimized default)
+  const [chunkSize, setchunkSize] = useState(10);        // Images per batch chunk (optimized default)
   const [displayValue, setDisplayValue] = useState(10);  // UI display value for batch size slider
   const [batchRunning, setBatchRunning] = useState(false); // Batch processing status flag
-  
+
   // Upload status tracking
   const [uploadStatuses, setUploadStatuses] = useState({}); // Per-file upload status mapping
-  
+
   // WebSocket communication
   const [websocket, setWebsocket] = useState(null);     // WebSocket connection instance
   const wsRef = useRef(null);                           // WebSocket reference for cleanup
   const batchRunningRef = useRef(false);                // Ref to track batch running state
-  
+
   // Timing and performance tracking
   const processStartTimeRef = useRef(null);             // Process start timestamp
-  
 
-  
+
+
   // Notification system
   const [emailNotification, setEmailNotification] = useState(''); // Email address for batch completion notifications
-  
+
   // Client identification
   const [clientID] = useState(getClientId()); // Unique client identifier for WebSocket
-  
+
   // ==================== RESPONSIVE DESIGN HOOKS ====================
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -247,7 +206,7 @@ const FileUploader = ({ onFilesSelected }) => {
     ws.onclose = (event) => {
       setWebsocket(null);
       wsRef.current = null;
-      
+
       if (batchRunningRef.current) {
         console.warn('WebSocket disconnected during batch processing, retrying...');
         setTimeout(() => {
@@ -282,8 +241,8 @@ const FileUploader = ({ onFilesSelected }) => {
     const heartbeatInterval = setInterval(() => {
       if (websocket?.readyState === WebSocket.OPEN) {
         console.log('Sending heartbeat...');
-        websocket.send(JSON.stringify({ 
-          event: "heartbeat", 
+        websocket.send(JSON.stringify({
+          event: "heartbeat",
           client_id: clientID,
           timestamp: Date.now()
         }));
@@ -555,160 +514,107 @@ const FileUploader = ({ onFilesSelected }) => {
           name: inputMethod === 'upload' ? files[0].name : imageUrl
         }]);
       } else {
-        // Batch processing
+        // Batch processing (no chunking)
+        console.log('Starting batch upload. Total urls:', urls.length);
         if (inputMethod === 'upload') {
-          const chunks = chunkImages(files, batchSize);
-
-          const processChunk = async (chunk, chunkIndex) => {
-            return await retryWithBackoff(async () => {
-              // Calculate intelligent delay based on batch size and chunk index
-              const delay = calculateDelay(chunk.length, chunkIndex, chunks.length);
-              await sleep(delay);
-              const formData = new FormData();
-
-              // Set uploading status for each file in the chunk
-              chunk.forEach(file => {
-                formData.append('files', file);
-                setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
+          // If more than 300 files, zip them before upload
+          if (files.length > 300) {
+            // Dynamically import zipHelper to avoid circular deps
+            const { createZipFromFiles } = await import('./utils/zipHelper');
+            setUploadStatuses((prev) => {
+              const statuses = { ...prev };
+              files.forEach(file => {
+                statuses[file.name] = "uploading";
               });
+              return statuses;
+            });
 
-              // Add chunk metadata
-              formData.append('client_id', clientID);
-              formData.append('batch_id', newBatchId);
-              formData.append('chunk_index', chunkIndex);
-              formData.append('total_chunks', chunks.length);
-              formData.append('total_files', files.length);
+            // Create zip
+            const { blob: zipBlob, filename: zipFilename } = await createZipFromFiles(files, newBatchId);
 
-              const response = await axios.post(
-                `${API_BASE_URL}/api/check-logo/batch/`,
-                formData,
-                {
-                  headers: {
-                    'Content-Type': 'multipart/form-data',
-                  },
-                }
-              );
+            const formData = new FormData();
+            formData.append('zip_file', zipBlob, zipFilename);
+            formData.append('client_id', clientID);
+            formData.append('batch_id', newBatchId);
+            formData.append('total_files', files.length);
+            formData.append('chunkSize', chunkSize);
 
-              // Check for chunk-level errors
-              if (response.data.chunk_status === 'error') {
-                throw new Error(response.data.message || 'Chunk processing failed');
+            const response = await axios.post(
+              `${API_BASE_URL}/api/check-logo/batch/`,
+              formData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                },
               }
+            );
+            console.log('Batch upload completed (zipped). Total files:', files.length);
+            console.log('Batch upload response:', response.data);
+            files.forEach(file => {
+              setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
+            });
+            console.log('Batch validation started. Total files:', files.length);
+          } else {
+            // Upload all files in one request
+            const formData = new FormData();
+            console.log('Starting batch upload. Total files:', files.length);
+            files.forEach(file => {
+              formData.append('files', file);
+              setUploadStatuses((prev) => ({ ...prev, [file.name]: "uploading" }));
+            });
 
-              // Set validating status for each file after upload
-              chunk.forEach(file => {
-                setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
-              });
+            formData.append('client_id', clientID);
+            formData.append('batch_id', newBatchId);
+            formData.append('total_files', files.length);
+            formData.append('chunkSize', chunkSize);
 
-              // Process results and update status
-              const results = response.data.results || [];
-              results.forEach((result, idx) => {
-                const file = chunk[idx];
-                if (file) {
-                  if (result.Is_Valid === "Valid") {
-                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "valid" }));
-                  } else {
-                    setUploadStatuses((prev) => ({ ...prev, [file.name]: "invalid" }));
-                  }
-                }
-              });
-
-              return results;
-            }, 3, 1000, chunkIndex);
-          };
-
-          const { results: allResults } = await processImageChunks(
-            chunks,
-            (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
-            (progressData) => {
-              // setProgress(progressData);
-            }
-          );
-
-          setResults(allResults.map((result, index) => ({
-            isValid: result.Is_Valid === "Valid",
-            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-            name: files[index].name
-          })));
+            const response = await axios.post(
+              `${API_BASE_URL}/api/check-logo/batch/`,
+              formData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                },
+              }
+            );
+            console.log('Batch upload completed. Total files:', files.length);
+            console.log('Batch upload response:', response.data);
+            files.forEach(file => {
+              setUploadStatuses((prev) => ({ ...prev, [file.name]: "validating" }));
+            });
+            console.log('Batch validation started. Total files:', files.length);
+          }
         } else {
-          // For batch URL input
+          // For batch URL input (all URLs in one request)
           const urls = batchUrls.split('\n').filter(url => url.trim());
-          const chunks = chunkImages(urls, batchSize);
+          console.log('Starting batch upload. Total urls:', urls.length);
+          urls.forEach(url => {
+            setUploadStatuses((prev) => ({ ...prev, [url]: "uploading" }));
+          });
 
-          const processChunk = async (chunk, chunkIndex) => {
-            return await retryWithBackoff(async () => {
-              // Calculate intelligent delay based on batch size and chunk index
-              const delay = calculateDelay(chunk.length, chunkIndex, chunks.length);
-              await sleep(delay);
-              
-              // Set uploading status for each URL in the chunk
-              chunk.forEach(url => {
-                setUploadStatuses((prev) => ({ ...prev, [url]: "uploading" }));
-              });
-
-              const data = {
-                image_paths: chunk.map(url => url.trim()),
-                batch_id: newBatchId,
-                chunk_index: chunkIndex,
-                total_chunks: chunks.length,
-                total_files: urls.length,
-                client_id: clientID
-              };
-              const response = await axios.post(
-                `${API_BASE_URL}/api/check-logo/batch/`,
-                JSON.stringify(data),  // Explicitly stringify the JSON
-                {
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                  },
-                }
-              );
-
-              // Check for chunk-level errors
-              if (response.data.chunk_status === 'error') {
-                // Set error status for each URL in failed chunk
-                chunk.forEach(url => {
-                  setUploadStatuses((prev) => ({ ...prev, [url]: "error" }));
-                });
-                throw new Error(response.data.message || 'Chunk processing failed');
-              }
-
-              // Set validating status for each URL after upload
-              chunk.forEach(url => {
-                setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
-              });
-
-              // Backend now processes in background, no immediate results returned
-              // Process results and update status
-              const results = response.data.results || [];
-              results.forEach((result, idx) => {
-                const url = chunk[idx];
-                if (url) {
-                  if (result.Is_Valid === "Valid") {
-                    setUploadStatuses((prev) => ({ ...prev, [url]: "valid" }));
-                  } else {
-                    setUploadStatuses((prev) => ({ ...prev, [url]: "invalid" }));
-                  }
-                }
-              });
-
-              return response.data.results || [];
-            }, 3, 1000, chunkIndex);
+          const data = {
+            image_paths: urls.map(url => url.trim()),
+            batch_id: newBatchId,
+            total_files: urls.length,
+            client_id: clientID
           };
-
-          const { results: allResults } = await processImageChunks(
-            chunks,
-            (chunk, chunkIndex) => processChunk(chunk, chunkIndex),
-            (progressData) => {
-              // setProgress(progressData);
+          const response = await axios.post(
+            `${API_BASE_URL}/api/check-logo/batch/`,
+            JSON.stringify(data),
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
             }
           );
 
-          setResults(allResults.map((result, index) => ({
-            isValid: result.Is_Valid === "Valid",
-            message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-            name: urls[index]
-          })));
+          console.log('Batch upload completed. Total urls:', urls.length);
+          console.log('Batch upload response:', response.data);
+          urls.forEach(url => {
+            setUploadStatuses((prev) => ({ ...prev, [url]: "validating" }));
+          });
+          console.log('Batch validation started. Total urls:', urls.length);
         }
       }
     } catch (error) {
@@ -1980,7 +1886,7 @@ const FileUploader = ({ onFilesSelected }) => {
                       value={displayValue}
                       onChange={(_, value) => {
                         setDisplayValue(value);
-                        setBatchSize(value);
+                        setchunkSize(value);
                       }}
                       min={1}
                       max={999}
@@ -2041,7 +1947,7 @@ const FileUploader = ({ onFilesSelected }) => {
                         variant="outlined"
                         size="small"
                         onClick={() => {
-                          setBatchSize(value);
+                          setchunkSize(value);
                           setDisplayValue(value);
                         }}
                         sx={{

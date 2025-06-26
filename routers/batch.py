@@ -315,16 +315,8 @@ async def check_logo_batch(
     batch_id: Optional[str] = Form(
         None, description="Optional batch ID for tracking progress"
     ),
-    email: Optional[str] = Form(
-        None, description="Email address for batch completion notification"
-    ),
     client_id: Optional[str] = Form(
         None, description="Client ID for WebSocket updates"
-    ),
-    chunk_index: Optional[int] = Form(None, description="Current chunk index"),
-    total_chunks: Optional[int] = Form(None, description="Total number of chunks"),
-    total_files: Optional[int] = Form(
-        None, description="Total number of files in batch"
     ),
     chunkSize: Optional[int] = Form(10, description="Chunk size for batch processing"),
     batch_request: Optional[BatchUrlRequest] = None,
@@ -341,11 +333,7 @@ async def check_logo_batch(
         files (Optional[List[UploadFile]]): List of uploaded files.
         zip_file (Optional[UploadFile]): Zip file containing images.
         batch_id (Optional[str]): Batch ID for tracking.
-        email (Optional[str]): Email for notification.
         client_id (Optional[str]): Client ID for WebSocket updates.
-        chunk_index (Optional[int]): Index of the current chunk.
-        total_chunks (Optional[int]): Total number of chunks.
-        total_files (Optional[int]): Total number of files in batch.
         chunkSize (Optional[int]): Chunk size for batch processing.
         batch_request (Optional[BatchUrlRequest]): Batch request for URL processing.
 
@@ -486,16 +474,15 @@ async def check_logo_batch(
 
 @router.post(
     "/check-logo/batch/{batch_id}/complete",
-    summary="Mark batch as complete and send email notification",
+    summary="Mark batch as complete",
     response_description="Batch completion confirmation with results",
 )
-async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
+async def complete_batch(batch_id: str):
     """
-    Mark a batch as complete and send email notification if configured.
+    Mark a batch as complete.
 
     Args:
         batch_id (str): The batch ID to complete.
-        background_tasks (BackgroundTasks): FastAPI background task manager.
 
     Returns:
         dict: Confirmation message and batch results.
@@ -519,6 +506,42 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
                 for row in reader:
                     results.append(row)
 
+        return {"message": "Batch completed successfully", "results": results}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error completing batch: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/check-logo/batch/{batch_id}/send-email",
+    summary="Send batch summary email notification",
+    response_description="Email notification queued",
+)
+async def send_batch_email(batch_id: str, background_tasks: BackgroundTasks):
+    """
+    Send batch summary email notification if configured.
+
+    Args:
+        batch_id (str): The batch ID to send email for.
+        background_tasks (BackgroundTasks): FastAPI background task manager.
+
+    Returns:
+        dict: Confirmation message.
+    """
+    try:
+        batch_dir = os.path.join("exports", batch_id)
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+
+        if not os.path.exists(metadata_path):
+            raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+
+        csv_path = metadata["csv_path"]
+
         # Send email notification if email is provided in metadata
         if "email" in metadata and metadata["email"]:
             try:
@@ -538,15 +561,16 @@ async def complete_batch(batch_id: str, background_tasks: BackgroundTasks):
                 logger.info(
                     f"Email notification queued for batch {batch_id} to {email_to}"
                 )
+                return {"message": "Email notification queued"}
             except Exception as e:
-                # Log error but don't fail the batch completion
                 logger.error(f"Failed to queue email notification: {str(e)}")
-
-        return {"message": "Batch completed successfully", "results": results}
+                raise HTTPException(status_code=500, detail="Failed to queue email notification")
+        else:
+            raise HTTPException(status_code=400, detail="No email configured for this batch")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error completing batch: {str(e)}")
+        logger.error(f"Error sending batch email: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
