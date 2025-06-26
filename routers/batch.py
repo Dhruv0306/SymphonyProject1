@@ -41,7 +41,7 @@ from utils.batch_tracker import (
     get_progress,
 )
 from utils.websocket import broadcast_json
-from utils.background_tasks import process_batch_background
+from utils.background_tasks import process_with_chunks
 from utils.batch_tracker import init_batch
 import sys
 import asyncio
@@ -80,6 +80,8 @@ import logging
 import json
 import time
 from fastapi.responses import JSONResponse
+import zipfile
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -307,6 +309,9 @@ async def check_logo_batch(
     files: Optional[List[UploadFile]] = File(
         None, description="List of image files to validate"
     ),
+    zip_file: Optional[UploadFile] = File(
+        None, description="A zip file containing images for batch processing"
+    ),
     batch_id: Optional[str] = Form(
         None, description="Optional batch ID for tracking progress"
     ),
@@ -321,24 +326,27 @@ async def check_logo_batch(
     total_files: Optional[int] = Form(
         None, description="Total number of files in batch"
     ),
+    chunkSize: Optional[int] = Form(10, description="Chunk size for batch processing"),
     batch_request: Optional[BatchUrlRequest] = None,
 ):
     """
     Start batch processing - returns immediately with batch_id for WebSocket tracking.
 
-    Handles both file uploads and JSON URL lists for batch processing.
+    Handles file uploads, zip file uploads, and JSON URL lists for batch processing.
     Initiates background processing and returns a confirmation response.
 
     Args:
         request (Request): The incoming request.
         background_tasks (BackgroundTasks): FastAPI background task manager.
         files (Optional[List[UploadFile]]): List of uploaded files.
+        zip_file (Optional[UploadFile]): Zip file containing images.
         batch_id (Optional[str]): Batch ID for tracking.
         email (Optional[str]): Email for notification.
         client_id (Optional[str]): Client ID for WebSocket updates.
         chunk_index (Optional[int]): Index of the current chunk.
         total_chunks (Optional[int]): Total number of chunks.
         total_files (Optional[int]): Total number of files in batch.
+        chunkSize (Optional[int]): Chunk size for batch processing.
         batch_request (Optional[BatchUrlRequest]): Batch request for URL processing.
 
     Returns:
@@ -369,16 +377,62 @@ async def check_logo_batch(
 
             # Start background processing for URL list
             asyncio.create_task(
-                process_batch_background(
+                process_with_chunks(
                     batch_id=batch_id,
                     image_urls=batch_request.image_paths,
                     client_id=client_id,
+                    chunk_size=chunkSize,
                 )
             )
 
             return {
                 "batch_id": batch_id,
                 "message": "Batch processing started",
+                "status": "processing",
+            }
+
+        # Handle zip file upload
+        elif zip_file is not None:
+            if not batch_id:
+                raise HTTPException(status_code=400, detail="batch_id required")
+
+            # Validate batch exists
+            batch_dir = os.path.join("exports", batch_id)
+            if not os.path.exists(os.path.join(batch_dir, "metadata.json")):
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid batch_id: {batch_id}"
+                )
+
+            # Extract images from zip file into memory
+
+            zip_bytes = await zip_file.read()
+            files_data = []
+            with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
+                for name in zf.namelist():
+                    # Skip directories
+                    if name.endswith("/") or name.endswith("\\"):
+                        continue
+                    with zf.open(name) as file:
+                        files_data.append((name, file.read()))
+
+            if not files_data:
+                raise HTTPException(
+                    status_code=400, detail="No images found in zip file"
+                )
+
+            # Start background processing for extracted images
+            asyncio.create_task(
+                process_with_chunks(
+                    batch_id=batch_id,
+                    files_data=files_data,
+                    client_id=client_id,
+                    chunk_size=chunkSize,
+                )
+            )
+
+            return {
+                "batch_id": batch_id,
+                "message": "Batch processing started (zip file)",
                 "status": "processing",
             }
 
@@ -404,8 +458,11 @@ async def check_logo_batch(
 
             # Start background processing for file uploads
             asyncio.create_task(
-                process_batch_background(
-                    batch_id=batch_id, files_data=files_data, client_id=client_id
+                process_with_chunks(
+                    batch_id=batch_id,
+                    files_data=files_data,
+                    client_id=client_id,
+                    chunk_size=chunkSize,
                 )
             )
 
@@ -416,7 +473,9 @@ async def check_logo_batch(
             }
 
         else:
-            raise HTTPException(status_code=400, detail="Files or URLs required")
+            raise HTTPException(
+                status_code=400, detail="Files, zip file, or URLs required"
+            )
 
     except HTTPException:
         raise

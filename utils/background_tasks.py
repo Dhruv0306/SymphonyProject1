@@ -182,6 +182,59 @@ async def process_url_async(
         return {"Image_Path_or_URL": url, "Is_Valid": "Invalid", "Error": str(e)}
 
 
+async def process_with_chunks(
+    batch_id: str,
+    files_data: List[Tuple[str, bytes]] = None,
+    image_urls: List[str] = None,
+    chunk_size: int = None,
+    client_id: str = None,
+):
+    """
+    Process images or URLs in chunks using process_batch_background.
+
+    Args:
+        batch_id (str): Unique identifier for this batch
+        files_data (List[Tuple[str, bytes]], optional): List of (filename, file_data) tuples
+        image_urls (List[str], optional): List of image URLs to process
+        chunk_size (int, optional): Number of items per chunk
+        client_id (str, optional): ID of client to send progress updates to
+    """
+    if not chunk_size or chunk_size <= 0:
+        chunk_size = 10  # Default chunk size
+
+    # Only one of files_data or image_urls should be provided
+    if files_data and image_urls:
+        raise ValueError("Provide only one of files_data or image_urls, not both.")
+
+    # Helper to chunk a list
+    def chunk_list(lst, size):
+        for i in range(0, len(lst), size):
+            yield lst[i : i + size]
+
+    if files_data:
+        file_chunks = list(chunk_list(files_data, chunk_size))
+        for idx, file_chunk in enumerate(file_chunks):
+            await process_batch_background(
+                batch_id=batch_id,
+                files_data=file_chunk,
+                image_urls=None,
+                client_id=client_id,
+            )
+            if idx < len(file_chunks) - 1:
+                await asyncio.sleep(3 + 0.2 * (idx + 1))
+    elif image_urls:
+        url_chunks = list(chunk_list(image_urls, chunk_size))
+        for idx, url_chunk in enumerate(url_chunks):
+            await process_batch_background(
+                batch_id=batch_id,
+                files_data=None,
+                image_urls=url_chunk,
+                client_id=client_id,
+            )
+            if idx < len(url_chunks) - 1:
+                await asyncio.sleep(3 + 0.2 * (idx + 1))
+
+
 async def process_batch_background(
     batch_id: str,
     files_data: List[Tuple[str, bytes]] = None,
