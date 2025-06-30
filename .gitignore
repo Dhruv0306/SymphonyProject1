@@ -131,3 +131,4 @@ runs/detect/yolov8s_logo_detection3/*
 # Request tracking file
 requestID.txt
 temp-files/*
+*.diff
