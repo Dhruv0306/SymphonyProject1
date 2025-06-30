@@ -84,28 +84,34 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 
 - **⚡ Real-Time Image Processing**
   - Single image validation via file upload or URL
-  - Batch processing with unique session tracking (1-999 images)
-  - Real-time WebSocket updates for batch progress
-  - Automatic image preprocessing and enhancement
+  - Batch processing with unique session tracking (1-999+ images)
+  - **Smart Zip Processing**: Automatic zip file creation for batches >300 images
+  - **Batch uploads are sent in a single request (or zipped if large); all chunking and retry logic is handled server-side**
+  - **Real-time progress and per-file status are delivered via WebSocket**
+  - Automatic image preprocessing and enhancement with white boundary addition
   - Support for JPEG, PNG, and other common formats
-  - Concurrent processing for improved performance
   - Upload status indicators (uploading, validating, valid, invalid, error)
-  - Chunked upload processing with retry logic for failed batches
+  - **Batch results are fetched after completion via a dedicated endpoint**
 
 - **📊 Export & Reporting**
   - CSV export with batch metadata and timestamps
   - Comprehensive result details (confidence, bounding boxes, model used)
   - Processing time statistics and batch summaries
-  - Email notification input for batch completion alerts
+  - **Email Notifications**: Automated batch completion alerts with summary statistics
   - Download results with detailed detection information
+  - **Batch Analytics**: Processing metrics including average time per image
+  - **Error Reporting**: Detailed error tracking and categorization in exports
 
 - **💻 Modern User Interface**
   - React 19.1.0 with latest features and optimizations
   - Material-UI 7.1.0 for professional design components
-  - Drag-and-drop file upload with React Dropzone 14.3.8
+  - **Enhanced File Upload**: Multi-method support (drag-drop, file picker, URL input)
+  - **Smart Preview System**: Grid-based image previews with status indicators
   - Responsive design for desktop and mobile devices
   - Symphony branding with consistent color scheme (#0066B3)
   - Mobile-first responsive design with drawer navigation
+  - **Real-time Progress**: WebSocket-powered progress bars with detailed metrics
+  - **Simplified Upload**: The frontend uploads all files/URLs in a single request (or as a zip if >300 files)
   - Client-side routing with React Router DOM 6.30.1
 
 ### 👨‍💼 Admin Features
@@ -162,12 +168,44 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 
 - **🚀 Scalability & Performance**
   - **Microservice Architecture**: Decoupled Main API (App.py) and YOLO Service (yolo_service/)
-  - **Service Communication**: services/yolo_client.py handles inter-service communication
+  - **Service Communication**: services/yolo_client.py handles inter-service communication with retry logic
   - **Independent Scaling**: YOLO service can be scaled separately from main API
-  - **Concurrent Processing**: Batch processing with progress tracking via utils/batch_tracker.py
+  - **Advanced Batch Processing**: All chunking and retry logic is now handled server-side
+  - **Smart Resource Management**: Dynamic concurrent request limiting based on CPU cores
+  - **Zip File Optimization**: Automatic compression for large batches (>300 files)
   - **Efficient Model Loading**: Cached model weights in runs/detect/ directories
   - **Optimized Pipeline**: Streamlined image processing with utils/file_ops.py
+  - **Server-Side Processing**: Progress and results are handled via WebSocket and batch completion polling
   - **Load Balancing Ready**: Stateless architecture with external state management
+
+---
+
+## Example Workflow
+
+### Updated Batch Processing Flow
+
+**Frontend uploads all files (or a zip) or URLs in a single request:**
+1. User selects files or enters URLs in the frontend interface
+2. If file count > 300, frontend automatically creates a zip file using `zipHelper.js`
+3. Frontend sends all files/URLs or zip in a single POST request to `/api/check-logo/batch/`
+
+**Backend processes the batch in chunks, handles retries, and sends progress via WebSocket:**
+1. Backend receives the single request and validates the batch
+2. Server-side chunking logic in `background_tasks.py` processes files in optimal chunks
+3. Server-side retry logic in `batch_tracker.py` handles failed requests automatically
+4. Progress updates are sent to frontend via WebSocket in real-time
+
+**Frontend receives real-time progress and per-file status via WebSocket:**
+1. WebSocket connection established at `ws://localhost:8000/ws/{client_id}`
+2. Real-time progress updates show processing status for each file
+3. Per-file status indicators: uploading, validating, valid, invalid, error
+4. Progress bar displays completion percentage and estimated time remaining
+
+**After completion, frontend fetches results via dedicated endpoint:**
+1. Frontend polls `/api/check-logo/batch/{batch_id}/status` for completion
+2. Once complete, results are fetched via `/api/check-logo/batch/{batch_id}/complete`
+3. CSV export available via `/api/check-logo/batch/export-csv/{batch_id}`
+4. Email notifications sent automatically (if configured)
 
 ---
 
@@ -388,10 +426,8 @@ graph TD
     subgraph "Utility Services"
         style F1 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        style F3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        D1 -->|"Chunk Images"| F1["utils/imageChunker.js<br/>File processing<br/>Batch optimization"]
-        D1 -->|"Generate Client ID"| F2["utils/clientId.js<br/>Unique identification<br/>Session tracking"]
-        E1 -->|"Handle Auth"| F3["utils/auth.js<br/>Authentication logic<br/>Token management"]
+        D1 -->|"Generate Client ID"| F1["utils/clientId.js<br/>Unique identification<br/>Session tracking"]
+        E1 -->|"Handle Auth"| F2["utils/auth.js<br/>Authentication logic<br/>Token management"]
     end
 
     subgraph "Backend Communication"
@@ -413,7 +449,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** React App.js (port 3000) initializes routes through router.js and renders AppNavigation.js. Core Upload Components include FileUploader.js (main interface), BatchProcessingForm.js (multi-file upload), ProgressBar.js (real-time progress), and EmailInput.js (notifications). Admin Components provide AdminLogin.js (authentication), Dashboard.js (control panel), BatchHistory.js (processing history), and AdminNavLink.js (conditional navigation). Utility Services handle imageChunker.js (file processing), clientId.js (unique identification), and auth.js (authentication logic). Backend Communication uses config.js (API configuration), WebSocket connections (ws://localhost:8000/ws/{client_id}), and FastAPI Backend (http://localhost:8000). State Flow: Start Batch → Initialize → Process files.
+**Fallback Description:** React App.js (port 3000) initializes routes through router.js and renders AppNavigation.js. Core Upload Components include FileUploader.js (main interface with zip file support), BatchProcessingForm.js (multi-file upload), ProgressBar.js (real-time progress with ETA), and EmailInput.js (notifications). Admin Components provide AdminLogin.js (authentication), Dashboard.js (control panel), BatchHistory.js (processing history), and AdminNavLink.js (conditional navigation). Utility Services handle clientId.js (unique identification) and auth.js (authentication logic). Backend Communication uses config.js (API configuration), WebSocket connections with heartbeat (ws://localhost:8000/ws/{client_id}), and FastAPI Backend (http://localhost:8000). State Flow: Start Batch → Initialize → Process files with server-side handling.
 
 </details>
 
@@ -477,6 +513,8 @@ graph TD
 </details>
 
 ### Batch Processing Pipeline
+
+Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete.
 
 This sequence diagram shows the complete batch processing workflow from initialization to completion. It demonstrates the 4-step process: batch initialization, parameter setting, image processing with model testing, and status checking with CSV export. The diagram illustrates the interaction between Client, FastAPI App, batch router, tracker, detection logic, YOLO models, and file storage.
 
@@ -574,13 +612,71 @@ sequenceDiagram
     end
 ```
 
-**Fallback Description:** Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Validates batch exists and files provided → For each image: detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id}.
+**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Validates batch exists and files provided → For each image: detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id}.
+
+</details>
+
+### Enhanced Batch Processing Features
+
+This diagram shows the advanced batch processing capabilities including zip file handling, retry mechanisms, and email notifications.
+
+<details>
+<summary><strong>🚀 Advanced Batch Processing Flow</strong> (Click to expand)</summary>
+
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold'}}}%%
+flowchart TD
+    subgraph "File Input Processing"
+        style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style B fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style C fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        style D fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
+        A["File Upload/URL Input"] --> B{"File Count > 300?"}
+        B -->|"Yes"| C["Create Zip File<br/>zipHelper.js"]
+        B -->|"No"| D["Direct Upload"]
+        C --> E["Upload Zip to Backend"]
+        D --> E
+    end
+
+    subgraph "Backend Processing"
+        style E fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style F fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style G fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        style H fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
+        E --> F["Extract/Process Files<br/>batch.py"]
+        F --> G["Server-Side Processing<br/>background_tasks.py"]
+        G --> H["Concurrent YOLO Detection<br/>Semaphore-limited"]
+    end
+
+    subgraph "Server-Side Error Handling"
+        style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        style K fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        H --> I{"Timeout/Error?"}
+        I -->|"Yes"| J["Server-Side Error Handling"]
+        I -->|"No"| L["Update Progress"]
+        J --> K["Server-Side Retry Logic"]
+        K --> L
+    end
+
+    subgraph "Completion & Notification"
+        style L fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style M fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style N fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style O fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        L --> M["Generate CSV Export"]
+        M --> N["Send Email Notification<br/>(if configured)"]
+        N --> O["WebSocket Complete Event"]
+    end
+```
+
+**Fallback Description:** File Input Processing: File Upload/URL Input → Check if File Count > 300 → If Yes: Create Zip File → Upload Zip to Backend; If No: Direct Upload. Backend Processing: Extract/Process Files (batch.py) → Server-Side Processing (background_tasks.py) → Concurrent YOLO Detection (Semaphore-limited). Server-Side Error Handling: Check Timeout/Error → If Yes: Server-Side Error Handling → Server-Side Retry Logic; If No: Update Progress. Completion & Notification: Generate CSV Export → Send Email Notification (if configured) → WebSocket Complete Event.
 
 </details>
 
 ### YOLO Model Detection Pipeline
 
-This detailed sequence diagram expands on the batch processing pipeline, showing the 6-phase process with emphasis on the image processing loop and sequential model testing with early exit logic. It demonstrates real-time WebSocket updates, validation checks, preprocessing steps, and the complete model cascade from YOLOv8s to YOLOv11s variants.
+This detailed sequence diagram expands on the batch processing pipeline, showing the 6-phase process with emphasis on server-side image processing and sequential model testing with early exit logic. All chunking, retry, and progress tracking is handled server-side. It demonstrates real-time WebSocket updates, validation checks, preprocessing steps, and the complete model cascade from YOLOv8s to YOLOv11s variants.
 
 <details>
 <summary><strong>🎯 Detailed YOLO Detection Sequence</strong> (Click to expand)</summary>
@@ -684,6 +780,35 @@ sequenceDiagram
             
             B->>T: "update_batch_progress()"
             B->>W: "send_progress_update(client_id)"
+        end
+    end
+    
+    rect rgba(120, 80, 60, 0.4)
+        Note over B,W: "Phase 5: Server-Side Error Handling & Retry"
+        alt "Failed Requests Exist"
+            B->>B: "server_side_collect_failed_requests()"
+            B->>W: "broadcast_retry_start()"
+            loop "For each failed request (Server-Side)"
+                B->>D: "server_side_retry_check_logo(extended_timeout)"
+                D->>M: "Server-Side Retry with different settings"
+                M-->>D: "Server-Side Retry result"
+                D-->>B: "Updated result"
+                B->>T: "update_server_side_retry_progress()"
+            end
+        end
+    end
+    
+    rect rgba(60, 120, 80, 0.4)
+        Note over B,S: "Phase 6: Completion & Cleanup"
+        B->>T: "mark_batch_complete()"
+        B->>S: "finalize_csv_export()"
+        
+        opt "Email Notification Configured"
+            B->>B: "send_batch_summary_email()"
+        end
+        
+        B->>W: "broadcast_complete_event()"
+        B->>T: "clear_batch_data()"
             Note right of W: "Real-time progress to frontend"
         end
     end
@@ -718,7 +843,7 @@ sequenceDiagram
     end
 ```
 
-**Fallback Description:** Phase 1: Batch Initialization - Client creates batch_id via POST /api/start-batch. Phase 2: Batch Configuration - Client sets parameters via POST /api/init-batch. Phase 3: File Processing - Client submits FormData files or JSON image_paths via POST /api/check-logo/batch/ with validation checks. Phase 4: Image Processing Loop - For each image: PIL.Image.open() → ImageOps.expand(border=10, fill='white') → Sequential Model Testing with early exit (yolov8s_logo_detection → yolov8s_logo_detection2 → yolov8s_logo_detection3 → yolov11s_logo_detection → yolov11s3_logo_detection, each with conf=0.35) → Update batch progress → Send WebSocket progress updates. Phase 5: Finalization - Save complete results to data/. Phase 6: Status & Export - Client checks status and optionally exports CSV with APScheduler cleanup after 24h.
+**Fallback Description:** All chunking and retry logic is handled server-side. Phase 1: Batch Initialization - Client creates batch_id via POST /api/start-batch. Phase 2: Batch Configuration - Client sets parameters via POST /api/init-batch. Phase 3: File Processing - Client submits FormData files or JSON image_paths via POST /api/check-logo/batch/ with validation checks. Phase 4: Server-Side Image Processing Loop - For each image: PIL.Image.open() → ImageOps.expand(border=10, fill='white') → Sequential Model Testing with early exit (yolov8s_logo_detection → yolov8s_logo_detection2 → yolov8s_logo_detection3 → yolov11s_logo_detection → yolov11s3_logo_detection, each with conf=0.35) → Update batch progress → Send WebSocket progress updates. Phase 5: Server-Side Error Handling & Retry - All retry logic handled server-side. Phase 6: Status & Export - Client checks status and optionally exports CSV with APScheduler cleanup after 24h.
 
 </details>
 
@@ -937,7 +1062,8 @@ usingYolo/                         # 🏠 Root project directory
 │   ├── logger.py                  # Centralized logging configuration
 │   ├── file_ops.py                # File operations and management
 │   ├── cleanup.py                 # Automated cleanup tasks (APScheduler)
-│   ├── batch_tracker.py           # Batch state management
+│   ├── batch_tracker.py           # Batch state management with server-side retry logic
+│   ├── background_tasks.py        # Server-side async task processing and chunking
 │   ├── security.py                # CSRF protection and security utilities
 │   ├── ws_manager.py              # WebSocket connection management
 │   ├── websocket.py               # WebSocket utilities
@@ -977,11 +1103,13 @@ usingYolo/                         # 🏠 Root project directory
 │       │   ├── ProgressBar.js    # Real-time progress tracking
 │       │   └── EmailInput.js     # Email notification input
 │       └── utils/                # 🔧 Frontend utilities - Helper functions
-│           ├── imageChunker.js   # Batch processing utilities
+│           ├── zipHelper.js      # Zip file creation for large batches (kept for zipping)
 │           ├── clientId.js       # Client ID generation
+│           ├── urlDecoder.js     # URL decoding utilities
 │           └── auth.js           # Authentication helpers
 │
-├── services/                     # 🔌 Additional service modules - External integrations
+├── services/                     # 🔌 Service modules - External integrations
+│   └── yolo_client.py            # YOLO service communication with server-side retry logic
 ├── tasks/                        # ⏰ Background task definitions - Scheduled jobs
 ├── models/                       # 📊 Model-related utilities - Pydantic schemas
 ├── tests/                        # 🧪 Test suite - Automated testing
@@ -1015,6 +1143,7 @@ usingYolo/                         # 🏠 Root project directory
 ### Frontend Stack
 - **React 19.1.0** - Modern UI framework with latest features
 - **Material-UI 7.1.0** - Professional component library with icons
+- **JSZip 3.10.1** - Client-side zip file creation for large batches
 - **Axios 1.9.0** - HTTP client for API communication
 - **React Dropzone 14.3.8** - Drag-and-drop file uploads
 - **React Router DOM 6.30.1** - Client-side routing
@@ -1037,6 +1166,9 @@ usingYolo/                         # 🏠 Root project directory
 - **Image Enhancement** - Automatic boundary addition (10px white border)
 - **URL Processing** - Direct HTTP/HTTPS image URL support
 - **Robust Error Handling** - Graceful model failure recovery
+- **Server-Side Retry Logic** - Intelligent server-side retry mechanism for timeout/failed requests
+- **Server-Side Concurrent Processing** - Dynamic semaphore-based request limiting (2-4 concurrent)
+- **Zip File Support** - Automatic zip creation and extraction for large batches (>300 files)
 
 ### Development & Testing Tools
 - **Pytest 8.0.2** - Backend testing framework
@@ -1070,7 +1202,7 @@ usingYolo/                         # 🏠 Root project directory
 ### Backend Setup
 
 #### 1. Clone the repository:
-```bash
+
 ```bash
 git clone https://github.com/Dhruv0306/SymphonyProject1/
 cd usingYolo
@@ -1323,11 +1455,11 @@ The system uses WebSocket connections for real-time updates:
 - **Real-time Progress:** WebSocket-based progress tracking with time estimates
 - **Admin Dashboard:** Secure admin interface with batch history and statistics
 - **Email Notifications:** Optional email alerts for batch completion
-- **Retry Logic:** Automatic retry for failed chunks with user-initiated retry option
+- **Server-Side Processing:** All retry logic and chunking handled server-side
 - **CSV Export:** Download batch results with metadata
 - **Responsive Design:** Mobile-optimized interface with drawer navigation
 - **Symphony Branding:** Consistent color scheme (#0066B3) and logo integration
-- **Configurable Batch Size:** Adjustable batch processing size (1-999 images)
+- **Simplified Upload:** Single request upload with server-side batch processing
 - **Upload Status Tracking:** Real-time status indicators for each file
 
 ### Development Mode

@@ -171,6 +171,13 @@ class BatchUrlRequest(BaseModel):
         description="Client ID for WebSocket updates",
         example="3ba569a2-58d3-4217-86f2-65d7afb89a23",
     )
+    # Chunk size for batch processing
+    chunkSize: Optional[int] = Field(
+        10,
+        description="Chunk size for batch processing",
+        example=10,
+        ge=1,
+    )
 
     class Config:
         schema_extra = {

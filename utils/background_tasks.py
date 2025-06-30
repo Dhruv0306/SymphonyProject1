@@ -16,6 +16,7 @@ import csv
 import json
 import os
 import time
+import httpx
 
 # Configure logging for this module
 logger = logging.getLogger(__name__)
@@ -180,6 +181,78 @@ async def process_url_async(
         logger.error(f"Error processing {url}: {e}")
         await update_batch(batch_id, False)
         return {"Image_Path_or_URL": url, "Is_Valid": "Invalid", "Error": str(e)}
+
+
+async def process_with_chunks(
+    batch_id: str,
+    files_data: List[Tuple[str, bytes]] = None,
+    image_urls: List[str] = None,
+    chunk_size: int = None,
+    client_id: str = None,
+):
+    """
+    Process images or URLs in chunks using process_batch_background.
+
+    Args:
+        batch_id (str): Unique identifier for this batch
+        files_data (List[Tuple[str, bytes]], optional): List of (filename, file_data) tuples
+        image_urls (List[str], optional): List of image URLs to process
+        chunk_size (int, optional): Number of items per chunk
+        client_id (str, optional): ID of client to send progress updates to
+    """
+    logger.info(f"Starting batch {batch_id} with chunk size {chunk_size}")
+    if not chunk_size or chunk_size <= 0:
+        chunk_size = 10  # Default chunk size
+
+    # Only one of files_data or image_urls should be provided
+    if files_data and image_urls:
+        raise ValueError("Provide only one of files_data or image_urls, not both.")
+
+    # Helper to chunk a list
+    def chunk_list(lst, size):
+        for i in range(0, len(lst), size):
+            yield lst[i : i + size]
+
+    chunk_index = 0
+
+    if files_data:
+        file_chunks = list(chunk_list(files_data, chunk_size))
+        for idx, file_chunk in enumerate(file_chunks):
+            await process_batch_background(
+                batch_id=batch_id,
+                files_data=file_chunk,
+                image_urls=None,
+                client_id=client_id,
+            )
+            if idx < len(file_chunks) - 1:
+                if chunk_size > 50:
+                    await asyncio.sleep(3 + 0.2 * (chunk_index + 1))
+                else:
+                    await asyncio.sleep(3 + 0.05 * (chunk_index + 1))
+                chunk_index += 1
+    elif image_urls:
+        url_chunks = list(chunk_list(image_urls, chunk_size))
+        for idx, url_chunk in enumerate(url_chunks):
+            await process_batch_background(
+                batch_id=batch_id,
+                files_data=None,
+                image_urls=url_chunk,
+                client_id=client_id,
+            )
+            if idx < len(url_chunks) - 1:
+                if chunk_size > 50:
+                    await asyncio.sleep(3 + 0.2 * (chunk_index + 1))
+                else:
+                    await asyncio.sleep(3 + 0.05 * (chunk_index + 1))
+                chunk_index += 1
+
+    # After all chunks are processed, trigger email sending
+    try:
+        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        async with httpx.AsyncClient() as client:
+            await client.post(f"{base_url}/api/check-logo/batch/{batch_id}/send-email")
+    except Exception as e:
+        logger.error(f"Failed to send email for batch {batch_id}: {e}")
 
 
 async def process_batch_background(
