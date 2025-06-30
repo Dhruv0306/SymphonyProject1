@@ -4,9 +4,9 @@ graph TD
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["React Frontend<br/>Port 3000"] -->|"Render Components"| A1["FileUploader Component<br/>Batch processing UI"]
-        A -->|"Admin Access"| A2["Admin Dashboard<br/>Authentication required"]
-        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py<br/>Port 8000"]
+        A["React Frontend\nPort 3000"] -->|"Render Components"| A1["FileUploader, BatchProcessingForm, ProgressBar, EmailInput\nMaterial-UI 7.1.0\nJSZip for zip >300 files"]
+        A -->|"Admin Access"| A2["Admin Dashboard, BatchHistory, Dashboard\nAuthentication required"]
+        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py\nPort 8000"]
         A2 -->|"Auth Requests"| B
     end
 
@@ -19,31 +19,23 @@ graph TD
         style C5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C6 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C7 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Route Single Images"| C1["routers/single.py<br/>POST /api/check-logo/single"]
-        B -->|"Route Batch Requests"| C2["routers/batch.py<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/"]
-        B -->|"Route CSV Exports"| C3["routers/export.py<br/>GET /api/check-logo/batch/export-csv/{id}"]
-        B -->|"Route Admin Auth"| C4["routers/admin_auth.py<br/>POST /api/admin/login"]
-        B -->|"Route WebSocket"| C5["routers/websocket.py<br/>WS /ws/{client_id}"]
-        B -->|"Route Dashboard"| C6["routers/dashboard_stats.py<br/>GET /api/admin/dashboard"]
-        B -->|"Route Batch History"| C7["routers/batch_history.py<br/>GET /api/admin/batch-history"]
+        B -->|"Route Single Images"| C1["routers/single.py\nPOST /api/check-logo/single"]
+        B -->|"Route Batch Requests"| C2["routers/batch.py\nPOST /api/start-batch\nPOST /api/init-batch\nPOST /api/check-logo/batch/"]
+        B -->|"Route CSV Exports"| C3["routers/export.py\nGET /api/check-logo/batch/export-csv/{id}"]
+        B -->|"Route Admin Auth"| C4["routers/admin_auth.py\nPOST /api/admin/login"]
+        B -->|"Route WebSocket"| C5["routers/websocket.py\nWS /ws/{client_id}"]
+        B -->|"Route Dashboard"| C6["routers/dashboard_stats.py\nGET /api/admin/dashboard"]
+        B -->|"Route Batch History"| C7["routers/batch_history.py\nGET /api/admin/batch-history"]
     end
 
     subgraph "Microservice Detection Engine"
         style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style E1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style E2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        style E5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Call check_logo()"| D["detect_logo.py<br/>Sequential model testing<br/>Confidence threshold 0.35"]
+        style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        C1 -->|"Call check_logo()"| D["detect_logo.py\nSequential model cascade\nConfidence threshold 0.35\nImage enhancement"]
         C2 -->|"Call check_logo()"| D
-        D -->|"Via services/yolo_client.py"| D2["yolo_service/<br/>Microservice Architecture<br/>main.py + start.py"]
-        D2 -->|"Load Model 1"| E1["runs/detect/yolov8s_logo_detection/<br/>weights/best.pt"]
-        D2 -->|"Load Model 2"| E2["runs/detect/yolov8s_logo_detection2/<br/>weights/best.pt"]
-        D2 -->|"Load Model 3"| E3["runs/detect/yolov8s_logo_detection3/<br/>weights/best.pt"]
-        D2 -->|"Load Model 4"| E4["runs/detect/yolov11s_logo_detection/<br/>weights/best.pt"]
-        D2 -->|"Load Model 5"| E5["runs/detect/yolov11s3_logo_detection/<br/>weights/best.pt"]
+        D -->|"Via services/yolo_client.py\n(Retry logic)"| D2["yolo_service/\nmain.py + start.py\n(port 8001)"]
+        D2 -->|"Load YOLO Models"| E["runs/detect/yolov8s_logo_detection, yolov8s_logo_detection2, yolov8s_logo_detection3, yolov11s_logo_detection, yolov11s3_logo_detection\nweights/best.pt"]
     end
 
     subgraph "Utility Services (utils/)"
@@ -54,13 +46,15 @@ graph TD
         style F5 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F6 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F7 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Track Batch State"| F1["utils/batch_tracker.py<br/>JSON state management<br/>24h retention"]
-        B -->|"Manage WebSocket"| F2["utils/ws_manager.py<br/>Real-time progress updates<br/>Client connections"]
-        B -->|"Schedule Cleanup"| F3["utils/cleanup.py<br/>APScheduler tasks<br/>Resource management"]
-        B -->|"Apply Security"| F4["utils/security.py<br/>CORS, rate limiting<br/>SlowAPI integration"]
-        B -->|"Write Logs"| F5["utils/logger.py<br/>Structured logging<br/>10MB rotation"]
-        B -->|"File Operations"| F6["utils/file_ops.py<br/>File handling utilities"]
-        B -->|"Background Tasks"| F7["utils/background_tasks.py<br/>Async task management"]
+        style F8 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
+        B -->|"Track Batch State"| F1["utils/batch_tracker.py\nServer-side retry logic\nJSON state management\n24h retention"]
+        B -->|"Manage WebSocket"| F2["utils/ws_manager.py\nReal-time progress updates\nClient connections"]
+        B -->|"Schedule Cleanup"| F3["utils/cleanup.py\nAPScheduler tasks\nResource management"]
+        B -->|"Apply Security"| F4["utils/security.py\nCORS, rate limiting, CSRF\nSlowAPI integration"]
+        B -->|"Async Tasks"| F5["utils/background_tasks.py\nServer-side chunking\nAsync batch processing"]
+        B -->|"Logging"| F6["utils/logger.py\nStructured logging\n10MB rotation"]
+        B -->|"File Ops"| F7["utils/file_ops.py\nFile validation, temp storage"]
+        B -->|"Email"| F8["utils/emailer.py\nBatch completion notifications"]
     end
 
     subgraph "Storage & Data"
@@ -68,17 +62,15 @@ graph TD
         style G2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        D -->|"Save Temp Files"| G1["temp_uploads/<br/>Processing artifacts<br/>30min cleanup"]
-        C3 -->|"Generate CSV"| G2["exports/<br/>batch_{id}_results.csv<br/>24h retention"]
-        F5 -->|"Write Log Files"| G3["logs/<br/>Application & error logs<br/>Size-based rotation"]
-        F1 -->|"Store Batch Data"| G4["data/<br/>{batch_id}.json<br/>State persistence"]
+        style G5 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
+        F1 -->|"Store Batch Data"| G1["data/\n{batch_id}.json\nState persistence"]
+        F7 -->|"Temp Files"| G2["temp_uploads/\nAuto-cleanup 30min"]
+        F7 -->|"Uploads"| G3["uploads/\nPersistent uploads"]
+        F1 -->|"Exports"| G4["exports/\nCSV export files\n24h retention"]
+        F6 -->|"Logs"| G5["logs/\nApplication logs\n10MB rotation"]
     end
 
     subgraph "Testing & Quality (tests/)"
         style H1 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
-        style H2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
-        style H3 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#000000,font-weight:bold
-        C2 -->|"Test Coverage"| H1["tests/test_batch.py<br/>tests/test_single.py<br/>tests/test_detect_logo.py"]
-        H1 -->|"Frontend Tests"| H2["frontend/src/__tests__/<br/>React component testing<br/>Jest + React Testing Library"]
-        H1 -->|"Test Config"| H3["tests/pytest.ini<br/>Test configuration<br/>Coverage reporting"]
+        H1["tests/\npytest.ini, test_batch.py\nCoverage, error scenarios"]
     end

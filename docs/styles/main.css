@@ -233,13 +233,15 @@ body {
 .code-block-label {
     position: absolute;
     top: -12px;
-    right: 10px;
+    left: 10px; /* Move label to the left */
+    right: auto;
     background: var(--primary-color);
     color: white;
     padding: 2px 8px;
     border-radius: 4px;
     font-size: 0.75rem;
     font-weight: 500;
+    z-index: 2;
 }
 
 /* Error Message Code */
@@ -1000,7 +1002,8 @@ ul, ol {
 .code-block-label {
     position: absolute;
     top: -12px;
-    right: 10px;
+    left: 10px; /* Move label to the left */
+    right: auto;
     background: var(--primary-color);
     color: white;
     padding: 2px 8px;
@@ -1521,7 +1524,7 @@ ul, ol {
     border-left: 4px solid #2196f3;
 }
 
-.best-practices h3 {
+.best_practices h3 {
     color: #1565c0;
     margin-bottom: 1rem;
 }
@@ -1828,4 +1831,48 @@ ul, ol {
         height: 44px;
         font-size: 1.1rem;
     }
-} 
+}
+
+/* Feature Badges for new features */
+.feature-badge {
+    display: inline-block;
+    background: var(--accent-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    margin-right: 0.5em;
+    margin-bottom: 0.25em;
+    vertical-align: middle;
+}
+.admin-feature { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
+.env-feature { background: #f1f8e9; color: #388e3c; border-color: #388e3c; }
+.log-feature { background: #fff3e0; color: #f57c00; border-color: #f57c00; }
+.security-feature { background: #fce4ec; color: #c2185b; border-color: #c2185b; }
+.yolo-feature { background: #ede7f6; color: #512da8; border-color: #512da8; }
+.cleanup-feature { background: #e0f7fa; color: #00838f; border-color: #00838f; }
+.ratelimit-feature { background: #f9fbe7; color: #afb42b; border-color: #afb42b; }
+
+/* .env Example Block - improve visibility */
+.env-example {
+    background: #23272e;
+    border: 1px solid #388e3c;
+    border-radius: 6px;
+    padding: 1em;
+    margin: 1em 0;
+    font-family: 'Fira Code', monospace;
+    font-size: 1em;
+    color: #e8ffea;
+    position: relative;
+    overflow-x: auto;
+    white-space: pre-wrap;
+}
+.env-example code {
+    background: transparent;
+    color: #e8ffea;
+    font-size: 1em;
+    font-family: 'Fira Code', monospace;
+    white-space: pre-wrap;
+}

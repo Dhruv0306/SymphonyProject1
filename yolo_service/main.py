@@ -5,6 +5,7 @@ import tempfile
 import os
 from yolo_service.detect_logo import check_logo
 import yolo_service.detect_logo as detect_logo
+
 print(f"[DEBUG] detect_logo loaded from: {detect_logo.__file__}")
 
 
@@ -86,7 +87,9 @@ async def detect_logo_endpoint(
             raise HTTPException(status_code=400, detail="image_path is empty.")
         result = check_logo(image_path)
         if not isinstance(result, dict):
-            raise HTTPException(status_code=500, detail=f"Invalid result format: {result}")
+            raise HTTPException(
+                status_code=500, detail=f"Invalid result format: {result}"
+            )
         return DetectionResponse(**result)
 
     else:

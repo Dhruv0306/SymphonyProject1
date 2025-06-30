@@ -6,35 +6,35 @@ graph TD
         style A3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style A5 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A1["Input Validation<br/>- Invalid file types<br/>- Missing batch ID<br/>- Empty requests"] -->|"400 Bad Request"| B["FastAPI Error Handler"]
-        A2["Batch Processing<br/>- Batch not found<br/>- Invalid batch state"] -->|"404 Not Found"| B
-        A3["Model Inference<br/>- Model loading errors<br/>- Prediction failures"] -->|"500 Internal Error"| B
-        A4["File Operations<br/>- File read/write errors<br/>- Storage issues"] -->|"500 Internal Error"| B
-        A5["Rate Limiting<br/>- Too many requests<br/>- SlowAPI limits"] -->|"429 Too Many Requests"| B
+        A1["Input Validation\n- Invalid file types\n- Missing batch ID\n- Empty requests"] -->|"400 Bad Request"| B["FastAPI Error Handler"]
+        A2["Batch Processing\n- Batch not found\n- Invalid batch state"] -->|"404 Not Found"| B
+        A3["Model Inference\n- Model loading errors\n- Prediction failures"] -->|"500 Internal Error"| B
+        A4["File Operations\n- File read/write errors\n- Storage issues"] -->|"500 Internal Error"| B
+        A5["Rate Limiting\n- Too many requests\n- SlowAPI limits"] -->|"429 Too Many Requests"| B
     end
 
     subgraph "Error Processing"
         style B fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style D fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Classify & Log"| C["Error Response Generator<br/>- HTTPException with detail<br/>- Structured error messages<br/>- Status code mapping"]
-        C -->|"Return to Client"| D["JSON Error Response<br/>{detail: 'error message',<br/>status_code: xxx}"]
+        B -->|"Classify & Log"| C["Error Response Generator\n- HTTPException with detail\n- Structured error messages\n- Status code mapping"]
+        C -->|"Return to Client"| D["JSON Error Response\n{detail: 'error message',\nstatus_code: xxx}"]
     end
 
     subgraph "Test Coverage"
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style G fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Pytest Coverage"| E["test_batch.py<br/>- Invalid batch ID tests<br/>- Missing files tests<br/>- Mixed valid/invalid files"]
-        E -->|"Test Scenarios"| F["Batch Lifecycle Tests<br/>- Multiple file upload<br/>- URL processing<br/>- Status checking"]
-        F -->|"Edge Cases"| G["Error Scenarios<br/>- Empty batch processing<br/>- Single file handling<br/>- Invalid file types"]
+        B -->|"Pytest Coverage"| E["tests/test_batch.py\n- Invalid batch ID\n- Missing files\n- Mixed valid/invalid files\n- URL/image scenarios"]
+        E -->|"Test Scenarios"| F["Batch lifecycle, status, error scenarios\n- Empty batch\n- Single file\n- Invalid file types"]
+        F -->|"Edge Cases"| G["Edge case handling\n- Server-side retry\n- WebSocket errors\n- Export errors"]
     end
 
     subgraph "Logging & Monitoring"
         style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style J fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Write Logs"| H["Logger Utils<br/>- Structured logging<br/>- Error categorization<br/>- Batch tracking"]
-        H -->|"Store Logs"| I["logs/ Directory<br/>- Application logs<br/>- Error logs<br/>- Performance metrics"]
-        I -->|"Cleanup"| J["APScheduler<br/>- Log rotation<br/>- Size-based cleanup<br/>- Retention policies"]
+        B -->|"Write Logs"| H["utils/logger.py\n- Structured logging\n- Error categorization\n- Batch tracking"]
+        H -->|"Store Logs"| I["logs/\nApplication logs\nError logs\nPerformance metrics\n10MB rotation"]
+        I -->|"Cleanup"| J["utils/cleanup.py\nAPScheduler\nLog rotation\nSize-based cleanup\nRetention policies"]
     end

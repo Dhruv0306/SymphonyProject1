@@ -23,11 +23,17 @@ graph TD
         style F3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style F5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F6 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F7 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style F8 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         E -->|"Route"| F1["single.py Router<br/>POST /api/check-logo/single"]
         E -->|"Route"| F2["batch.py Router<br/>POST /api/start-batch<br/>POST /api/init-batch<br/>POST /api/check-logo/batch/<br/>GET /api/check-logo/batch/{id}/status"]
         E -->|"Route"| F3["export.py Router<br/>GET /api/check-logo/batch/export-csv/{id}"]
         E -->|"Route"| F4["admin_auth.py Router<br/>POST /api/admin/login<br/>POST /api/admin/logout"]
         E -->|"Route"| F5["websocket.py Router<br/>WS /ws/{client_id}"]
+        E -->|"Route"| F6["dashboard_stats.py Router<br/>GET /api/admin/dashboard"]
+        E -->|"Route"| F7["batch_history.py Router<br/>GET /api/admin/batch-history"]
+        E -->|"Route"| F8["background_tasks.py<br/>Async chunking, retry logic"]
     end
 
     subgraph "Validation & Processing"

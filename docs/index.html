@@ -49,13 +49,16 @@
             <section id="overview" class="content-section">
                 <h2>Overview</h2>
                 <div class="card overview">
-                    <div class="status-badges">
-                        <span class="tech-badge">FastAPI v0.115.12</span>
-                        <span class="tech-badge">React v19.1.0</span>
-                        <span class="tech-badge">YOLOv8/v11</span>
-                        <span class="status-indicator online"><i class="fas fa-circle"></i> System Online</span>
-                    </div>
-                    <p>Enterprise-grade logo detection system powered by 5 specialized YOLO models with real-time batch processing capabilities. Built for Symphony Limited's image validation requirements.</p>
+                    <p><strong>Symphony Logo Detection</strong> is an enterprise-grade API and batch processing system for validating images using advanced YOLO models. The latest version introduces:</p>
+                    <ul>
+                        <li><span class="feature-badge admin-feature">Admin Authentication</span> for secure dashboard access</li>
+                        <li><span class="feature-badge env-feature">Environment-based Configuration</span> via <code>.env</code> file</li>
+                        <li><span class="feature-badge log-feature">Improved Logging</span> with rotation and error tracking</li>
+                        <li><span class="feature-badge security-feature">Security</span> with session, CSRF, and CORS protection</li>
+                        <li><span class="feature-badge yolo-feature">YOLO Microservice</span> URL is now configurable</li>
+                        <li><span class="feature-badge cleanup-feature">Automated Cleanup</span> of temp files and batches</li>
+                        <li><span class="feature-badge ratelimit-feature">Rate Limiting</span> to prevent abuse</li>
+                    </ul>
                 </div>
             </section>
 
@@ -63,28 +66,27 @@
             <section id="getting-started" class="content-section">
                 <h2>Quick Start Guide</h2>
                 <div class="card overview">
-                    <h3>Enterprise Features</h3>
-                    <ul>
-                        <li>5 specialized YOLO models with 0.35 confidence threshold</li>
-                        <li>FastAPI 0.115.12 with SlowAPI 0.1.9 rate limiting</li>
-                        <li>Real-time WebSocket batch processing with progress tracking</li>
-                        <li>CSV export with batch metadata and timestamps</li>
-                        <li>React 19.1.0 frontend with Material-UI 7.1.0</li>
-                        <li>APScheduler 3.10.4 automated cleanup and maintenance</li>
-                        <li>Torch 2.7.1 + TorchVision 0.22.1 deep learning framework</li>
-                        <li>Ultralytics 8.3.151 for YOLOv8 and YOLOv11 support</li>
-                    </ul>
+                    <ol>
+                        <li><strong>Clone the repository</strong> and install dependencies.</li>
+                        <li><strong>Configure environment variables:</strong>
+                            <pre class="code-block env-example"><code># Copy .env.example to .env and edit values
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_password
+SMTP_SERVER=...
+YOLO_SERVICE_URL=http://localhost:8001
+...</code></pre>
+                            <button class="copy-btn" data-copy-target=".env-example"><i class="fas fa-copy"></i> Copy .env Example</button>
+                        </li>
+                        <li><strong>Start the backend and frontend servers.</strong></li>
+                        <li><strong>Access the admin dashboard</strong> for monitoring and batch management.</li>
+                    </ol>
                 </div>
-
                 <div class="card system-requirements">
                     <h3>System Requirements</h3>
                     <ul>
-                        <li>Python 3.7+ with pip package manager</li>
-                        <li>Node.js 14+ with npm for frontend</li>
-                        <li>CUDA-compatible GPU (recommended for faster inference)</li>
-                        <li>4GB+ RAM (8GB+ recommended for batch processing)</li>
-                        <li>Active internet connection for URL-based image processing</li>
-                        <li>Windows/Linux/macOS support</li>
+                        <li>Python 3.11+</li>
+                        <li>Node.js 18+ (for frontend)</li>
+                        <li>YOLOv8/YOLOv11 model weights</li>
                     </ul>
                 </div>
             </section>
@@ -92,6 +94,15 @@
             <!-- Key Features Section -->
             <section id="features" class="content-section">
                 <h2>Key Features</h2>
+                <div class="card feature-card">
+                    <ul>
+                        <li><strong>Admin Dashboard:</strong> Secure login, session management, and batch history</li>
+                        <li><strong>Configurable via .env:</strong> Easily set SMTP, YOLO service, and security settings</li>
+                        <li><strong>Rate Limiting & CORS:</strong> Prevents abuse and allows safe frontend integration</li>
+                        <li><strong>Automated Cleanup:</strong> Scheduler removes old batches and temp files</li>
+                        <li><strong>Detailed Logging:</strong> Rotating logs for all requests and errors</li>
+                    </ul>
+                </div>
                 
                 <!-- System Architecture Diagram -->
                 <div class="card diagram-card">

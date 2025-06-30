@@ -26,25 +26,20 @@ sequenceDiagram
 
     rect rgba(90, 50, 100, 0.6)
         E->>E: Create CSV headers
-        Note right of E: Image_Path, Is_Valid, Confidence,<br/>Detected_By, Bounding_Box, Processing_Time
+        Note right of E: Image_Path, Is_Valid, Confidence,\nDetected_By, Bounding_Box, Processing_Time, Model Cascade
         E->>E: Format batch results
-        Note right of E: Include all processed images<br/>Add batch metadata and timestamps<br/>Handle both valid and invalid results
-        E->>E: Include model detection details
-        Note right of E: Sequential model results<br/>yolov8s_logo_detection variants<br/>yolov11s_logo_detection variants
+        Note right of E: Include all processed images\nAdd batch metadata and timestamps\nHandle both valid and invalid results\nInclude model detection details (cascade)
     end
 
     rect rgba(120, 40, 50, 0.6)
         E->>S: Save CSV to exports/{batch_id}.csv
         S-->>A: Return file path
         A->>A: Create FileResponse with headers
-        Note right of A: Content-Disposition: attachment<br/>filename=batch_{batch_id}_results.csv
+        Note right of A: Content-Disposition: attachment\nfilename=batch_{batch_id}_results.csv
         A-->>C: FileResponse with CSV download
     end
 
     rect rgba(60, 80, 110, 0.6)
-        Note over S: Auto-cleanup scheduled
-        Note over A: APScheduler cleans exports/ every 24h
-        Note over E: Handles mixed valid/invalid files
-        Note over B: Batch state persists in data/ directory
-        Note over A: Error handling for missing batches
+        Note over S: Auto-cleanup scheduled (APScheduler)
+        Note over A: Handles mixed valid/invalid files\nBatch state persists in data/ directory\nError handling for missing batches
     end

@@ -213,12 +213,12 @@ async def process_with_chunks(
 
     # Collect failed requests from all chunks
     failed_requests = []
-    
+
     # Limit concurrent chunks
     cpu_count = os.cpu_count() or 1
     max_concurrent_chunks = min(max(2, cpu_count // 2), 3)
     semaphore = asyncio.Semaphore(max_concurrent_chunks)
-    
+
     async def process_chunk_with_limit(chunk_data, is_files=True):
         async with semaphore:
             if is_files:
@@ -240,7 +240,7 @@ async def process_with_chunks(
 
     # Create tasks for parallel chunk processing
     tasks = []
-    
+
     if files_data:
         file_chunks = list(chunk_list(files_data, chunk_size))
         tasks = [process_chunk_with_limit(chunk, True) for chunk in file_chunks]
@@ -262,28 +262,35 @@ async def process_with_chunks(
 
     # Check if batch processing is complete
     from utils.batch_tracker import get_progress
+
     current_progress = get_progress(batch_id)
-    retry_complete = not current_progress.get("retry_phase") or current_progress.get("retry_processed", 0) >= current_progress.get("retry_total", 0)
-    
-    if (current_progress["processed"] >= current_progress["total"] and retry_complete and not is_complete_sent(batch_id)):
+    retry_complete = not current_progress.get("retry_phase") or current_progress.get(
+        "retry_processed", 0
+    ) >= current_progress.get("retry_total", 0)
+
+    if (
+        current_progress["processed"] >= current_progress["total"]
+        and retry_complete
+        and not is_complete_sent(batch_id)
+    ):
         logger.info(f"Batch completion triggered - sending complete event")
         final_stats = await mark_done(batch_id)
-        
+
         # Update metadata with final statistics
         batch_dir = os.path.join("exports", batch_id)
         metadata_path = os.path.join(batch_dir, "metadata.json")
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
-        
+
         metadata["counts"]["valid"] = final_stats["valid"]
         metadata["counts"]["invalid"] = final_stats["invalid"]
         metadata["counts"]["total"] = final_stats["total"]
         metadata["status"] = "completed"
         metadata["completed_at"] = time.time()
-        
+
         with open(metadata_path, "w") as f:
             json.dump(metadata, f)
-        
+
         # Send completion event to client
         if client_id:
             await broadcast_json(

@@ -31,16 +31,14 @@ sequenceDiagram
     rect rgba(30, 90, 50, 0.4)
         Note over C,A: "Phase 3: File Processing"
         C->>A: "POST /api/check-logo/batch/"
-        Note right of C: "FormData: files[] + batch_id<br/>OR JSON: image_paths[] + batch_id"
+        Note right of C: "FormData: files[] or zip + batch_id\nOR JSON: image_paths[] + batch_id"
         A->>B: "process_batch_images()"
-        
         alt "Validation Checks"
             B->>T: "validate_batch_exists(batch_id)"
             alt "Batch not found"
                 T-->>B: "Batch not found"
                 B-->>C: "400: Invalid batch ID"
             end
-            
             B->>B: "validate_files_or_urls()"
             alt "No files provided"
                 B-->>C: "400: Files or URLs required"
@@ -52,79 +50,40 @@ sequenceDiagram
         Note over B,M: "Phase 4: Image Processing Loop"
         loop "For each image/URL"
             B->>D: "check_logo(image_data)"
-            
             alt "Image preprocessing"
                 D->>D: "PIL.Image.open()"
                 D->>D: "ImageOps.expand(border=10, fill='white')"
                 D->>D: "Convert to RGB if needed"
             end
-            
-            alt "Sequential Model Testing (Early Exit)"
-                D->>M: "yolov8s_logo_detection.predict(conf=0.35)"
-                alt "Symphony detected (conf >= 0.35)"
-                    M-->>D: "Valid detection result"
-                    D-->>B: "Return early with result"
-                else "No detection"
-                    D->>M: "yolov8s_logo_detection2.predict(conf=0.35)"
-                    alt "Symphony detected"
-                        M-->>D: "Valid detection result"
-                        D-->>B: "Return early with result"
-                    else "No detection"
-                        D->>M: "yolov8s_logo_detection3.predict(conf=0.35)"
-                        alt "Symphony detected"
-                            M-->>D: "Valid detection result"
-                            D-->>B: "Return early with result"
-                        else "No detection"
-                            D->>M: "yolov11s_logo_detection.predict(conf=0.35)"
-                            alt "Symphony detected"
-                                M-->>D: "Valid detection result"
-                                D-->>B: "Return early with result"
-                            else "No detection"
-                                D->>M: "yolov11s3_logo_detection.predict(conf=0.35)"
-                                alt "Symphony detected"
-                                    M-->>D: "Valid detection result"
-                                    D-->>B: "Return with result"
-                                else "All models failed"
-                                    M-->>D: "No valid detection"
-                                    D-->>B: "Return invalid result"
-                                end
+            alt "Sequential Model Cascade"
+                D->>M: "yolov8s_logo_detection.predict()"
+                alt "No logo detected (conf < 0.35)"
+                    D->>M: "yolov8s_logo_detection2.predict()"
+                    alt "No logo detected"
+                        D->>M: "yolov8s_logo_detection3.predict()"
+                        alt "No logo detected"
+                            D->>M: "yolov11s_logo_detection.predict()"
+                            alt "No logo detected"
+                                D->>M: "yolov11s3_logo_detection.predict()"
                             end
                         end
                     end
                 end
             end
-            
-            B->>T: "update_batch_progress()"
-            B->>W: "send_progress_update(client_id)"
-            Note right of W: "Real-time progress to frontend"
+            M-->>D: "Detection results"
+            D->>T: "Update batch state"
+            D->>W: "Send progress update via WebSocket"
         end
-    end
-    
-    rect rgba(120, 40, 50, 0.4)
-        Note over B,S: "Phase 5: Finalization"
-        B->>T: "finalize_batch_state()"
-        T->>S: "Save complete results to data/"
-        B-->>C: "200: {batch_id, message: 'Processing complete', status: 'processing'}"
     end
 
-    rect rgba(60, 80, 110, 0.4)
-        Note over C,S: "Phase 6: Status & Export"
-        
-        opt "Status Check"
-            C->>A: "GET /api/check-logo/batch/{batch_id}/status"
-            A->>B: "get_batch_status()"
-            B->>T: "load_batch_state()"
-            T-->>B: "{status, counts: {total, processed, valid, invalid}, progress: %}"
-            B-->>C: "200: Status response"
-        end
-        
-        opt "CSV Export"
-            C->>A: "GET /api/check-logo/batch/export-csv/{batch_id}"
-            A->>B: "export_batch_csv()"
-            B->>T: "validate_batch_exists()"
-            B->>B: "Generate CSV with headers:<br/>Image_Path, Is_Valid, Confidence, Detected_By, Bounding_Box"
-            B->>S: "Save to exports/{batch_id}_results.csv"
-            B-->>C: "FileResponse: CSV download"
-            Note over S: "APScheduler cleanup after 24h"
-        end
+    rect rgba(120, 80, 60, 0.4)
+        Note over B,W: "Phase 5: Server-Side Error Handling & Retry"
+        Note over B: "Server-side retry for failed images"
+        Note over W: "WebSocket delivers real-time status"
+    end
+
+    rect rgba(60, 120, 80, 0.4)
+        Note over B,S: "Phase 6: Completion & Cleanup"
+        Note over S: "Auto-cleanup scheduled (APScheduler)"
+        Note over T: "Batch state persists in data/ directory"
     end

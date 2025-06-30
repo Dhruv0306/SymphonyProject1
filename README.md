@@ -508,7 +508,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** Image Input Processing: File Upload or URL → PIL Image Processing → Add White Boundary (10px). Sequential Model Execution: Model 1 (yolov8s_logo_detection) → Model 2 (yolov8s_logo_detection2) → Model 3 (yolov8s_logo_detection3) → Model 4 (yolov11s_logo_detection) → Model 5 (yolov11s3_logo_detection), each with confidence ≥ 0.35. Early Return Logic: If Symphony found (Conf ≥ 0.35) → Return Valid Result and stop processing; if no Symphony in all models → Return Invalid. Result Structure: JSON Response with Image_Path_or_URL, Is_Valid, Confidence, Detected_By, Bounding_Box, Error. Error Handling: Invalid file/URL → Error Response with no confidence/bounding box.
+**Fallback Description:** Image Input Processing: File Upload or URL → PIL Image Processing → Add White Boundary (10px). Sequential Model Execution: Model 1 (yolov8s_logo_detection) → Model 2 (yolov8s_logo_detection2) → Model 3 (yolov8s_logo_detection3) → Model 4 (yolov11s_logo_detection) → Model 5 (yolov11s_logo_detection), each with confidence ≥ 0.35. Early Return Logic: If Symphony found (Conf ≥ 0.35) → Return Valid Result and stop processing; if no Symphony in all models → Return Invalid. Result Structure: JSON Response with Image_Path_or_URL, Is_Valid, Confidence, Detected_By, Bounding_Box, Error. Error Handling: Invalid file/URL → Error Response with no confidence/bounding box.
 
 </details>
 
@@ -843,7 +843,7 @@ sequenceDiagram
     end
 ```
 
-**Fallback Description:** All chunking and retry logic is handled server-side. Phase 1: Batch Initialization - Client creates batch_id via POST /api/start-batch. Phase 2: Batch Configuration - Client sets parameters via POST /api/init-batch. Phase 3: File Processing - Client submits FormData files or JSON image_paths via POST /api/check-logo/batch/ with validation checks. Phase 4: Server-Side Image Processing Loop - For each image: PIL.Image.open() → ImageOps.expand(border=10, fill='white') → Sequential Model Testing with early exit (yolov8s_logo_detection → yolov8s_logo_detection2 → yolov8s_logo_detection3 → yolov11s_logo_detection → yolov11s3_logo_detection, each with conf=0.35) → Update batch progress → Send WebSocket progress updates. Phase 5: Server-Side Error Handling & Retry - All retry logic handled server-side. Phase 6: Status & Export - Client checks status and optionally exports CSV with APScheduler cleanup after 24h.
+**Fallback Description:** All chunking and retry logic is handled server-side. Phase 1: Batch Initialization - Client creates batch_id via POST /api/start-batch. Phase 2: Batch Configuration - Client sets parameters via POST /api/init-batch. Phase 3: File Processing - Client submits FormData files or JSON image_paths via POST /api/check-logo/batch/ with validation checks. Phase 4: Server-Side Image Processing Loop - For each image: PIL.Image.open() → ImageOps.expand(border=10, fill='white') → Sequential Model Testing with early exit (yolov8s_logo_detection → yolov8s_logo_detection2 → yolov8s_logo_detection3 → yolov11s_logo_detection → yolov11s3_logo_detection, each with conf=0.35) → Updates batch progress → Sends WebSocket progress updates. Phase 5: Server-Side Error Handling & Retry - All retry logic handled server-side. Phase 6: Status & Export - Client checks status and optionally exports CSV with APScheduler cleanup after 24h.
 
 </details>
 
@@ -1030,7 +1030,73 @@ sequenceDiagram
 
 </details>
 
-## Project Structure
+## Environment Configuration
+
+This project uses a `.env` file for all sensitive and environment-specific configuration. A template is provided as `.env.example`—copy this file to `.env` and fill in your own values before running the application.
+
+**Never commit your real `.env` file to version control.**
+
+Example variables (see `.env.example`):
+
+```
+# Admin Authentication
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_password
+
+# Email Configuration
+SMTP_SERVER=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@domain.com
+SMTP_PASSWORD=your_email_password
+SENDER_EMAIL=your_email@domain.com
+SENDER_NAME=Your App Name
+
+# Security Settings
+SESSION_DURATION=1800
+COOKIE_SECRET=your_secure_cookie_secret
+
+# YOLO Microservice Configuration
+YOLO_SERVICE_URL=http://localhost:8001
+```
+
+- Change all default credentials and secrets before deploying to production.
+- All configuration can be set via `.env`, environment variables, or CLI arguments (see below for override priority).
+
+---
+
+## Model Weights, Large Files, and Git LFS
+
+- This project uses [Git LFS](https://git-lfs.github.com/) to manage large model files (e.g., `*.pt` PyTorch weights).
+- Only specific YOLO weights directories are versioned (see `.gitattributes` and `.gitignore`).
+- All other large/binary/model files, logs, temp files, and data/exports are ignored by git.
+- To clone with model weights, ensure you have Git LFS installed:
+
+```bash
+git lfs install
+git clone <repo-url>
+```
+
+---
+
+## Continuous Integration (CI/CD)
+
+- Automated CI/CD is set up via GitHub Actions (`.github/workflows/ci.yml`).
+- On every push or pull request to main/master/develop:
+  - Python backend: linted with flake8 and black, tested with pytest.
+  - Node frontend: tested with `npm test`.
+- Node 18 and Python 3.11 are used in CI.
+- CI will fail if linting or tests fail.
+
+---
+
+## Project Structure (Root-level files)
+
+- `.env.example` — Template for environment configuration.
+- `.gitattributes` — Configures Git LFS for model weights.
+- `.gitignore` — Excludes logs, temp, data, exports, and all but specific model weights.
+- `.github/workflows/ci.yml` — GitHub Actions for CI/CD.
+
+### Detailed Project Structure
 
 ```
 usingYolo/                         # 🏠 Root project directory
@@ -1079,7 +1145,7 @@ usingYolo/                         # 🏠 Root project directory
 │   │   └── weights/best.pt
 │   ├── yolov11s_logo_detection/  # YOLOv11s model
 │   │   └── weights/best.pt
-│   └── yolov11s3_logo_detection/ # Optimized YOLOv11s model
+│   └── yolov11s3_logo_detection/ # Optimized YOLOv11s
 │       └── weights/best.pt
 │
 ├── frontend/                     # 💻 React frontend application (port 3000)
@@ -1265,7 +1331,7 @@ npm install
 #### 3. Start the frontend:
 ```bash
 # Using npm start-backend script with custom backend 
-npm run start-backend -- --backend=http://your-backend-url:8000
+npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000
 
 # Or using default backend (http://localhost:8000)
 npm run start-backend
@@ -1337,7 +1403,7 @@ The frontend configuration is managed through environment variables and the `set
 
 ```javascript
 // set-backend.js usage:
-npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000 --host=0.0.0.0
+npm run start-backend -- --backend=http://your-backend-url:8000 --port=3000
 
 // Parameters:
 // --backend=<url>  : Set custom backend URL (default: http://localhost:8000)
@@ -1430,7 +1496,7 @@ npm run start-backend
 The frontend supports flexible configuration via the `set-backend.js` script:
 ```bash
 # Custom backend URL and port
-npm run start-backend -- --backend=http://your-server:8000 --port=3001 --host=0.0.0.0
+npm run start-backend -- --backend=http://your-server:8000 --port=3000 --host=0.0.0.0
 
 # Available parameters:
 # --backend=<url>  : Custom backend URL (default: http://localhost:8000)
@@ -1502,283 +1568,3 @@ uvicorn App:app --host 0.0.0.0 --port 8000 --workers 4
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8001
 ```
-
-## API Documentation
-
-The application provides comprehensive API documentation:
-
-- **Interactive Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc Documentation:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
-- **API Summary:** [http://localhost:8000/api](http://localhost:8000/api)
-
-### Main Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/check-logo/single/` | POST | Validate a single image (file or URL) |
-| `/api/start-batch` | POST | Start a new batch session |
-| `/api/check-logo/batch/` | POST | Submit images or URLs for batch processing |
-| `/api/check-logo/batch/export-csv` | GET | Export batch results as CSV |
-| `/api/admin/login` | POST | Admin login |
-| `/api/admin/batch-history` | GET | Admin batch history |
-| `/api/admin/dashboard-stats` | GET | Admin dashboard stats |
-| `/ws/batch/{batch_id}` | WebSocket | Real-time batch progress updates |
-
-### Example Requests & Responses
-
-**Single Image Validation:**
-```bash
-# File upload
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
-  -F "file=@image.jpg"
-
-# URL validation
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
-  -H "Content-Type: application/json" \
-  -d '{"image_path": "https://example.com/image.jpg"}'
-```
-
-**Response:**
-```json
-{
-  "Image_Path_or_URL": "image.jpg",
-  "Is_Valid": "Valid",
-  "Confidence": 0.87,
-  "Detected_By": "yolov8s_logo_detection",
-  "Bounding_Box": [120, 45, 280, 180]
-}
-```
-
-**Start Batch Processing:**
-```bash
-curl -X POST "http://localhost:8000/api/start-batch"
-```
-
-**Response:**
-```json
-{
-  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-  "message": "Batch created successfully"
-}
-```
-
----
-
-## Security
-
-### Security Features
-- Admin authentication (JWT/session cookie)
-- CSRF protection
-- Rate limiting (SlowAPI)
-- CORS protection
-- Secure file handling and input validation
-
-### Security Best Practices
-
-**Credential Management:**
-- ⚠️ **Never expose admin credentials in public repositories**
-- Use strong passwords (12+ characters, mixed case, numbers, symbols)
-- Store secrets in `.env` file (excluded from version control)
-- Use environment variables in production
-
-**Secret Rotation:**
-```bash
-# Generate new cookie secret
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# Update .env file
-COOKIE_SECRET=new_generated_secret
-
-# Restart application to apply changes
-```
-
-**Production Security:**
-- Enable HTTPS in production
-- Use reverse proxy (nginx/Apache) with SSL termination
-- Implement IP whitelisting for admin endpoints
-- Regular security updates for dependencies
-- Monitor logs for suspicious activity
-
----
-
-## Error Handling
-
-### Error Response Format
-
-All API errors follow a standardized format:
-
-```json
-{
-  "detail": "Batch not found with ID: invalid-batch-id",
-  "status_code": 404,
-  "timestamp": "2024-01-15T10:30:00Z",
-  "path": "/api/check-logo/batch/invalid-batch-id/status"
-}
-```
-
-### Common Error Codes
-- **400 Bad Request:** Invalid input, missing files, malformed data
-- **404 Not Found:** Batch not found, invalid endpoints
-- **429 Too Many Requests:** Rate limit exceeded
-- **500 Internal Server Error:** Model failures, system errors
-
-### Log Files & Interpretation
-
-**Log Locations:**
-- Application logs: `logs/app.log`
-- Error logs: `logs/error.log`
-- Access logs: Console output
-
-**Sample Log Entry:**
-```
-2024-01-15 10:30:15,123 - INFO - batch_tracker - Batch 550e8400 initialized with 5 images
-2024-01-15 10:30:16,456 - ERROR - detect_logo - Model yolov8s_logo_detection failed to load
-2024-01-15 10:30:17,789 - WARNING - cleanup - Cleaned 3 expired batches
-```
-
-**Log Levels:**
-- **INFO:** Normal operations, batch progress
-- **WARNING:** Non-critical issues, cleanup activities
-- **ERROR:** Failed operations, model errors
-- **DEBUG:** Detailed debugging information (development only)
-
----
-
-## Testing
-
-### Test Coverage Goals
-
-**Backend Coverage (Target: 85%+):**
-- ✅ All API endpoints (single, batch, admin, export)
-- ✅ Error scenarios (invalid inputs, missing batches, model failures)
-- ✅ Batch lifecycle (initialization, processing, completion)
-- ✅ WebSocket connections and progress updates
-- ✅ Authentication and authorization flows
-- ✅ File operations and cleanup tasks
-
-**Frontend Coverage (Target: 80%+):**
-- ✅ Component rendering and user interactions
-- ✅ API integration and error handling
-- ✅ WebSocket communication
-- ✅ Admin authentication flows
-- ✅ File upload and batch processing UI
-
-### Running Tests
-
-**Backend Tests:**
-```bash
-# Run all tests
-pytest
-
-# Run with coverage report
-pytest --cov=. --cov-report=html
-
-# Run specific test file
-pytest tests/test_batch.py -v
-```
-
-**Frontend Tests:**
-```bash
-cd frontend
-
-# Run all tests
-npm test
-
-# Run with coverage
-npm test -- --coverage --watchAll=false
-
-# Run specific test
-npm test -- --testNamePattern="FileUploader"
-```
-
-### CI/CD Integration
-
-**GitHub Actions Example:**
-```yaml
-# .github/workflows/test.yml
-name: Tests
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run Backend Tests
-        run: |
-          pip install -r requirements.txt
-          pytest --cov=. --cov-report=xml
-      - name: Run Frontend Tests
-        run: |
-          cd frontend
-          npm install
-          npm test -- --coverage --watchAll=false
-```
-
----
-
-## Development Guidelines
-
-### Code Standards
-- **Python:** PEP 8 compliance, type hints, comprehensive docstrings
-- **JavaScript:** ESLint + Prettier configuration, JSDoc comments
-- **Git:** Conventional commits, feature branches, pull request reviews
-
-### Best Practices
-- Write tests for new features and bug fixes
-- Update documentation with code changes
-- Use meaningful variable and function names
-- Keep functions small and focused
-- Handle errors gracefully with proper logging
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Application Won't Start:**
-- Check logs in `logs/app.log` for detailed error messages
-- Verify `.env` file exists with required variables
-- Ensure model weights exist in `runs/detect/*/weights/best.pt`
-- Confirm ports 8000, 8001, 3000 are available
-
-**Detection Not Working:**
-- Verify both API (8000) and YOLO service (8001) are running
-- Check model file permissions and paths
-- Test with `/api` endpoint for system health
-
-**Frontend Connection Issues:**
-- Confirm backend URL in frontend configuration
-- Check CORS settings for cross-origin requests
-- Verify WebSocket connectivity for real-time updates
-
-**Performance Issues:**
-- Monitor system resources (RAM, CPU, GPU)
-- Check log file sizes and rotation settings
-- Review batch processing chunk sizes
-
----
-
-## License & Support
-
-### License
-This project is licensed under the Apache License 2.0. See the LICENSE file for details.
-
-### Support & Contact
-- **Technical Support:** Contact Symphony Limited IT Department
-- **Email:** inter.it@symphonylimited.com
-- **Documentation:** Comprehensive API docs available at `/docs`
-- **Issues:** Report bugs and feature requests through your organization's channels
-
-### Contributing
-This is an internal Symphony Limited project. For contributions:
-1. Follow the established coding standards
-2. Ensure all tests pass
-3. Update documentation as needed
-4. Submit changes through proper review channels
-
-### Acknowledgments
-- Built using Ultralytics YOLO models
-- FastAPI framework for robust API development
-- React and Material-UI for modern frontend experience
-- Symphony Limited

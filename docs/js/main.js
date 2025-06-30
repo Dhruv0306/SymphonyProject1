@@ -502,6 +502,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Add copy-to-clipboard for .env example
+    document.querySelectorAll('.copy-btn[data-copy-target]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetSelector = btn.getAttribute('data-copy-target');
+            const codeBlock = document.querySelector(targetSelector + ' code');
+            if (codeBlock) {
+                navigator.clipboard.writeText(codeBlock.textContent).then(() => {
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fas fa-copy"></i> Copy .env Example';
+                    }, 2000);
+                });
+            }
+        });
+    });
+    
     console.log('Symphony Logo Detection Documentation loaded successfully');
     console.log('Features: 5 YOLO models, FastAPI 0.115.12, React 19.1.0, Real-time WebSocket updates');
 });
@@ -521,4 +537,4 @@ if ('performance' in window) {
             }
         }, 0);
     });
-} 
+}

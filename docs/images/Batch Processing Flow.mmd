@@ -1,12 +1,13 @@
 %%{init: {'theme': 'dark', 'themeVariables': { 'fontFamily': 'arial', 'fontSize': '18px', 'fontWeight': 'bold', 'messageFontWeight': 'bold', 'noteFontWeight': 'bold'}}}%%
 sequenceDiagram
-    participant C as "Client"
+    participant C as "Client (React)"
     participant A as "FastAPI App"
     participant B as "batch.py Router"
     participant T as "batch_tracker.py"
     participant D as "detect_logo.py"
     participant M as "YOLO Models"
     participant S as "File Storage"
+    participant W as "WebSocket"
 
     rect rgba(40, 100, 160, 0.6)
         Note over C,A: "Step 1: Initialize Batch"
@@ -29,10 +30,10 @@ sequenceDiagram
     rect rgba(30, 90, 50, 0.6)
         Note over C,A: "Step 3: Process Images"
         C->>A: "POST /api/check-logo/batch/"
-        Note right of C: "files[] + batch_id OR image_paths[] + batch_id"
+        Note right of C: "files[] or zip + batch_id OR image_paths[] + batch_id"
         A->>B: "process_batch_images()"
-        B->>B: "Validate batch_id exists"
-        B->>B: "Validate files or URLs provided"
+        B->>T: "validate_batch_exists()"
+        B->>B: "validate_files_or_urls()"
     end
     
     rect rgba(90, 50, 100, 0.6)
@@ -40,8 +41,7 @@ sequenceDiagram
             B->>D: "check_logo(image)"
             D->>D: "Add white boundary"
             D->>D: "Preprocess image"
-            
-            alt "Sequential Model Testing"
+            alt "Sequential Model Cascade"
                 D->>M: "yolov8s_logo_detection.predict()"
                 alt "No logo detected (conf < 0.35)"
                     D->>M: "yolov8s_logo_detection2.predict()"
@@ -56,33 +56,20 @@ sequenceDiagram
                     end
                 end
             end
-            
             M-->>D: "Detection results"
-            D-->>B: "Formatted response"
-            B->>T: "update_batch_progress()"
+            D->>T: "Update batch state"
+            D->>W: "Send progress update via WebSocket"
         end
     end
-    
+
     rect rgba(120, 40, 50, 0.6)
         B->>T: "finalize_batch_state()"
-        T->>S: "Save final results"
         B-->>C: "200: {batch_id, message, status: 'processing'}"
     end
 
     rect rgba(60, 80, 110, 0.6)
-        Note over C,S: "Step 4: Check Status & Export"
-        C->>A: "GET /api/check-logo/batch/{batch_id}/status"
-        A->>B: "get_batch_status()"
-        B->>T: "load_batch_state()"
-        T-->>B: "Batch progress & results"
-        B-->>C: "200: {status, counts, progress}"
-        
-        opt "Export CSV"
-            C->>A: "GET /api/check-logo/batch/export-csv/{batch_id}"
-            A->>B: "export_batch_csv()"
-            B->>T: "validate_batch_exists()"
-            B->>B: "Generate CSV with results"
-            B->>S: "Save to exports/{batch_id}.csv"
-            B-->>C: "FileResponse: CSV download"
-        end
+        Note over S: "Auto-cleanup scheduled (APScheduler)"
+        Note over W: "WebSocket delivers real-time status"
+        Note over B: "Server-side retry for failed images"
+        Note over T: "Batch state persists in data/ directory"
     end
