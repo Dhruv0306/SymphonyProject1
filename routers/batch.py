@@ -354,6 +354,7 @@ async def check_logo_batch(
 
             batch_id = batch_request.batch_id
             client_id = getattr(batch_request, "client_id", None)
+            chunkSize = getattr(batch_request, "chunkSize", None)
             # Validate batch exists
             batch_dir = os.path.join("exports", batch_id)
             if not os.path.exists(os.path.join(batch_dir, "metadata.json")):
@@ -361,8 +362,7 @@ async def check_logo_batch(
                     status_code=400, detail=f"Invalid batch_id: {batch_id}"
                 )
 
-            # Batch should already be initialized via /init-batch
-
+            logger.info(f"Starting batch {batch_id} with chunk size {chunkSize}")
             # Start background processing for URL list
             asyncio.create_task(
                 process_with_chunks(

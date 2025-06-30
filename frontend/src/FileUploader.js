@@ -596,7 +596,8 @@ const FileUploader = ({ onFilesSelected }) => {
             image_paths: urls.map(url => url.trim()),
             batch_id: newBatchId,
             total_files: urls.length,
-            client_id: clientID
+            client_id: clientID,
+            chunkSize: chunkSize
           };
           const response = await axios.post(
             `${API_BASE_URL}/api/check-logo/batch/`,

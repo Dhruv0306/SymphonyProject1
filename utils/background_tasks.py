@@ -200,6 +200,7 @@ async def process_with_chunks(
         chunk_size (int, optional): Number of items per chunk
         client_id (str, optional): ID of client to send progress updates to
     """
+    logger.info(f"Starting batch {batch_id} with chunk size {chunk_size}")
     if not chunk_size or chunk_size <= 0:
         chunk_size = 10  # Default chunk size
 
