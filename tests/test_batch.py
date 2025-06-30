@@ -144,7 +144,7 @@ def test_batch_invalid_id():
         "/api/check-logo/batch/", data={"batch_id": fake_batch_id}
     )
     assert process_response.status_code == 400
-    assert "Files or URLs required" in process_response.json()["detail"]
+    assert "Files, zip file, or URLs required" in process_response.json()["detail"]
 
 
 def test_batch_with_urls():
@@ -195,7 +195,7 @@ def test_batch_no_files():
     # Step 2: Try to process without files or URLs
     response = client.post("/api/check-logo/batch/", data={"batch_id": batch_id})
     assert response.status_code == 400
-    assert "Files or URLs required" in response.json()["detail"]
+    assert "Files, zip file, or URLs required" in response.json()["detail"]
 
 
 def test_batch_single_file(setup_test_images):
