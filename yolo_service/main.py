@@ -3,7 +3,10 @@ from pydantic import BaseModel
 from typing import Optional
 import tempfile
 import os
-from detect_logo import check_logo
+from yolo_service.detect_logo import check_logo
+import yolo_service.detect_logo as detect_logo
+print(f"[DEBUG] detect_logo loaded from: {detect_logo.__file__}")
+
 
 # Initialize FastAPI application with metadata
 app = FastAPI(title="YOLO Logo Detection Service", version="1.0.0")
@@ -79,7 +82,11 @@ async def detect_logo_endpoint(
 
     elif image_path:
         # Process image from provided path
+        if not image_path.strip():
+            raise HTTPException(status_code=400, detail="image_path is empty.")
         result = check_logo(image_path)
+        if not isinstance(result, dict):
+            raise HTTPException(status_code=500, detail=f"Invalid result format: {result}")
         return DetectionResponse(**result)
 
     else:

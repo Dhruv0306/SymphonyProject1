@@ -202,51 +202,107 @@ async def process_with_chunks(
     """
     logger.info(f"Starting batch {batch_id} with chunk size {chunk_size}")
     if not chunk_size or chunk_size <= 0:
-        chunk_size = 10  # Default chunk size
+        chunk_size = 10
 
-    # Only one of files_data or image_urls should be provided
     if files_data and image_urls:
         raise ValueError("Provide only one of files_data or image_urls, not both.")
 
-    # Helper to chunk a list
     def chunk_list(lst, size):
         for i in range(0, len(lst), size):
             yield lst[i : i + size]
 
-    chunk_index = 0
+    # Collect failed requests from all chunks
+    failed_requests = []
+    
+    # Limit concurrent chunks
+    cpu_count = os.cpu_count() or 1
+    max_concurrent_chunks = min(max(2, cpu_count // 2), 3)
+    semaphore = asyncio.Semaphore(max_concurrent_chunks)
+    
+    async def process_chunk_with_limit(chunk_data, is_files=True):
+        async with semaphore:
+            if is_files:
+                return await process_batch_background(
+                    batch_id=batch_id,
+                    files_data=chunk_data,
+                    image_urls=None,
+                    client_id=client_id,
+                    failed_requests=failed_requests,
+                )
+            else:
+                return await process_batch_background(
+                    batch_id=batch_id,
+                    files_data=None,
+                    image_urls=chunk_data,
+                    client_id=client_id,
+                    failed_requests=failed_requests,
+                )
 
+    # Create tasks for parallel chunk processing
+    tasks = []
+    
     if files_data:
         file_chunks = list(chunk_list(files_data, chunk_size))
-        for idx, file_chunk in enumerate(file_chunks):
-            await process_batch_background(
-                batch_id=batch_id,
-                files_data=file_chunk,
-                image_urls=None,
-                client_id=client_id,
-            )
-            if idx < len(file_chunks) - 1:
-                if chunk_size > 50:
-                    await asyncio.sleep(3 + 0.2 * (chunk_index + 1))
-                else:
-                    await asyncio.sleep(3 + 0.05 * (chunk_index + 1))
-                chunk_index += 1
+        tasks = [process_chunk_with_limit(chunk, True) for chunk in file_chunks]
     elif image_urls:
         url_chunks = list(chunk_list(image_urls, chunk_size))
-        for idx, url_chunk in enumerate(url_chunks):
-            await process_batch_background(
-                batch_id=batch_id,
-                files_data=None,
-                image_urls=url_chunk,
-                client_id=client_id,
-            )
-            if idx < len(url_chunks) - 1:
-                if chunk_size > 50:
-                    await asyncio.sleep(3 + 0.2 * (chunk_index + 1))
-                else:
-                    await asyncio.sleep(3 + 0.05 * (chunk_index + 1))
-                chunk_index += 1
+        tasks = [process_chunk_with_limit(chunk, False) for chunk in url_chunks]
 
-    # After all chunks are processed, trigger email sending
+    # Process chunks with concurrency limit
+    await asyncio.gather(*tasks)
+
+    # Retry failed requests if any
+    if failed_requests:
+        batch_dir = os.path.join("exports", batch_id)
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        csv_path = metadata["csv_path"]
+        await retry_failed_requests(failed_requests, batch_id, client_id, csv_path)
+
+    # Check if batch processing is complete
+    from utils.batch_tracker import get_progress
+    current_progress = get_progress(batch_id)
+    retry_complete = not current_progress.get("retry_phase") or current_progress.get("retry_processed", 0) >= current_progress.get("retry_total", 0)
+    
+    if (current_progress["processed"] >= current_progress["total"] and retry_complete and not is_complete_sent(batch_id)):
+        logger.info(f"Batch completion triggered - sending complete event")
+        final_stats = await mark_done(batch_id)
+        
+        # Update metadata with final statistics
+        batch_dir = os.path.join("exports", batch_id)
+        metadata_path = os.path.join(batch_dir, "metadata.json")
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        
+        metadata["counts"]["valid"] = final_stats["valid"]
+        metadata["counts"]["invalid"] = final_stats["invalid"]
+        metadata["counts"]["total"] = final_stats["total"]
+        metadata["status"] = "completed"
+        metadata["completed_at"] = time.time()
+        
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f)
+        
+        # Send completion event to client
+        if client_id:
+            await broadcast_json(
+                client_id,
+                {
+                    "event": "complete",
+                    "batch_id": batch_id,
+                    "processed": final_stats["processed"],
+                    "total": final_stats["total"],
+                    "valid": final_stats["valid"],
+                    "invalid": final_stats["invalid"],
+                    "percentage": 100,
+                    "status": "completed",
+                    "timestamp": time.time(),
+                },
+            )
+        clear_batch(batch_id)
+
+    # Send email after all chunks complete
     try:
         base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
         async with httpx.AsyncClient() as client:
@@ -260,6 +316,7 @@ async def process_batch_background(
     files_data: List[Tuple[str, bytes]] = None,
     image_urls: List[str] = None,
     client_id: str = None,
+    failed_requests: list = None,
 ):
     """
     Process a batch of images asynchronously in the background.
@@ -269,6 +326,7 @@ async def process_batch_background(
         files_data (List[Tuple[str, bytes]], optional): List of (filename, file_data) tuples
         image_urls (List[str], optional): List of image URLs to process
         client_id (str, optional): ID of client to send progress updates to
+        failed_requests (list, optional): Shared list to collect failed requests
     """
     try:
         # Load batch metadata to get CSV output path
@@ -279,18 +337,13 @@ async def process_batch_background(
             metadata = json.load(f)
         csv_path = metadata["csv_path"]
 
-        # Collect failed requests for retry
-        failed_requests = []
-
         # Limit concurrent requests based on system resources
         cpu_count = os.cpu_count() or 1
-        max_concurrent = min(max(2, cpu_count - 2), 4)  # Keep 1 CPU free, cap at 10
+        max_concurrent = min(max(2, cpu_count - 2), 4)
         logger.info(
             f"Processing batch {batch_id} with max concurrent requests: {max_concurrent}"
         )
-        semaphore = asyncio.Semaphore(
-            max_concurrent
-        )  # Dynamic concurrent YOLO requests
+        semaphore = asyncio.Semaphore(max_concurrent)
 
         async def process_with_limit(task_func, *args):
             async with semaphore:
@@ -326,61 +379,6 @@ async def process_batch_background(
                 for url in image_urls
             ]
             await asyncio.gather(*tasks)
-
-        # Retry failed requests if any
-        if failed_requests:
-            await retry_failed_requests(failed_requests, batch_id, client_id, csv_path)
-
-        # Check if batch processing is complete
-        from utils.batch_tracker import get_progress
-
-        current_progress = get_progress(batch_id)
-
-        # Handle batch completion and send final update
-        retry_complete = not current_progress.get(
-            "retry_phase"
-        ) or current_progress.get("retry_processed", 0) >= current_progress.get(
-            "retry_total", 0
-        )
-        if (
-            current_progress["processed"] >= current_progress["total"]
-            and retry_complete
-            and not is_complete_sent(batch_id)
-        ):
-            logger.info(f"Batch completion triggered - sending complete event")
-            final_stats = await mark_done(batch_id)
-
-            # Update metadata with final statistics
-            with open(metadata_path, "r") as f:
-                metadata = json.load(f)
-
-            metadata["counts"]["valid"] = final_stats["valid"]
-            metadata["counts"]["invalid"] = final_stats["invalid"]
-            metadata["counts"]["total"] = final_stats["total"]
-            metadata["status"] = "completed"
-            metadata["completed_at"] = time.time()
-
-            with open(metadata_path, "w") as f:
-                json.dump(metadata, f)
-
-            # Send completion event to client
-            if client_id:
-                await broadcast_json(
-                    client_id,
-                    {
-                        "event": "complete",
-                        "batch_id": batch_id,
-                        "processed": final_stats["processed"],
-                        "total": final_stats["total"],
-                        "valid": final_stats["valid"],
-                        "invalid": final_stats["invalid"],
-                        "percentage": 100,
-                        "status": "completed",
-                        "timestamp": time.time(),
-                    },
-                )
-            # Clean up batch tracking data
-            clear_batch(batch_id)
 
     except Exception as e:
         # Log error and notify client
