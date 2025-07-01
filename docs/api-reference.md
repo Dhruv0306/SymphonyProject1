@@ -49,7 +49,9 @@ Validates a single image for Symphony logo presence using sequential YOLO model 
 
 **Parameters:**
 - `file`: Image file (when using multipart/form-data)
+  - **Supported formats:** JPG, JPEG, PNG, WEBP, BMP
 - `image_path`: Image URL (when using application/json)
+  - **Supported formats:** JPG, JPEG, PNG, WEBP, BMP
 
 **Example (File Upload):**
 ```bash
@@ -135,12 +137,13 @@ Process multiple images within a batch session. Supports both file uploads and U
 
 **Parameters for File Upload:**
 - `files[]`: Array of image files
+  - **Supported formats:** JPG, JPEG, PNG, WEBP, BMP
 - `batch_id`: UUID from start-batch endpoint
 
 **Parameters for URL Processing (JSON):**
 ```json
 {
-  "image_paths": ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
+  "image_paths": ["https://example.com/image1.jpg", "https://example.com/image2.png", "https://example.com/image3.webp", "https://example.com/image4.bmp"],
   "batch_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -341,9 +344,9 @@ Retrieve batch processing history (admin only).
 
 ```json
 {
-  "detail": "Invalid file format. Supported formats: JPG, PNG",
+  "detail": "Invalid file format. Supported formats: JPG, JPEG, PNG, WEBP, BMP",
   "status_code": 400,
-  "supported_formats": ["jpg", "jpeg", "png"],
+  "supported_formats": ["jpg", "jpeg", "png", "webp", "bmp"],
   "max_file_size": "10MB"
 }
 ```

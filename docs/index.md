@@ -9,6 +9,7 @@ The Symphony Logo Detection System is a production-ready platform that combines 
 
 ### 🎯 Core Capabilities
 - **Advanced AI Detection**: 5 sequential YOLO models (YOLOv8s and YOLOv11s variants)
+- **Supported Image Formats**: JPG, JPEG, PNG, WEBP, BMP
 - **Real-Time Processing**: WebSocket-based progress tracking and updates
 - **Batch Management**: Scalable processing of 1-999 images per batch
 - **Enterprise Integration**: RESTful API with comprehensive admin controls
@@ -96,6 +97,12 @@ The Symphony Logo Detection System is a production-ready platform that combines 
   - Configurable confidence threshold (default: 0.35)
   - Automatic image enhancement with boundary addition
   - GPU acceleration support for faster inference
+
+- **Supported Image Formats**:
+  - JPG (.jpg, .jpeg)
+  - PNG (.png)
+  - WEBP (.webp)
+  - BMP (.bmp)
 
 ### 🚀 Enterprise Integration
 - **RESTful API Architecture**:

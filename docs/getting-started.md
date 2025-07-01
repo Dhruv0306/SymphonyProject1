@@ -9,6 +9,7 @@ Before diving into installation, understand what you're setting up:
 ### What is the Symphony Logo Detection System?
 An enterprise-grade platform that uses 5 sequential YOLO models to detect Symphony logos in images with high accuracy. The system features:
 
+- **Supported Image Formats**: JPG, JPEG, PNG, WEBP, BMP
 - **Microservice Architecture**: Main API (port 8000) + YOLO Detection Service (port 8001)
 - **Modern Frontend**: React 19.1.0 with Material-UI components and real-time updates
 - **Batch Processing**: Handle 1-999 images per batch with automatic retry logic
@@ -234,14 +235,14 @@ curl http://localhost:8001/health
 ### Single Image Test
 
 1. **Open Web Interface**: Navigate to http://localhost:3000
-2. **Upload Test Image**: Use drag-and-drop or click to select an image
+2. **Upload Test Image**: Use drag-and-drop or click to select an image (JPG, JPEG, PNG, WEBP, BMP)
 3. **Process Image**: Click "Validate Image" button
 4. **View Results**: See detection results with confidence score and bounding box
 
 ### Batch Processing Test
 
 1. **Switch to Batch Mode**: Toggle "Batch Processing" switch
-2. **Upload Multiple Images**: Select 2-5 test images
+2. **Upload Multiple Images**: Select 2-5 test images (JPG, JPEG, PNG, WEBP, BMP)
 3. **Start Processing**: Click "Start Batch Processing"
 4. **Monitor Progress**: Watch real-time progress updates
 5. **Download Results**: Click "Download CSV" when complete

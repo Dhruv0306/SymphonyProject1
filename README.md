@@ -80,7 +80,8 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - Configurable confidence threshold (default: 0.35)
   - Model cascade approach for maximum accuracy
   - Automatic image enhancement with boundary addition
-  - Support for both local files and URL-based images
+  - Support for local files and URL-based images
+  - **Now supports JPEG, PNG, WEBP, BMP, and other common formats**
 
 - **⚡ Real-Time Image Processing**
   - Single image validation via file upload or URL
@@ -89,7 +90,9 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - **Batch uploads are sent in a single request (or zipped if large); all chunking and retry logic is handled server-side**
   - **Real-time progress and per-file status are delivered via WebSocket**
   - Automatic image preprocessing and enhancement with white boundary addition
-  - Support for JPEG, PNG, and other common formats
+  - **Enhanced image preview for uploads and URLs with better scaling, status badges, and captions**
+  - Improved state management for batch and preview modes
+  - Improved overflow handling in preview containers for a cleaner UI
   - Upload status indicators (uploading, validating, valid, invalid, error)
   - **Batch results are fetched after completion via a dedicated endpoint**
 
@@ -177,6 +180,7 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - **Optimized Pipeline**: Streamlined image processing with utils/file_ops.py
   - **Server-Side Processing**: Progress and results are handled via WebSocket and batch completion polling
   - **Load Balancing Ready**: Stateless architecture with external state management
+  - **WebSocket progress events are now batch-aware, ensuring only relevant updates are shown for the current batch**
 
 ---
 
