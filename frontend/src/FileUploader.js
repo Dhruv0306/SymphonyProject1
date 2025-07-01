@@ -722,6 +722,9 @@ const FileUploader = ({ onFilesSelected }) => {
               width: '100%',
               height: '100%',
               objectFit: 'contain',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              display: 'block',
             }}
             onError={(e) => {
               e.target.onerror = null;
@@ -797,7 +800,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 border: `1px solid ${symphonyBlue}20`,
                 height: { xs: '300px', sm: '400px' },
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                overflow: 'hidden', // Prevent overflow
               }}
             >
               <Typography
@@ -815,8 +819,71 @@ const FileUploader = ({ onFilesSelected }) => {
                 <ImageIcon sx={{ fontSize: 20 }} />
                 Preview
               </Typography>
-              <Box sx={{ p: 2, flex: 1, overflow: 'auto' }}>
-                {commonGridImageBox(preview, 0, files[0]?.name, files[0]?.name)}
+              <Box sx={{ p: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {/* Directly use the image with objectFit: contain and no slider */}
+                {files[0] && preview && (
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                    }}
+                  >
+                    <img
+                      src={preview}
+                      alt={files[0]?.name || 'Preview'}
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                        margin: '0 auto',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                        background: '#fff',
+                      }}
+                    />
+                    {/* Status badge */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: 'rgba(255,255,255,0.8)',
+                        borderRadius: '4px',
+                        padding: '2px 4px',
+                      }}
+                    >
+                      <UploadStatus status={uploadStatuses[files[0]?.name]} />
+                    </Box>
+                    {/* Caption */}
+                    {files[0]?.name && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          padding: '4px',
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          textAlign: 'center',
+                          borderTop: `1px solid ${symphonyBlue}20`,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {files[0]?.name}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </Box>
             </Paper>
           </Box>
@@ -877,7 +944,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 border: `1px solid ${symphonyBlue}20`,
                 height: { xs: '300px', sm: '400px' },
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                overflow: 'hidden', // Prevent overflow
               }}
             >
               <Typography
@@ -895,8 +963,71 @@ const FileUploader = ({ onFilesSelected }) => {
                 <ImageIcon sx={{ fontSize: 20 }} />
                 URL Preview
               </Typography>
-              <Box sx={{ p: 2, flex: 1, overflow: 'auto' }}>
-                {commonGridImageBox(imageUrl, 0, imageUrl, imageUrl)}
+              <Box sx={{ p: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {/* Directly use the image with objectFit: contain and no slider */}
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                  }}
+                >
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain',
+                      display: 'block',
+                      margin: '0 auto',
+                      borderRadius: 8,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      background: '#fff',
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml;base64,...'; // Placeholder fallback
+                    }}
+                  />
+                  {/* Status badge */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      backgroundColor: 'rgba(255,255,255,0.8)',
+                      borderRadius: '4px',
+                      padding: '2px 4px',
+                    }}
+                  >
+                    <UploadStatus status={uploadStatuses[imageUrl]} />
+                  </Box>
+                  {/* Caption */}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '4px',
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                      textAlign: 'center',
+                      borderTop: `1px solid ${symphonyBlue}20`,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {imageUrl}
+                  </Typography>
+                </Box>
               </Box>
             </Paper>
           </Box>

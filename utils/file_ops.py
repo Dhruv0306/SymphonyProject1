@@ -9,7 +9,13 @@ logger = logging.getLogger(__name__)
 
 # Constants for file upload configuration
 UPLOAD_DIR = "temp_uploads"
-ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/jpg"}
+ALLOWED_MIME_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/jpg",
+    "image/webp",  # Added support for webp
+    "image/bmp",  # Added support for bmp
+}
 
 
 def create_upload_dir():
@@ -58,6 +64,10 @@ def is_valid_image(file: UploadFile) -> bool:
                 file.content_type = "image/jpeg"
             elif ext == ".png":
                 file.content_type = "image/png"
+            elif ext == ".webp":
+                file.content_type = "image/webp"  # Added support for webp
+            elif ext == ".bmp":
+                file.content_type = "image/bmp"  # Added support for bmp
 
         # Validate that content type is in allowed MIME types
         if file.content_type not in ALLOWED_MIME_TYPES:
