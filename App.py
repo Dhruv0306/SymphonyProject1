@@ -63,7 +63,7 @@ logger = setup_logging()
 
 
 @asynccontextmanager
-def lifespan(app):
+async def lifespan(app):
     # --- Startup logic ---
     try:
         print("\nStarting application initialization...")
