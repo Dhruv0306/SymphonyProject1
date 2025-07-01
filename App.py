@@ -19,6 +19,7 @@ import asyncio
 import os
 import sys
 import json
+from contextlib import asynccontextmanager
 
 # Third-party imports
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -60,11 +61,77 @@ if "--host" in sys.argv:
 # Initialize logging
 logger = setup_logging()
 
+
+@asynccontextmanager
+async def lifespan(app):
+    # --- Startup logic ---
+    try:
+        print("\nStarting application initialization...")
+        create_upload_dir()
+        print("Creating upload directory...")
+        print("Starting initial cleanup process...")
+        logger.info("Performing initial cleanup on startup...")
+        batch_cleaned = cleanup_old_batches(max_age_hours=24)
+        temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
+        log_cleanup_stats(batch_cleaned, temp_cleaned)
+        print(
+            f"Initial cleanup summary: {batch_cleaned} batches and {temp_cleaned} temp files removed"
+        )
+        logger.info(
+            f"Initial cleanup completed: {batch_cleaned} batches and {temp_cleaned} temp files removed"
+        )
+        print("Initializing scheduler...")
+        app.state.scheduler = AsyncIOScheduler()
+        app.state.scheduler.add_job(cleanup_old_batches, "interval", hours=1, args=[24])
+        app.state.scheduler.add_job(
+            cleanup_temp_uploads, "interval", minutes=30, args=[30]
+        )
+        app.state.scheduler.add_job(
+            csrf_protection.clean_expired_tokens, "interval", minutes=15
+        )
+        app.state.scheduler.add_job(
+            connection_manager.cleanup_recovery_info, "interval", hours=6
+        )
+        app.state.scheduler.start()
+        print("Scheduler started successfully")
+        logger.info("Scheduler started successfully")
+
+        async def monitor_websockets():
+            """Periodically check and remove stale WebSocket connections"""
+            while True:
+                connection_manager.prune_stale_connections()
+                await asyncio.sleep(30)
+
+        app.state.monitor_ws_task = asyncio.create_task(monitor_websockets())
+    except Exception as e:
+        error_msg = f"Error during startup: {str(e)}"
+        print(error_msg)
+        logger.error(error_msg)
+        raise
+    # --- Yield to run app ---
+    yield
+    # --- Shutdown logic ---
+    try:
+        print("\n[DEBUG] Starting application shutdown...")
+        if hasattr(app.state, "scheduler"):
+            app.state.scheduler.shutdown()
+            print("[DEBUG] Cleanup scheduler stopped")
+            logger.info("Cleanup scheduler stopped")
+        if hasattr(app.state, "monitor_ws_task"):
+            app.state.monitor_ws_task.cancel()
+        print("[DEBUG] Application shutdown complete")
+    except Exception as e:
+        error_msg = f"Error during shutdown: {str(e)}"
+        print(error_msg)
+        logger.error(error_msg)
+
+
 # Initialize FastAPI application with metadata
 app = FastAPI(
     title="Symphony Logo Detection API",
     description="API service for detecting Symphony logos in images using YOLO models",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure rate limiting to prevent abuse
@@ -114,92 +181,6 @@ app.add_middleware(
         "X-Total-Count",
     ],
 )
-
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initializes application resources and starts scheduled tasks on startup.
-
-    - Creates upload directories
-    - Performs initial cleanup
-    - Starts scheduled cleanup tasks
-    - Initializes WebSocket monitoring
-    """
-    try:
-        print("\nStarting application initialization...")
-
-        # Setup file storage
-        print("Creating upload directory...")
-        create_upload_dir()
-
-        # Initial cleanup
-        print("Starting initial cleanup process...")
-        logger.info("Performing initial cleanup on startup...")
-        batch_cleaned = cleanup_old_batches(max_age_hours=24)
-        temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
-        log_cleanup_stats(batch_cleaned, temp_cleaned)
-        print(
-            f"Initial cleanup summary: {batch_cleaned} batches and {temp_cleaned} temp files removed"
-        )
-        logger.info(
-            f"Initial cleanup completed: {batch_cleaned} batches and {temp_cleaned} temp files removed"
-        )
-
-        # Initialize scheduler for periodic tasks
-        print("Initializing scheduler...")
-        app.state.scheduler = AsyncIOScheduler()
-
-        # Schedule periodic cleanup jobs
-        app.state.scheduler.add_job(cleanup_old_batches, "interval", hours=1, args=[24])
-        app.state.scheduler.add_job(
-            cleanup_temp_uploads, "interval", minutes=30, args=[30]
-        )
-        app.state.scheduler.add_job(
-            csrf_protection.clean_expired_tokens, "interval", minutes=15
-        )
-        app.state.scheduler.add_job(
-            connection_manager.cleanup_recovery_info, "interval", hours=6
-        )
-
-        # Start the scheduler
-        app.state.scheduler.start()
-        print("Scheduler started successfully")
-        logger.info("Scheduler started successfully")
-
-        # Initialize WebSocket monitoring
-        async def monitor_websockets():
-            """Periodically check and remove stale WebSocket connections"""
-            while True:
-                connection_manager.prune_stale_connections()
-                await asyncio.sleep(30)
-
-        asyncio.create_task(monitor_websockets())
-
-    except Exception as e:
-        error_msg = f"Error during startup: {str(e)}"
-        print(error_msg)
-        logger.error(error_msg)
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Performs cleanup operations when the application shuts down.
-    Ensures graceful shutdown of the scheduler and other resources.
-    """
-    try:
-        print("\n[DEBUG] Starting application shutdown...")
-        if hasattr(app.state, "scheduler"):
-            app.state.scheduler.shutdown()
-            print("[DEBUG] Cleanup scheduler stopped")
-            logger.info("Cleanup scheduler stopped")
-        print("[DEBUG] Application shutdown complete")
-    except Exception as e:
-        error_msg = f"Error during shutdown: {str(e)}"
-        print(error_msg)
-        logger.error(error_msg)
 
 
 async def cleanup_task():
