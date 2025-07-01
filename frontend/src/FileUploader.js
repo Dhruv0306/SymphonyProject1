@@ -158,6 +158,17 @@ const FileUploader = ({ onFilesSelected }) => {
       const data = JSON.parse(event.data);
       console.log('WebSocket message:', data);
 
+      // Option 2: Ignore progress events for old batches
+      if (data.event === 'progress' || data.event === 'retry_start' || data.event === 'complete') {
+        // Only handle if batchId matches (for batch mode)
+        if (mode === 'batch') {
+          if (!data.batch_id || data.batch_id !== batchId) {
+            // Ignore progress for old/other batches
+            return;
+          }
+        }
+      }
+
       if (data.event === 'progress') {
         const currentTime = Date.now();
         const elapsedTime = processStartTimeRef.current ? currentTime - processStartTimeRef.current : 0;
@@ -230,7 +241,7 @@ const FileUploader = ({ onFilesSelected }) => {
       }
       wsRef.current = null;
     };
-  }, [clientID]);
+  }, [clientID, batchId, mode]);
 
   /**
    * WebSocket Heartbeat Effect
@@ -313,6 +324,10 @@ const FileUploader = ({ onFilesSelected }) => {
   useEffect(() => {
     setPreview(null);
     setPreviews([]);
+    setBatchId(null); // Reset batchId when mode or input method changes
+    setLoading(false); // Reset loading state
+    setBatchRunning(false); // Reset batch running state
+    batchRunningRef.current = false; // Reset batch running ref
   }, [inputMethod, mode]);
 
   /**
