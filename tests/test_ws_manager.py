@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from utils.ws_manager import (
     ConnectionManager,
@@ -127,7 +127,7 @@ class TestConnectionManager:
     def test_prune_stale_connections(self, manager, mock_websocket):
         """Test removal of stale connections"""
         client_id = "client_123"
-        old_time = datetime.utcnow() - timedelta(seconds=120)
+        old_time = datetime.now(timezone.utc) - timedelta(seconds=120)
 
         manager.client_connections[client_id] = mock_websocket
         manager.client_last_seen[client_id] = old_time
@@ -140,18 +140,20 @@ class TestConnectionManager:
         assert client_id in manager.connection_recovery
         mock_create_task.assert_called_once()
 
-    def test_recover_connection(self, manager, mock_websocket):
+    @pytest.mark.asyncio
+    async def test_recover_connection(self, manager):
         """Test connection recovery"""
         client_id = "client_123"
         batches_list = ["batch_1", "batch_2"]
+        from unittest.mock import Mock
+
+        mock_ws = Mock()
         manager.connection_recovery[client_id] = {
             "batches": batches_list,
-            "disconnected_at": datetime.utcnow(),
-            "last_seen": datetime.utcnow(),
+            "disconnected_at": datetime.now(timezone.utc),
+            "last_seen": datetime.now(timezone.utc),
         }
-
-        recovered_batches = manager.recover_connection(client_id, mock_websocket)
-
+        recovered_batches = manager.recover_connection(client_id, mock_ws)
         assert recovered_batches == batches_list
         assert client_id not in manager.connection_recovery
 
@@ -163,7 +165,11 @@ class TestBatchManagement:
         """Clear global state before each test"""
         batches.clear()
         for task in timeouts.values():
-            task.cancel()
+            try:
+                if hasattr(task, "cancel"):
+                    task.cancel()
+            except Exception:
+                pass
         timeouts.clear()
 
     def test_init_batch(self):
@@ -183,10 +189,16 @@ class TestBatchManagement:
         mock_create_task.assert_called_once()
 
     def test_clear_batch(self):
-        """Test batch cleanup"""
+        """Test batch cleanup without triggering coroutine warnings"""
+        timeouts.clear()
         batch_id = "batch_456"
         batches[batch_id] = {"test": "data"}
+
+        from unittest.mock import Mock
+
         mock_task = Mock()
+        mock_task.cancel = Mock()  # explicitly make cancel a regular mock method
+
         timeouts[batch_id] = mock_task
 
         clear_batch(batch_id)
@@ -206,3 +218,11 @@ class TestBatchManagement:
         await asyncio.sleep(0.2)
 
         assert batch_id not in batches
+
+        # Clean up the task to avoid warnings
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass

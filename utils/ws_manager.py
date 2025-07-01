@@ -18,7 +18,7 @@ from typing import Dict, List, Any
 import json
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ class ConnectionManager:
         Args:
             client_id: Unique identifier for the client
         """
-        self.client_last_seen[client_id] = datetime.utcnow()
+        self.client_last_seen[client_id] = datetime.now(timezone.utc)
         logger.debug(
             f"Client {client_id} marked alive at {self.client_last_seen[client_id]}"
         )
@@ -177,7 +177,7 @@ class ConnectionManager:
         """
         Remove inactive WebSocket connections based on timeout.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         stale_clients = []
 
         for client_id, last_seen in self.client_last_seen.items():
@@ -218,7 +218,7 @@ class ConnectionManager:
         """
         Clean up old recovery information.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expired = []
         for client_id, info in self.connection_recovery.items():
             if (now - info["disconnected_at"]).total_seconds() > max_age_hours * 3600:
