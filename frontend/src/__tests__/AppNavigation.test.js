@@ -4,7 +4,7 @@ import AppNavigation from '../components/AppNavigation';
 
 test('navigation links work', () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppNavigation />
     </MemoryRouter>
   );

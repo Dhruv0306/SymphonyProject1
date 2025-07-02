@@ -14,7 +14,7 @@ beforeEach(() => {
 
 test('upload single/multiple images and trigger upload API', async () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <FileUploader />
     </MemoryRouter>
   );
@@ -29,7 +29,7 @@ test('upload single/multiple images and trigger upload API', async () => {
 
 test('handle chunked upload and retry logic', async () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <FileUploader />
     </MemoryRouter>
   );
@@ -51,7 +51,7 @@ test('handle chunked upload and retry logic', async () => {
 
 test('handle WebSocket update events correctly', () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <FileUploader />
     </MemoryRouter>
   );
@@ -61,7 +61,7 @@ test('handle WebSocket update events correctly', () => {
 
 test('show progress bar and change status appropriately', async () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <FileUploader />
     </MemoryRouter>
   );
@@ -74,7 +74,7 @@ test('show progress bar and change status appropriately', async () => {
 
 test('handle file preview and error messages', () => {
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <FileUploader />
     </MemoryRouter>
   );
