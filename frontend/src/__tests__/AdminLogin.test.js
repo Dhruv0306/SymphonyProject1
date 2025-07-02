@@ -20,7 +20,7 @@ test('submit form with valid credentials → mock backend → redirect', async (
   });
   
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AdminLogin />
     </MemoryRouter>
   );
@@ -42,7 +42,7 @@ test('handle invalid credentials gracefully', async () => {
   global.fetch.mockRejectedValueOnce(new Error('Invalid credentials'));
   
   render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AdminLogin />
     </MemoryRouter>
   );

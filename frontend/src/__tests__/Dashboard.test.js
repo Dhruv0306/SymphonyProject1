@@ -27,7 +27,7 @@ jest.mock('../components/BatchHistory', () => {
 
 const renderDashboard = () => {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Dashboard />
     </BrowserRouter>
   );
