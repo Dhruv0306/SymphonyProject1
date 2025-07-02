@@ -31,6 +31,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 
 // Third-party libraries
 import axios from 'axios';
+import { FixedSizeGrid as LazyGrid } from 'react-window';
 
 // Internal imports
 import { API_BASE_URL, WS_BASE_URL } from './config';
@@ -114,6 +115,21 @@ const FileUploader = ({ onFilesSelected }) => {
   // ==================== RESPONSIVE DESIGN HOOKS ====================
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Responsive grid width for batch preview
+  const gridContainerRef = useRef(null);
+  const [gridWidth, setGridWidth] = useState(900); // default
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (gridContainerRef.current) {
+        setGridWidth(gridContainerRef.current.offsetWidth);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
 
   /**
@@ -904,6 +920,14 @@ const FileUploader = ({ onFilesSelected }) => {
           </Box>
         );
       } else if (mode === 'batch' && previews.length > 0) {
+        // Responsive virtualized grid for batch preview
+        const MIN_CELL_WIDTH = 260;
+        const GAP = 8; // px, matches MUI spacing
+        const columnCount = Math.max(1, Math.floor((gridWidth + GAP) / (MIN_CELL_WIDTH + GAP)));
+        const cellWidth = Math.floor((gridWidth - GAP * (columnCount - 1)) / columnCount);
+        const cellHeight = cellWidth;
+        const rowCount = Math.ceil(previews.length / columnCount);
+        const gridHeight = Math.min(3 * (cellHeight + GAP), rowCount * (cellHeight + GAP));
         return (
           <Box sx={{ mt: 2 }}>
             <Paper
@@ -911,8 +935,8 @@ const FileUploader = ({ onFilesSelected }) => {
                 backgroundColor: symphonyLightBlue,
                 borderRadius: 2,
                 border: `1px solid ${symphonyBlue}20`,
-                maxHeight: { xs: '80vh', sm: '600px' },
-                overflow: 'auto',
+                maxHeight: { xs: '100vh', sm: '1000px' },
+                overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column'
               }}
@@ -924,7 +948,7 @@ const FileUploader = ({ onFilesSelected }) => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1,
-                  p: 2,
+                  p: 1,
                   borderBottom: `1px solid ${symphonyBlue}20`,
                   backgroundColor: symphonyLightBlue,
                 }}
@@ -932,17 +956,27 @@ const FileUploader = ({ onFilesSelected }) => {
                 <ImageIcon sx={{ fontSize: 20 }} />
                 Previews ({previews.length} images)
               </Typography>
-              <Box
-                sx={{
-                  p: 2,
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                  gap: 2
-                }}
-              >
-                {previews.map((preview, index) =>
-                  commonGridImageBox(preview.url, index, preview.name, preview.name)
-                )}
+              <Box ref={gridContainerRef} sx={{ p: 2, width: '95%', boxSizing: 'border-box', mx: 'auto' }}>
+                <LazyGrid
+                  columnCount={columnCount}
+                  columnWidth={cellWidth}
+                  height={0.9 * gridHeight}
+                  rowCount={rowCount}
+                  rowHeight={cellHeight}
+                  width={gridWidth}
+                  style={{ overflowX: 'hidden' }}
+                >
+                  {({ columnIndex, rowIndex, style }) => {
+                    const itemIndex = rowIndex * columnCount + columnIndex;
+                    if (itemIndex >= previews.length) return null;
+                    const image = previews[itemIndex];
+                    return (
+                      <div style={{ ...style, paddingRight: GAP, paddingBottom: GAP }} key={itemIndex}>
+                        {commonGridImageBox(image.url, itemIndex, image.name, image.name)}
+                      </div>
+                    );
+                  }}
+                </LazyGrid>
               </Box>
             </Paper>
           </Box>
@@ -976,73 +1010,51 @@ const FileUploader = ({ onFilesSelected }) => {
                 }}
               >
                 <ImageIcon sx={{ fontSize: 20 }} />
-                URL Preview
+                Preview
               </Typography>
               <Box sx={{ p: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                {/* Directly use the image with objectFit: contain and no slider */}
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                  }}
-                >
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                      display: 'block',
-                      margin: '0 auto',
-                      borderRadius: 8,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                      background: '#fff',
-                    }}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'data:image/svg+xml;base64,...'; // Placeholder fallback
-                    }}
-                  />
-                  {/* Status badge */}
+                {imageUrl && (
                   <Box
                     sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      backgroundColor: 'rgba(255,255,255,0.8)',
-                      borderRadius: '4px',
-                      padding: '2px 4px',
+                      width: '100%',
+                      height: '100%',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
                     }}
                   >
-                    <UploadStatus status={uploadStatuses[imageUrl]} />
+                    <img
+                      src={imageUrl}
+                      alt="Preview"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                        margin: '0 0',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                        background: '#fff',
+                      }}
+                    />
+                    {/* Status badge */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        backgroundColor: 'rgba(255,255,255,0.8)',
+                        borderRadius: '4px',
+                        padding: '2px 4px',
+                      }}
+                    >
+                      <UploadStatus status={uploadStatuses[imageUrl]} />
+                    </Box>
                   </Box>
-                  {/* Caption */}
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      padding: '4px',
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      textAlign: 'center',
-                      borderTop: `1px solid ${symphonyBlue}20`,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {imageUrl}
-                  </Typography>
-                </Box>
+                )}
               </Box>
             </Paper>
           </Box>
@@ -1050,6 +1062,14 @@ const FileUploader = ({ onFilesSelected }) => {
       } else if (mode === 'batch' && batchUrls) {
         const urls = batchUrls.split('\n').filter(url => url.trim());
         if (urls.length > 0) {
+          // Responsive virtualized grid for batch url preview
+          const MIN_CELL_WIDTH = 260;
+          const GAP = 8;
+          const columnCount = Math.max(1, Math.floor((gridWidth + GAP) / (MIN_CELL_WIDTH + GAP)));
+          const cellWidth = Math.floor((gridWidth - GAP * (columnCount - 1)) / columnCount);
+          const cellHeight = cellWidth;
+          const rowCount = Math.ceil(urls.length / columnCount);
+          const gridHeight = Math.min(3 * (cellHeight + GAP), rowCount * (cellHeight + GAP));
           return (
             <Box sx={{ mt: 2 }}>
               <Paper
@@ -1057,8 +1077,8 @@ const FileUploader = ({ onFilesSelected }) => {
                   backgroundColor: symphonyLightBlue,
                   borderRadius: 2,
                   border: `1px solid ${symphonyBlue}20`,
-                  maxHeight: { xs: '80vh', sm: '600px' },
-                  overflow: 'auto',
+                  maxHeight: { xs: '100vh', sm: gridHeight },
+                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column'
                 }}
@@ -1078,17 +1098,27 @@ const FileUploader = ({ onFilesSelected }) => {
                   <ImageIcon sx={{ fontSize: 20 }} />
                   URL Previews ({urls.length} images)
                 </Typography>
-                <Box
-                  sx={{
-                    p: 2,
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                    gap: 2
-                  }}
-                >
-                  {urls.map((url, index) =>
-                    commonGridImageBox(url, index, url, url)
-                  )}
+                <Box ref={gridContainerRef} sx={{ p: 2, width: '95%', boxSizing: 'border-box', mx: 'auto' }}>
+                  <LazyGrid
+                    columnCount={columnCount}
+                    columnWidth={cellWidth}
+                    height={0.9 * gridHeight}
+                    rowCount={rowCount}
+                    rowHeight={cellHeight}
+                    width={gridWidth}
+                    style={{ overflowX: 'hidden' }}
+                  >
+                    {({ columnIndex, rowIndex, style }) => {
+                      const itemIndex = rowIndex * columnCount + columnIndex;
+                      if (itemIndex >= urls.length) return null;
+                      const url = urls[itemIndex];
+                      return (
+                        <div style={{ ...style, paddingRight: GAP, paddingBottom: GAP }} key={itemIndex}>
+                          {commonGridImageBox(url, itemIndex, url, url)}
+                        </div>
+                      );
+                    }}
+                  </LazyGrid>
                 </Box>
               </Paper>
             </Box>
