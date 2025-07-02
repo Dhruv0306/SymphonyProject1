@@ -343,6 +343,23 @@ async def check_logo_batch(
     try:
         content_type = request.headers.get("content-type", "")
 
+        # Defensive: Ensure batch is initialized if not already
+        if batch_id:
+            from utils.batch_tracker import get_progress, init_batch
+
+            progress = get_progress(batch_id)
+            if not progress or "processed" not in progress:
+                # Try to get total from request or default to 0
+                total = 0
+                if files:
+                    total = len(files)
+                elif zip_file is not None:
+                    # Will be set after extracting
+                    pass
+                elif batch_request and hasattr(batch_request, "image_paths"):
+                    total = len(batch_request.image_paths)
+                init_batch(batch_id, total)
+
         # Handle JSON URLs
         if "application/json" in content_type:
             if not batch_request:
@@ -392,7 +409,6 @@ async def check_logo_batch(
                 )
 
             # Extract images from zip file into memory
-
             zip_bytes = await zip_file.read()
             files_data = []
             with zipfile.ZipFile(BytesIO(zip_bytes)) as zf:
@@ -407,6 +423,13 @@ async def check_logo_batch(
                 raise HTTPException(
                     status_code=400, detail="No images found in zip file"
                 )
+
+            # Defensive: Ensure batch is initialized after extracting files
+            from utils.batch_tracker import get_progress, init_batch
+
+            progress = get_progress(batch_id)
+            if not progress or "processed" not in progress:
+                init_batch(batch_id, len(files_data))
 
             # Start background processing for extracted images
             asyncio.create_task(
