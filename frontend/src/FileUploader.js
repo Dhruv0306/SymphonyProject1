@@ -11,7 +11,7 @@
  */
 
 // React and Material-UI imports
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box, Container, Typography, Paper, Button, CircularProgress,
   Radio, RadioGroup, FormControlLabel, FormControl, TextField,
@@ -104,8 +104,6 @@ const FileUploader = ({ onFilesSelected }) => {
   // Timing and performance tracking
   const processStartTimeRef = useRef(null);             // Process start timestamp
 
-
-
   // Notification system
   const [emailNotification, setEmailNotification] = useState(''); // Email address for batch completion notifications
 
@@ -131,35 +129,12 @@ const FileUploader = ({ onFilesSelected }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Add new state for connection management
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const reconnectAttemptRef = useRef(0);
+  const maxReconnectAttempts = 5; // Maximum number of reconnection attempts
 
-  /**
-   * Utility function to format milliseconds into human-readable time string
-   * Provides appropriate precision based on duration length
-   * 
-   * @param {number} milliseconds - Time duration in milliseconds
-   * @returns {string} - Formatted time string (e.g., "2h 30m 15.5s", "45.2s")
-   */
-  const formatTime = (milliseconds) => {
-    const totalSeconds = milliseconds / 1000;
-    const hours = totalSeconds / 3600;
-    const minutes = (totalSeconds % 3600) / 60;
-    const seconds = totalSeconds % 60;
-
-    if (hours >= 1) {
-      return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else if (minutes >= 1) {
-      return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else {
-      return `${seconds.toFixed(1)}s`;
-    }
-  };
-
-  /**
-   * WebSocket Connection Effect
-   * Establishes and manages WebSocket connection for real-time progress updates
-   * Handles connection lifecycle, message processing, and cleanup
-   */
-  useEffect(() => {
+  const connectWebSocket = useCallback(() => {
     if (wsRef.current) return; // Already connected
 
     const wsUrl = `${WS_BASE_URL}/ws/${clientID}`;
@@ -168,6 +143,8 @@ const FileUploader = ({ onFilesSelected }) => {
     ws.onopen = () => {
       console.log('WebSocket connected');
       setWebsocket(ws);
+      setIsReconnecting(false);
+      reconnectAttemptRef.current = 0; // Reset attempt counter on successful connection
     };
 
     ws.onmessage = async (event) => {
@@ -235,29 +212,81 @@ const FileUploader = ({ onFilesSelected }) => {
       wsRef.current = null;
 
       if (batchRunningRef.current) {
-        console.warn('WebSocket disconnected during batch processing, retrying...');
-        setTimeout(() => {
-          console.log('Attempting WebSocket reconnection...');
-          // Clear refs and let useEffect create new connection
-        }, 5000);
+        console.warn('WebSocket disconnected during batch processing, attempting reconnection...');
+
+        // Only attempt reconnection if we haven't exceeded max attempts
+        if (reconnectAttemptRef.current < maxReconnectAttempts) {
+          setIsReconnecting(true);
+          reconnectAttemptRef.current += 1;
+
+          // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current - 1), 16000);
+
+          setTimeout(() => {
+            console.log(`Attempting WebSocket reconnection (${reconnectAttemptRef.current}/${maxReconnectAttempts})...`);
+            connectWebSocket(); // Trigger reconnection
+          }, delay);
+        } else {
+          console.error('Maximum reconnection attempts reached');
+          setIsReconnecting(false);
+          // Show error to the user
+          setError('Lost connection to server. Please refresh the page to retry.');
+        }
       } else {
         console.log('WebSocket disconnected cleanly');
       }
     };
 
     ws.onerror = (error) => {
-      console.log('WebSocket connection error (normal in dev mode)');
+      console.error('WebSocket connection error:', error);
+      // Let onclose handle reconnection
     };
 
     wsRef.current = ws;
+  }, [clientID, batchId, mode, setError]); // Include necessary dependencies
+
+  // WebSocket connection effect
+  useEffect(() => {
+    connectWebSocket();
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
       }
       wsRef.current = null;
     };
-  }, [clientID, batchId, mode]);
+  }, [connectWebSocket]);
+
+  // Add visual feedback for reconnection attempts
+  useEffect(() => {
+    if (isReconnecting) {
+      setError(`Lost connection to server. Attempting to reconnect... (Attempt ${reconnectAttemptRef.current}/${maxReconnectAttempts})`);
+    } else if (!isReconnecting && wsRef.current) {
+      setError(null); // Clear error when reconnected
+    }
+  }, [isReconnecting]);
+
+  /**
+   * Utility function to format milliseconds into human-readable time string
+   * Provides appropriate precision based on duration length
+   * 
+   * @param {number} milliseconds - Time duration in milliseconds
+   * @returns {string} - Formatted time string (e.g., "2h 30m 15.5s", "45.2s")
+   */
+  const formatTime = (milliseconds) => {
+    const totalSeconds = milliseconds / 1000;
+    const hours = totalSeconds / 3600;
+    const minutes = (totalSeconds % 3600) / 60;
+    const seconds = totalSeconds % 60;
+
+    if (hours >= 1) {
+      return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
+    } else if (minutes >= 1) {
+      return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
+    } else {
+      return `${seconds.toFixed(1)}s`;
+    }
+  };
 
   /**
    * WebSocket Heartbeat Effect
@@ -658,8 +687,6 @@ const FileUploader = ({ onFilesSelected }) => {
       }
     }
   };
-
-
 
   /**
    * Initialize batch tracking on the backend
