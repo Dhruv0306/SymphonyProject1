@@ -19,6 +19,7 @@ from typing import Dict
 from collections import defaultdict
 import asyncio
 import logging
+
 logger = logging.getLogger(__name__)
 
 # Thread-safe shared storage for batch progress tracking
@@ -28,6 +29,7 @@ _batch_data: Dict[str, Dict] = defaultdict(dict)
 _batch_locks: Dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 logger.info("Batch tracker initialized with empty state.")
+
 
 def init_batch(batch_id: str, total: int):
     """
@@ -78,13 +80,17 @@ async def update_batch(batch_id: str, is_valid: bool) -> Dict:
     async with _batch_locks[batch_id]:
         progress = _batch_data[batch_id]
         progress["processed"] += 1
-        logger.info(f"Updating batch {batch_id}: processed {progress['processed']}/{progress['total']}")
+        logger.info(
+            f"Updating batch {batch_id}: processed {progress['processed']}/{progress['total']}"
+        )
         if is_valid:
             progress["valid"] += 1
             logger.info(f"Batch {batch_id} valid count updated: {progress['valid']}")
         else:
             progress["invalid"] += 1
-            logger.info(f"Batch {batch_id} invalid count updated: {progress['invalid']}")
+            logger.info(
+                f"Batch {batch_id} invalid count updated: {progress['invalid']}"
+            )
         return dict(progress)
 
 
@@ -162,7 +168,9 @@ async def auto_expire_batch(batch_id: str, timeout: int = 21600):
     Prevents memory leaks by cleaning up data for abandoned batches.
     Only expires if batch is not marked as done.
     """
-    logger.info(f"Starting auto-expiry for batch {batch_id} with timeout {timeout} seconds.")
+    logger.info(
+        f"Starting auto-expiry for batch {batch_id} with timeout {timeout} seconds."
+    )
     await asyncio.sleep(timeout)
     logger.info(f"Auto-expiry timeout reached for batch {batch_id}. Checking status.")
     if batch_id in _batch_data and not _batch_data[batch_id].get("done", False):
@@ -178,7 +186,9 @@ async def start_retry_phase(batch_id: str, retry_total: int):
         batch_id (str): Batch identifier
         retry_total (int): Number of requests to retry
     """
-    logger.info(f"Starting retry phase for batch {batch_id} with {retry_total} retries.")
+    logger.info(
+        f"Starting retry phase for batch {batch_id} with {retry_total} retries."
+    )
     async with _batch_locks[batch_id]:
         progress = _batch_data[batch_id]
         progress["retry_phase"] = True
@@ -201,15 +211,21 @@ async def update_retry_progress(batch_id: str, is_valid: bool) -> Dict:
         progress = _batch_data[batch_id]
         progress["retry_processed"] += 1
         progress["processed"] += 1
-        logger.info(f"Updating retry progress for batch {batch_id}: "
-                    f"retry_processed {progress['retry_processed']}/{progress['retry_total']}, "
-                    f"processed {progress['processed']}/{progress['total']}")
+        logger.info(
+            f"Updating retry progress for batch {batch_id}: "
+            f"retry_processed {progress['retry_processed']}/{progress['retry_total']}, "
+            f"processed {progress['processed']}/{progress['total']}"
+        )
         if is_valid:
             progress["valid"] += 1
-            logger.info(f"Batch {batch_id} retry valid count updated: {progress['valid']}")
+            logger.info(
+                f"Batch {batch_id} retry valid count updated: {progress['valid']}"
+            )
         else:
             progress["invalid"] += 1
-            logger.info(f"Batch {batch_id} retry invalid count updated: {progress['invalid']}")
+            logger.info(
+                f"Batch {batch_id} retry invalid count updated: {progress['invalid']}"
+            )
         return dict(progress)
 
 
