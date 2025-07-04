@@ -741,6 +741,70 @@ const FileUploader = ({ onFilesSelected }) => {
   };
 
   /**
+   * LazyImage component with intersection observer for initial loading
+   * Only loads images when they become visible in viewport
+   */
+  const LazyImage = ({ src, alt, style, onError }) => {
+    const [imageSrc, setImageSrc] = useState(null);
+    const imgRef = useRef();
+
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setImageSrc(src);
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.1 }
+      );
+
+      if (imgRef.current) observer.observe(imgRef.current);
+      return () => observer.disconnect();
+    }, [src]);
+
+    return (
+      <div ref={imgRef} style={style}>
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={alt}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              display: 'block',
+            }}
+            onError={onError}
+          />
+        ) : (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'text.secondary',
+              fontSize: '0.8rem'
+            }}
+          >
+            Loading...
+          </Box>
+        )}
+      </div>
+    );
+  };
+
+  /**
    * Render image preview section based on current mode and input method
    * Dynamically generates preview UI for single images or batch collections
    * Includes upload status indicators and responsive grid layout
@@ -770,7 +834,7 @@ const FileUploader = ({ onFilesSelected }) => {
         }}
       >
         {src ? (
-          <img
+          <LazyImage
             src={src}
             alt={`Preview ${index + 1}`}
             style={{
@@ -779,10 +843,6 @@ const FileUploader = ({ onFilesSelected }) => {
               left: 0,
               width: '100%',
               height: '100%',
-              objectFit: 'contain',
-              maxWidth: '100%',
-              maxHeight: '100%',
-              display: 'block',
             }}
             onError={(e) => {
               e.target.onerror = null;
