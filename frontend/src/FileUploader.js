@@ -947,14 +947,25 @@ const FileUploader = ({ onFilesSelected }) => {
           </Box>
         );
       } else if (mode === 'batch' && previews.length > 0) {
-        // Responsive virtualized grid for batch preview
-        const MIN_CELL_WIDTH = 260;
-        const GAP = 8; // px, matches MUI spacing
-        const columnCount = Math.max(1, Math.floor((gridWidth + GAP) / (MIN_CELL_WIDTH + GAP)));
-        const cellWidth = Math.floor((gridWidth - GAP * (columnCount - 1)) / columnCount);
-        const cellHeight = cellWidth;
+        // Responsive virtualized grid configuration for batch upload previews
+        const MIN_CELL_WIDTH = 260; // px, minimum width for each grid cell
+        const GAP = 8; // px, spacing between grid cells (matches MUI spacing)
+        const maxGridHeight = 750; // px, maximum height for the grid container
+
+        // Calculate the number of columns based on available grid width and minimum cell width
+        const columnCount = Math.max(1, Math.floor((gridWidth + GAP) / (MIN_CELL_WIDTH + GAP))); // Ensure at least 1 column
+
+        // Calculate the actual cell width to fit columns evenly in the grid
+        const cellWidth = Math.floor((gridWidth - GAP * (columnCount - 1)) / columnCount); // Ensure cell width is an integer
+
+        // Calculate the number of rows needed to display all previews
         const rowCount = Math.ceil(previews.length / columnCount);
-        const gridHeight = Math.min(3 * (cellHeight + GAP), rowCount * (cellHeight + GAP));
+
+        // Maintain square aspect ratio for each cell
+        const cellHeight = cellWidth; // px, height of each grid cell
+
+        // Calculate the grid height, limiting to maxGridHeight for performance
+        const gridHeight = Math.min(maxGridHeight, rowCount * (cellHeight + GAP)); // px, total height of the grid
         return (
           <Box sx={{ mt: 2 }}>
             <Paper
@@ -962,7 +973,7 @@ const FileUploader = ({ onFilesSelected }) => {
                 backgroundColor: symphonyLightBlue,
                 borderRadius: 2,
                 border: `1px solid ${symphonyBlue}20`,
-                maxHeight: { xs: '100vh', sm: '1000px' },
+                maxHeight: { xs: '100vh', sm: gridHeight },
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column'
@@ -989,7 +1000,7 @@ const FileUploader = ({ onFilesSelected }) => {
                   columnWidth={cellWidth}
                   height={0.9 * gridHeight}
                   rowCount={rowCount}
-                  rowHeight={cellHeight}
+                  rowHeight={0.8 * cellHeight}
                   width={gridWidth}
                   style={{ overflowX: 'hidden' }}
                 >
@@ -1089,14 +1100,25 @@ const FileUploader = ({ onFilesSelected }) => {
       } else if (mode === 'batch' && batchUrls) {
         const urls = batchUrls.split('\n').filter(url => url.trim());
         if (urls.length > 0) {
-          // Responsive virtualized grid for batch url preview
-          const MIN_CELL_WIDTH = 260;
-          const GAP = 8;
-          const columnCount = Math.max(1, Math.floor((gridWidth + GAP) / (MIN_CELL_WIDTH + GAP)));
-          const cellWidth = Math.floor((gridWidth - GAP * (columnCount - 1)) / columnCount);
-          const cellHeight = cellWidth;
-          const rowCount = Math.ceil(urls.length / columnCount);
-          const gridHeight = Math.min(3 * (cellHeight + GAP), rowCount * (cellHeight + GAP));
+          // Responsive virtualized grid configuration for batch upload previews
+        const MIN_CELL_WIDTH = 260; // px, minimum width for each grid cell
+        const GAP = 8; // px, spacing between grid cells (matches MUI spacing)
+        const maxGridHeight = 750; // px, maximum height for the grid container
+
+        // Calculate the number of columns based on available grid width and minimum cell width
+        const columnCount = Math.max(1, Math.floor((gridWidth + GAP) / (MIN_CELL_WIDTH + GAP))); // Ensure at least 1 column
+
+        // Calculate the actual cell width to fit columns evenly in the grid
+        const cellWidth = Math.floor((gridWidth - GAP * (columnCount - 1)) / columnCount); // Ensure cell width is an integer
+
+        // Calculate the number of rows needed to display all previews
+        const rowCount = Math.ceil(previews.length / columnCount);
+
+        // Maintain square aspect ratio for each cell
+        const cellHeight = cellWidth; // px, height of each grid cell
+
+        // Calculate the grid height, limiting to maxGridHeight for performance
+        const gridHeight = Math.min(maxGridHeight, rowCount * (cellHeight + GAP)); // px, total height of the grid
           return (
             <Box sx={{ mt: 2 }}>
               <Paper
@@ -1131,7 +1153,7 @@ const FileUploader = ({ onFilesSelected }) => {
                     columnWidth={cellWidth}
                     height={0.9 * gridHeight}
                     rowCount={rowCount}
-                    rowHeight={cellHeight}
+                    rowHeight={0.8 * cellHeight}
                     width={gridWidth}
                     style={{ overflowX: 'hidden' }}
                   >
