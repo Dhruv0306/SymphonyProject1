@@ -575,7 +575,7 @@ const FileUploader = ({ onFilesSelected }) => {
         }]);
       } else {
         // Batch processing (no chunking)
-        console.log('Starting batch upload. Total urls:', files.length);
+        console.log('Starting batch upload. Total Files:', files.length);
         if (inputMethod === 'upload') {
           // If more than 300 files, zip them before upload
           if (files.length > 300) {
