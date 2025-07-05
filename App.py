@@ -35,7 +35,12 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # Local application imports
 from utils.logger import setup_logging
 from utils.file_ops import create_upload_dir
-from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
+from utils.cleanup import (
+    cleanup_old_batches,
+    cleanup_old_pending_batches,
+    cleanup_temp_uploads,
+    log_cleanup_stats,
+)
 from utils.ws_manager import connection_manager
 from utils.security import csrf_protection
 from utils.background_tasks import process_with_chunks
@@ -78,12 +83,13 @@ async def lifespan(app):
         logger.info("Performing initial cleanup on startup...")
         batch_cleaned = cleanup_old_batches(max_age_hours=24)
         temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
-        log_cleanup_stats(batch_cleaned, temp_cleaned)
+        pending_cleaned = cleanup_old_pending_batches(max_age_hours=72)  # 3 days
+        log_cleanup_stats(batch_cleaned, temp_cleaned, pending_cleaned)
         print(
-            f"Initial cleanup summary: {batch_cleaned} batches and {temp_cleaned} temp files removed"
+            f"Initial cleanup summary: {batch_cleaned} batches, {temp_cleaned} temp files, {pending_cleaned} pending batches removed"
         )
         logger.info(
-            f"Initial cleanup completed: {batch_cleaned} batches and {temp_cleaned} temp files removed"
+            f"Initial cleanup completed: {batch_cleaned} batches, {temp_cleaned} temp files, {pending_cleaned} pending batches removed"
         )
         print("Initializing scheduler...")
         app.state.scheduler = AsyncIOScheduler()
@@ -91,6 +97,9 @@ async def lifespan(app):
         app.state.scheduler.add_job(
             cleanup_temp_uploads, "interval", minutes=30, args=[30]
         )
+        app.state.scheduler.add_job(
+            cleanup_old_pending_batches, "interval", hours=24, args=[72]
+        )  # Daily cleanup of very old pending batches
         app.state.scheduler.add_job(
             csrf_protection.clean_expired_tokens, "interval", minutes=15
         )

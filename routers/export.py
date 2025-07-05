@@ -4,7 +4,12 @@ from fastapi.responses import FileResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from routers.batch import check_token_valid
-from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
+from utils.cleanup import (
+    cleanup_old_batches,
+    cleanup_old_pending_batches,
+    cleanup_temp_uploads,
+    log_cleanup_stats,
+)
 from typing import Optional
 import sys
 import logging
@@ -144,6 +149,7 @@ async def trigger_cleanup(
     request: Request,
     batch_age_hours: int = 24,
     temp_age_minutes: int = 30,
+    pending_age_hours: int = 72,
     token: Optional[str] = Header(None, alias="X-Auth-Token"),
 ):
     """
@@ -153,6 +159,7 @@ async def trigger_cleanup(
         request (Request): The incoming HTTP request
         batch_age_hours (int): Maximum age in hours for batch files before cleanup
         temp_age_minutes (int): Maximum age in minutes for temp files before cleanup
+        pending_age_hours (int): Maximum age in hours for pending batches before cleanup (default: 72 = 3 days)
         token (Optional[str]): Authentication token provided in header
 
     Returns:
@@ -169,17 +176,20 @@ async def trigger_cleanup(
         # Execute cleanup operations
         batch_cleaned = cleanup_old_batches(max_age_hours=batch_age_hours)
         temp_cleaned = cleanup_temp_uploads(max_age_minutes=temp_age_minutes)
+        pending_cleaned = cleanup_old_pending_batches(max_age_hours=pending_age_hours)
 
         # Log cleanup statistics
-        log_cleanup_stats(batch_cleaned, temp_cleaned)
+        log_cleanup_stats(batch_cleaned, temp_cleaned, pending_cleaned)
 
         # Return cleanup results
         return {
             "status": "success",
             "batches_cleaned": batch_cleaned,
             "temp_files_cleaned": temp_cleaned,
+            "pending_batches_cleaned": pending_cleaned,
             "batch_age_hours": batch_age_hours,
             "temp_age_minutes": temp_age_minutes,
+            "pending_age_hours": pending_age_hours,
         }
     except Exception as e:
         logger.error(f"Error during manual cleanup: {str(e)}")
