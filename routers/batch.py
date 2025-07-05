@@ -379,6 +379,19 @@ async def check_logo_batch(
                     status_code=400, detail=f"Invalid batch_id: {batch_id}"
                 )
 
+            # Save pending URLs for this batch
+            from utils.batch_tracker import save_panding_urls
+
+            logger.info(
+                f"Saving pending URLs for batch {batch_id} with client id {client_id} and chunk size {chunkSize}"
+            )
+            save_panding_urls(
+                batch_id=batch_id,
+                client_id=client_id,
+                chunk_size=chunkSize,
+                image_urls=[str(url) for url in batch_request.image_paths],
+            )
+
             logger.info(f"Starting batch {batch_id} with chunk size {chunkSize}")
             # Start background processing for URL list
             asyncio.create_task(

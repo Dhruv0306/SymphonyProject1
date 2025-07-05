@@ -154,6 +154,11 @@ async def process_url_async(
         # Update batch progress metrics
         progress = await update_batch(batch_id, result["Is_Valid"] == "Valid")
 
+        # remove the URL from pending URLs
+        from utils.batch_tracker import remove_processed_url
+
+        remove_processed_url(batch_id, url, result["Is_Valid"] == "Valid")
+
         # Send progress update to client if client_id provided
         if client_id:
             await broadcast_json(
@@ -309,6 +314,11 @@ async def process_with_chunks(
             )
         clear_batch(batch_id)
 
+        # Clear pending URLs for this batch
+        from utils.batch_tracker import clear_pending_urls
+
+        clear_pending_urls(batch_id)
+
     # Send email after all chunks complete
     try:
         base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
@@ -436,15 +446,19 @@ async def retry_failed_requests(
     for request in failed_requests:
         try:
             if request["type"] == "file":
-                result = await yolo_client.check_logo(
-                    file_data=request["file_data"],
+                result = await process_image_async(
                     filename=request["filename"],
-                    retries=2,  # Fewer retries for second attempt
+                    file_data=request["file_data"],
+                    batch_id=batch_id,
+                    client_id=client_id,
+                    csv_path=csv_path,
                 )
-                result["Image_Path_or_URL"] = request["filename"]
             else:
-                result = await yolo_client.check_logo(
-                    image_path=request["url"], retries=2
+                result = await process_url_async(
+                    url=request["url"],
+                    batch_id=batch_id,
+                    client_id=client_id,
+                    csv_path=csv_path,
                 )
 
             # Write result to CSV

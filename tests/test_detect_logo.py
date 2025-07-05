@@ -6,7 +6,7 @@ from io import BytesIO
 import os
 import tempfile
 
-from detect_logo import (
+from yolo_service.detect_logo import (
     add_boundary,
     is_url,
     load_models,
@@ -37,33 +37,33 @@ class TestDetectLogo:
         assert is_url("/local/path/image.jpg") is False
         assert is_url("image.jpg") is False
 
-    @patch("detect_logo.os.path.exists")
-    @patch("detect_logo.YOLO")
+    @patch("yolo_service.detect_logo.os.path.exists")
+    @patch("yolo_service.detect_logo.YOLO")
     def test_load_models_success(self, mock_yolo, mock_exists):
         """Test successful model loading"""
         mock_exists.return_value = True
         mock_model = Mock()
         mock_yolo.return_value = mock_model
 
-        with patch("detect_logo.MODEL_PATHS", ["test_model.pt"]):
+        with patch("yolo_service.detect_logo.MODEL_PATHS", ["test_model.pt"]):
             models = load_models()
 
         assert len(models) == 1
         assert models[0][0] == mock_model
         assert models[0][1] == "test_model.pt"
 
-    @patch("detect_logo.os.path.exists")
+    @patch("yolo_service.detect_logo.os.path.exists")
     def test_load_models_missing_file(self, mock_exists):
         """Test model loading with missing files"""
         mock_exists.return_value = False
 
-        with patch("detect_logo.MODEL_PATHS", ["missing_model.pt"]):
+        with patch("yolo_service.detect_logo.MODEL_PATHS", ["missing_model.pt"]):
             models = load_models()
 
         assert len(models) == 0
 
-    @patch("detect_logo.os.path.exists")
-    @patch("detect_logo.Image.open")
+    @patch("yolo_service.detect_logo.os.path.exists")
+    @patch("yolo_service.detect_logo.Image.open")
     def test_check_logo_local_file_invalid(self, mock_image_open, mock_exists):
         """Test logo detection with local file - no logo found"""
         mock_exists.return_value = True
@@ -76,13 +76,13 @@ class TestDetectLogo:
         mock_result.boxes = []
         mock_model.predict.return_value = [mock_result]
 
-        with patch("detect_logo.models", [(mock_model, "test_model.pt")]):
+        with patch("yolo_service.detect_logo.models", [(mock_model, "test_model.pt")]):
             result = check_logo("test_image.jpg")
 
         assert result["Is_Valid"] == "Invalid"
 
-    @patch("detect_logo.models", [(Mock(), "test_model.pt")])
-    @patch("detect_logo.requests.get")
+    @patch("yolo_service.detect_logo.models", [(Mock(), "test_model.pt")])
+    @patch("yolo_service.detect_logo.requests.get")
     def test_check_logo_url_valid(self, mock_get):
         """Test logo detection with URL"""
         # Mock successful HTTP response
@@ -106,7 +106,7 @@ class TestDetectLogo:
 
         assert result["Is_Valid"] == "Invalid"
 
-    @patch("detect_logo.models", [(Mock(), "test_model.pt")])
+    @patch("yolo_service.detect_logo.models", [(Mock(), "test_model.pt")])
     def test_check_logo_file_not_found(self):
         """Test logo detection with non-existent file"""
         result = check_logo("nonexistent.jpg")
@@ -114,8 +114,8 @@ class TestDetectLogo:
         assert result["Is_Valid"] == "Invalid"
         assert result["Error"] == "File not found"
 
-    @patch("detect_logo.models", [(Mock(), "test_model.pt")])
-    @patch("detect_logo.requests.get")
+    @patch("yolo_service.detect_logo.models", [(Mock(), "test_model.pt")])
+    @patch("yolo_service.detect_logo.requests.get")
     def test_check_logo_url_error(self, mock_get):
         """Test logo detection with URL error"""
         mock_get.side_effect = requests.RequestException("Network error")
@@ -125,9 +125,9 @@ class TestDetectLogo:
         assert result["Is_Valid"] == "Invalid"
         assert "Failed to load URL" in result["Error"]
 
-    @patch("detect_logo.models", [(Mock(), "test_model.pt")])
-    @patch("detect_logo.os.path.exists")
-    @patch("detect_logo.Image.open")
+    @patch("yolo_service.detect_logo.models", [(Mock(), "test_model.pt")])
+    @patch("yolo_service.detect_logo.os.path.exists")
+    @patch("yolo_service.detect_logo.Image.open")
     def test_check_logo_model_inference_error(self, mock_image_open, mock_exists):
         """Test logo detection with model inference error"""
         mock_exists.return_value = True
@@ -138,7 +138,7 @@ class TestDetectLogo:
         mock_model = Mock()
         mock_model.predict.side_effect = Exception("Model error")
 
-        with patch("detect_logo.models", [(mock_model, "test_model.pt")]):
+        with patch("yolo_service.detect_logo.models", [(mock_model, "test_model.pt")]):
             result = check_logo("test_image.jpg")
 
         assert result["Is_Valid"] == "Invalid"
