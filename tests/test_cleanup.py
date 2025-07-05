@@ -45,7 +45,15 @@ class TestCleanup:
         os.utime(old_batch, (old_time, old_time))
 
         with patch("utils.cleanup.os.path.exists") as mock_exists:
-            mock_exists.return_value = True
+            # Mock exists to return True for exports dir but False for pending files
+            def exists_side_effect(path):
+                if path == "exports":
+                    return True
+                # Return False for pending files to allow cleanup
+                return False
+
+            mock_exists.side_effect = exists_side_effect
+
             with patch("utils.cleanup.os.listdir") as mock_listdir:
                 mock_listdir.return_value = ["old_batch_123", "new_batch_456"]
                 with patch("utils.cleanup.os.path.isdir") as mock_isdir:
@@ -76,7 +84,14 @@ class TestCleanup:
         os.makedirs(batch_dir)
 
         with patch("utils.cleanup.os.path.exists") as mock_exists:
-            mock_exists.return_value = True
+            # Mock exists to return True for exports dir but False for pending files
+            def exists_side_effect(path):
+                if path == "exports":
+                    return True
+                return False
+
+            mock_exists.side_effect = exists_side_effect
+
             with patch("utils.cleanup.os.listdir") as mock_listdir:
                 mock_listdir.return_value = ["error_batch"]
                 with patch("utils.cleanup.os.path.isdir") as mock_isdir:
@@ -173,9 +188,14 @@ class TestCleanup:
 
         with patch("utils.cleanup.UPLOAD_DIR", temp_uploads_dir):
             with patch("utils.cleanup.os.path.exists") as mock_exists:
-                mock_exists.side_effect = (
-                    lambda x: x == temp_exports_dir or x == temp_uploads_dir
-                )
+
+                def exists_side_effect(path):
+                    if path == temp_exports_dir or path == temp_uploads_dir:
+                        return True
+                    # Return False for pending files to allow cleanup
+                    return False
+
+                mock_exists.side_effect = exists_side_effect
                 with patch("utils.cleanup.os.listdir") as mock_listdir:
 
                     def listdir_side_effect(path):
