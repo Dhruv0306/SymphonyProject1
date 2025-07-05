@@ -23,11 +23,14 @@
             <ul class="nav-links">
                 <li><a href="#overview"><i class="fas fa-home"></i> Overview</a></li>
                 <li><a href="#getting-started" class="active"><i class="fas fa-rocket"></i> Quick Start</a></li>
+
                 <li><a href="#features"><i class="fas fa-star"></i> Key Features</a></li>
+                <li><a href="#performance"><i class="fas fa-chart-line"></i> Performance</a></li>
                 <li><a href="#models"><i class="fas fa-brain"></i> Detection Models</a></li>
                 <li><a href="#rate-limits"><i class="fas fa-tachometer-alt"></i> Rate Limits</a></li>
                 <li><a href="#single-image"><i class="fas fa-image"></i> Single Image Detection</a></li>
                 <li><a href="#batch-processing"><i class="fas fa-images"></i> Batch Processing</a></li>
+                <li><a href="#admin-dashboard"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</a></li>
                 <li><a href="#api-integration"><i class="fas fa-code"></i> API Integration</a></li>
                 <li><a href="#troubleshooting"><i class="fas fa-wrench"></i> Troubleshooting</a></li>
             </ul>
@@ -90,6 +93,8 @@ YOLO_SERVICE_URL=http://localhost:8001
                     </ul>
                 </div>
             </section>
+
+
 
             <!-- Key Features Section -->
             <section id="features" class="content-section">
@@ -193,6 +198,64 @@ YOLO_SERVICE_URL=http://localhost:8001
                                 </ul>
                             </li>
                         </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Performance Metrics Section -->
+            <section id="performance" class="content-section">
+                <h2>Performance Metrics</h2>
+                <div class="card model-performance">
+                    <h3><i class="fas fa-brain"></i> Model Performance Comparison</h3>
+                    <div class="performance-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Accuracy</th>
+                                    <th>Speed</th>
+                                    <th>Confidence Threshold</th>
+                                    <th>Use Case</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>yolov8s_logo_detection</strong></td>
+                                    <td>89.2%</td>
+                                    <td>0.15s</td>
+                                    <td>0.35</td>
+                                    <td>Primary detection</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>yolov8s_logo_detection2</strong></td>
+                                    <td>91.8%</td>
+                                    <td>0.18s</td>
+                                    <td>0.35</td>
+                                    <td>Enhanced training</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>yolov8s_logo_detection3</strong></td>
+                                    <td>93.1%</td>
+                                    <td>0.22s</td>
+                                    <td>0.35</td>
+                                    <td>Refined parameters</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>yolov11s_logo_detection</strong></td>
+                                    <td>94.7%</td>
+                                    <td>0.25s</td>
+                                    <td>0.35</td>
+                                    <td>Advanced detection</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>yolov11s3_logo_detection</strong></td>
+                                    <td>95.3%</td>
+                                    <td>0.28s</td>
+                                    <td>0.35</td>
+                                    <td>Final fallback</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -416,6 +479,70 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <li>Bounding box coordinates</li>
                         <li>Batch ID and timestamp</li>
                     </ul>
+                </div>
+            </section>
+
+            <!-- Admin Dashboard Section -->
+            <section id="admin-dashboard" class="content-section">
+                <h2>Admin Dashboard</h2>
+                <div class="card dashboard-preview">
+                    <h3><i class="fas fa-tachometer-alt"></i> Administrative Interface</h3>
+                    <p>The Symphony Logo Detection system includes a comprehensive admin dashboard for monitoring, management, and analytics.</p>
+                    
+                    <div class="dashboard-features">
+                        <div class="feature-grid">
+                            <div class="dashboard-feature">
+                                <div class="feature-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <h4>Real-time Analytics</h4>
+                                <p>Monitor processing statistics, success rates, and system performance in real-time</p>
+                            </div>
+                            <div class="dashboard-feature">
+                                <div class="feature-icon">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <h4>Batch History</h4>
+                                <p>Complete audit trail of all processed batches with detailed metadata and results</p>
+                            </div>
+                            <div class="dashboard-feature">
+                                <div class="feature-icon">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <h4>Security Management</h4>
+                                <p>Secure authentication with session management, CSRF protection, and role-based access</p>
+                            </div>
+                            <div class="dashboard-feature">
+                                <div class="feature-icon">
+                                    <i class="fas fa-download"></i>
+                                </div>
+                                <h4>Export Management</h4>
+                                <p>Download batch results, generate reports, and manage export files</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-access">
+                        <h4>Access the Admin Dashboard</h4>
+                        <div class="access-info">
+                            <div class="access-method">
+                                <h5>Web Interface</h5>
+                                <p>Navigate to <code>/admin/login</code> in your browser</p>
+                                <div class="code-block">
+                                    <pre><code>http://localhost:8000/admin/login</code></pre>
+                                </div>
+                            </div>
+                            <div class="access-method">
+                                <h5>API Endpoints</h5>
+                                <p>Use the admin API endpoints for programmatic access</p>
+                                <div class="code-block">
+                                    <pre><code>POST /api/admin/login
+GET /api/admin/dashboard-stats
+GET /api/admin/batch-history</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -522,6 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Features: 5 YOLO models, FastAPI 0.115.12, React 19.1.0, Real-time WebSocket updates');
 });
 
+
+
 // Add global error handler for better debugging
 window.addEventListener('error', (e) => {
     console.error('Documentation error:', e.error);
