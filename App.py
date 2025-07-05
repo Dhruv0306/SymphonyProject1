@@ -50,6 +50,9 @@ from routers import (
     websocket,
 )
 
+# Initialize logging
+logger = setup_logging()
+
 # Configure YOLO service URL based on host argument
 if "--host" in sys.argv:
     host_index = sys.argv.index("--host")
@@ -57,9 +60,9 @@ if "--host" in sys.argv:
         host = sys.argv[host_index + 1]
         if host != "localhost" and host != "127.0.0.1":
             os.environ["YOLO_SERVICE_URL"] = f"http://{host}:8001"
-
-# Initialize logging
-logger = setup_logging()
+            logger.info(
+                f"Setting YOLO_SERVICE_URL to http://{host}:8001 based on command line argument"
+            )
 
 
 @asynccontextmanager
