@@ -1,7 +1,6 @@
 import os
 import shutil
 from fastapi import UploadFile
-from detect_logo import check_logo
 import logging
 
 # Configure logging for the module

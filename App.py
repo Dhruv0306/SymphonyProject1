@@ -14,6 +14,7 @@ Key Features:
 """
 
 # Standard library imports
+import glob
 import logging
 import asyncio
 import os
@@ -37,6 +38,7 @@ from utils.file_ops import create_upload_dir
 from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
 from utils.ws_manager import connection_manager
 from utils.security import csrf_protection
+from utils.background_tasks import process_with_chunks
 
 # Import admin_auth first to avoid circular imports
 from routers import admin_auth
@@ -99,6 +101,55 @@ async def lifespan(app):
         print("Scheduler started successfully")
         logger.info("Scheduler started successfully")
 
+        async def recover_incomplete_url_batches():
+            """Recover and resume URL batches from pending.json files."""
+            for pending_path in glob.glob("exports/*/pending.json"):
+                try:
+                    with open(pending_path) as f:
+                        data = json.load(f)
+
+                    batch_id = data["batch_id"]
+                    client_id = data["client_id"]
+                    chunk_size = data["chunk_size"]
+                    image_urls = data["image_urls"]
+                    processed = data.get("processed", 0)
+                    total = data.get("total", len(image_urls))
+                    valid = data.get("valid", 0)
+                    invalid = data.get("invalid", 0)
+
+                    from utils.batch_tracker import re_init_batch
+
+                    re_init_batch(
+                        batch_id=batch_id,
+                        processed=processed,
+                        total=total,
+                        valid=valid,
+                        invalid=invalid,
+                    )
+                    print(
+                        f"[Recovery] Resuming batch {batch_id} with {len(image_urls)} URLs"
+                    )
+                    logger.info(
+                        f"Recovering batch {batch_id} with {len(image_urls)} URLs"
+                    )
+
+                    await process_with_chunks(
+                        batch_id=batch_id,
+                        client_id=client_id,
+                        chunk_size=chunk_size,
+                        image_urls=image_urls,
+                    )
+
+                    print(f"[Recovery] Batch {batch_id} resumed successfully")
+                    logger.info(
+                        f"Recovered batch {batch_id} with {len(image_urls)} URLs"
+                    )
+                except Exception as e:
+                    print(f"[Recovery Error] {pending_path} → {e}")
+                    logger.error(
+                        f"Error recovering batch from {pending_path}: {str(e)}"
+                    )
+
         async def monitor_websockets():
             """Periodically check and remove stale WebSocket connections"""
             while True:
@@ -106,6 +157,7 @@ async def lifespan(app):
                 await asyncio.sleep(30)
 
         app.state.monitor_ws_task = asyncio.create_task(monitor_websockets())
+        app.state.recover_task = asyncio.create_task(recover_incomplete_url_batches())
     except Exception as e:
         error_msg = f"Error during startup: {str(e)}"
         print(error_msg)
@@ -122,6 +174,12 @@ async def lifespan(app):
             logger.info("Cleanup scheduler stopped")
         if hasattr(app.state, "monitor_ws_task"):
             app.state.monitor_ws_task.cancel()
+            print("[DEBUG] WebSocket monitor task cancelled")
+            logger.info("WebSocket monitor task cancelled")
+        if hasattr(app.state, "recover_task"):
+            app.state.recover_task.cancel()
+            print("[DEBUG] Recovery task cancelled")
+            logger.info("Recovery task cancelled")
         print("[DEBUG] Application shutdown complete")
     except Exception as e:
         error_msg = f"Error during shutdown: {str(e)}"

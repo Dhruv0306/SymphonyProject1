@@ -15,10 +15,12 @@ Key features:
 - Centralized state management for WebSocket streams
 """
 
-from typing import Dict
+import os
+from typing import Dict, List
 from collections import defaultdict
 import asyncio
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,30 @@ def init_batch(batch_id: str, total: int):
     logger.info(f"Initialized batch {batch_id} with total {total} items.")
     # Start auto-expiry task to prevent memory leaks
     asyncio.create_task(auto_expire_batch(batch_id))
+
+
+def re_init_batch(batch_id: str, total: int, processed: int, valid: int, invalid: int):
+    """
+    Re-initialize tracking for an existing batch process.
+
+    Args:
+        batch_id (str): Unique identifier for the batch
+        total (int): Total number of items to be processed
+
+    Resets the progress entry for the batch, allowing it to be reused.
+    """
+    _batch_data[batch_id] = {
+        "processed": processed,
+        "total": total,
+        "valid": valid,
+        "invalid": invalid,
+        "done": False,
+        "complete_sent": False,
+        "retry_phase": False,
+        "retry_processed": 0,
+        "retry_total": 0,
+    }
+    logger.info(f"Re-initialized batch {batch_id} with total {total} items.")
 
 
 async def update_batch(batch_id: str, is_valid: bool) -> Dict:
@@ -106,6 +132,87 @@ def get_progress(batch_id: str) -> Dict:
     """
     logger.info(f"Fetching progress for batch {batch_id}")
     return _batch_data.get(batch_id, {})
+
+
+def save_panding_urls(
+    batch_id: str, client_id: str, chunk_size: int, image_urls: List[str]
+):
+    """
+    Save pending URLs for a batch.
+
+    Args:
+        batch_id (str): Batch identifier
+        client_id (str): Client identifier
+        chunk_size (int): Size of each chunk
+        image_urls (List[str]): List of image URLs to save
+
+    Saves the URLs in a JSON file named with the batch_id.
+    """
+    pending_path = os.path.join("exports", batch_id, "pending.json")
+    data = {
+        "batch_id": batch_id,
+        "client_id": client_id,
+        "chunk_size": chunk_size,
+        "image_urls": image_urls,
+        "processed": 0,
+        "total": len(image_urls),
+        "valid": 0,
+        "invalid": 0,
+        "created_at": asyncio.get_event_loop().time(),
+    }
+    with open(pending_path, "w") as f:
+        json.dump(data, f)
+    logger.info(f"Saved pending URLs for batch {batch_id} to {pending_path}")
+
+
+def remove_processed_url(batch_id: str, url: str, is_valid: bool):
+    """
+    Remove a processed URL from the pending list.
+
+    Args:
+        batch_id (str): Batch identifier
+        url (str): URL to remove
+
+    Updates the JSON file by removing the specified URL.
+    """
+    pending_path = os.path.join("exports", batch_id, "pending.json")
+    if not os.path.exists(pending_path):
+        logger.warning(
+            f"No pending URLs found for batch {batch_id} to remove URL {url}."
+        )
+        return
+
+    with open(pending_path, "r") as f:
+        data = json.load(f)
+
+    if url in data.get("image_urls", []):
+        data["image_urls"].remove(url)
+        data["processed"] += 1
+        data["valid" if is_valid else "invalid"] += 1
+        with open(pending_path, "w") as f:
+            json.dump(data, f)
+        logger.info(
+            f"Removed URL {url} from pending list for batch {batch_id}. Total processed: {data['processed']}, valid: {data['valid']}, invalid: {data['invalid']}"
+        )
+    else:
+        logger.warning(f"URL {url} not found in pending list for batch {batch_id}.")
+
+
+def clear_pending_urls(batch_id: str):
+    """
+    Clear pending URLs for a batch.
+
+    Args:
+        batch_id (str): Batch identifier
+
+    Deletes the JSON file containing pending URLs for the batch.
+    """
+    pending_path = os.path.join("exports", batch_id, "pending.json")
+    if os.path.exists(pending_path):
+        os.remove(pending_path)
+        logger.info(f"Cleared pending URLs for batch {batch_id} from {pending_path}")
+    else:
+        logger.warning(f"No pending URLs found for batch {batch_id} to clear.")
 
 
 async def mark_done(batch_id: str) -> Dict:

@@ -103,7 +103,7 @@ def test_single_invalid_file_type():
         os.unlink(temp_path)
 
 
-@patch("detect_logo.check_logo")
+@patch("yolo_service.detect_logo.check_logo")
 def test_single_image_no_symphony_logo(mock_check_logo, setup_test_images):
     """
     Test single image validation with image containing no Symphony logo.

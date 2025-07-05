@@ -42,7 +42,7 @@ mock_ultralytics = MagicMock()
 mock_ultralytics.YOLO = MockYOLO
 sys.modules["ultralytics"] = mock_ultralytics
 
-from detect_logo import check_logo, MODEL_PATHS, CONFIDENCE_THRESHOLD
+from yolo_service.detect_logo import check_logo, MODEL_PATHS, CONFIDENCE_THRESHOLD
 
 
 @pytest.fixture(scope="function")
@@ -98,8 +98,8 @@ class Results:
         yield self
 
 
-@patch("detect_logo.load_models")
-@patch("detect_logo.add_boundary")
+@patch("yolo_service.detect_logo.load_models")
+@patch("yolo_service.detect_logo.add_boundary")
 @patch("PIL.Image.open")
 def test_fallback_on_model_error(
     mock_image_open, mock_add_boundary, mock_load_models, setup_test_images, mock_image
@@ -137,8 +137,8 @@ def test_fallback_on_model_error(
     assert "Error" not in result
 
 
-@patch("detect_logo.load_models")
-@patch("detect_logo.add_boundary")
+@patch("yolo_service.detect_logo.load_models")
+@patch("yolo_service.detect_logo.add_boundary")
 @patch("PIL.Image.open")
 def test_fallback_on_no_predictions(
     mock_image_open, mock_add_boundary, mock_load_models, setup_test_images, mock_image
@@ -176,8 +176,8 @@ def test_fallback_on_no_predictions(
     assert "Error" not in result
 
 
-@patch("detect_logo.models")
-@patch("detect_logo.add_boundary")
+@patch("yolo_service.detect_logo.models")
+@patch("yolo_service.detect_logo.add_boundary")
 @patch("PIL.Image.open")
 def test_fallback_chain(
     mock_image_open, mock_add_boundary, mock_models_patch, setup_test_images, mock_image
@@ -236,7 +236,7 @@ def test_fallback_chain(
     assert "Bounding_Box" in result
 
 
-@patch("detect_logo.models")
+@patch("yolo_service.detect_logo.models")
 def test_enhanced_mocking_with_pytest_mock(mock_models_patch, setup_test_images):
     """
     Test enhanced mocking capabilities using pytest-mock patterns.

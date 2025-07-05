@@ -18,6 +18,8 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 
 ## Table of Contents
 - [Key Features](#key-features)
+- [Example Workflow](#example-workflow)
+    -[Updated Batch Processing Flow](#updated-batch-processing-flow)
 - [System Architecture](#system-architecture)
   - [High-Level System Overview](#high-level-system-overview)
   - [FastAPI Application Architecture](#fastapi-application-architecture-apppy)
@@ -28,9 +30,16 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - [Error Handling and Monitoring](#error-handling-and-monitoring)
   - [File Storage and Cleanup System](#file-storage-and-cleanup-system)
   - [CSV Export Lifecycle](#csv-export-lifecycle)
+- [Environment Configuration](#environment-configuration)
+- [Model Weights, Large Files, and Git LFS](#model-weights-large-files-and-git-lfs)
+- [Continuous Integration (CI/CD)](#continuous-integration-cicd)
+- [Project Structure (Root-level files)](#project-structure-root-level-files)
+  - [Detailed Project Structure](#detailed-project-structure)
 - [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
+  - [Backend Infrastructure](#backend-infrastructure)
+  - [Frontend Stack](#frontend-stack)
+  - [AI/ML Components](#aiml-components)
+  - [Development & Testing Tools](#development--testing-tools)
 - [Installation](#installation)
   - [System Requirements](#system-requirements)
   - [Backend Setup](#backend-setup)
@@ -47,15 +56,25 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - [Development Mode](#development-mode)
   - [Production Mode](#production-mode)
 - [API Documentation](#api-documentation)
-  - [Main Endpoints](#main-endpoints)
+  - [Main Endpoints](#main-endpoints-business-logic)
+  - [System Endpoints](#system-endpoints-administrative--infrastructure)
+  - [Error Responses](#error-responses)
+  - [Rate Limits](#rate-limits)
+  - [Authentication](#authentication)
+  - [WebSocket Features](#websocket-features)
+  - [File Support](#file-support)
+  - [Getting Started](#getting-started)
 - [Security](#security)
+  - [Security Features](#-security-features)
+  - [Security Best Practices](#️-security-best-practices)
+  - [Common Threats & Mitigations](#-common-threats--mitigations)
+  - [Security Checklist](#-security-checklist)
+  - [Security Support](#-security-support)
 - [Error Handling](#error-handling)
 - [Logging System](#logging-system)
 - [Testing](#testing)
-  - [Backend](#backend)
-  - [Frontend](#frontend)
-- [Development Guidelines](#development-guidelines)
-- [Troubleshooting](#troubleshooting)
+  - [Backend](#-backend-testing)
+  - [Frontend](#-frontend-testing)
 - [Deployment](#deployment)
 - [License & Support](#license--support)
   - [License](#license)
@@ -182,6 +201,13 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - **Load Balancing Ready**: Stateless architecture with external state management
   - **WebSocket progress events are now batch-aware, ensuring only relevant updates are shown for the current batch**
 
+- **🔄 Batch Recovery and Resilience**
+  - **Automatic Recovery**: System scans for incomplete batches on startup and resumes processing
+  - **Pending State Tracking**: Uses `pending_{batch_id}.json` files in exports directory to track unprocessed URLs
+  - **Resilient Processing**: Interrupted or failed batch processes are automatically resumed from pending URLs
+  - **Reliability Enhancement**: Improves system reliability for large or long-running batch jobs
+  - **Progress Preservation**: Maintains processing state across application restarts with pending URL tracking
+
 ---
 
 ## Example Workflow
@@ -210,6 +236,27 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 2. Once complete, results are fetched via `/api/check-logo/batch/{batch_id}/complete`
 3. CSV export available via `/api/check-logo/batch/export-csv/{batch_id}`
 4. Email notifications sent automatically (if configured)
+
+#### Pending URLs Tracking System
+
+The system uses `pending.json` files to track unprocessed URLs for each batch, enabling robust recovery and progress tracking:
+
+**File Structure:**
+- Location: `exports/pending_{batch_id}.json`
+- Contains: Array of unprocessed image URLs for the batch
+- Purpose: Enables automatic recovery of interrupted batch processing
+
+**Recovery Process:**
+- On startup, system scans for pending.json files
+- Automatically resumes processing of incomplete batches
+- Removes URLs from pending list as they are processed
+- Deletes pending.json when batch completes successfully
+
+**Benefits:**
+- Fault tolerance for long-running batch jobs
+- Progress preservation across application restarts
+- Reliable processing of large URL batches
+- Automatic cleanup of completed batches
 
 ---
 
@@ -261,7 +308,7 @@ graph TD
         style E3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Call check_logo()"| D["detect_logo.py<br/>Sequential model testing<br/>Confidence threshold 0.35"]
+        C1 -->|"Call check_logo()"| D["yolo_service/detect_logo.py<br/>Sequential model testing<br/>Confidence threshold 0.35"]
         C2 -->|"Call check_logo()"| D
         D -->|"Via services/yolo_client.py"| D2["yolo_service/<br/>Microservice Architecture<br/>main.py + start.py"]
         D2 -->|"Load Model 1"| E1["runs/detect/yolov8s_logo_detection/<br/>weights/best.pt"]
@@ -309,7 +356,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** The system consists of a React Frontend (port 3000) connecting to FastAPI App.py (port 8000) through API Router Layer (routers/ directory with single.py, batch.py, export.py, admin_auth.py, websocket.py, dashboard_stats.py, batch_history.py). The Microservice Detection Engine uses detect_logo.py with services/yolo_client.py connecting to yolo_service/ microservice, loading 5 YOLO models from runs/detect/ directories. Utility Services (utils/ directory) include batch_tracker.py, ws_manager.py, cleanup.py, security.py, logger.py, file_ops.py, and background_tasks.py. Storage & Data layer manages temp_uploads/, exports/, logs/, and data/ directories. Testing & Quality includes tests/ directory with pytest configuration and frontend/src/__tests__/ for React components.
+**Fallback Description:** The system consists of a React Frontend (port 3000) connecting to FastAPI App.py (port 8000) through API Router Layer (routers/ directory with single.py, batch.py, export.py, admin_auth.py, websocket.py, dashboard_stats.py, batch_history.py). The Microservice Detection Engine uses yolo_service/detect_logo.py with services/yolo_client.py connecting to yolo_service/ microservice, loading 5 YOLO models from runs/detect/ directories. Utility Services (utils/ directory) include batch_tracker.py, ws_manager.py, cleanup.py, security.py, logger.py, file_ops.py, and background_tasks.py. Storage & Data layer manages temp_uploads/, exports/, logs/, and data/ directories. Testing & Quality includes tests/ directory with pytest configuration and frontend/src/__tests__/ for React components.
 
 </details>
 
@@ -358,7 +405,7 @@ graph TD
         style H fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style I fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         F1 & F2 -->|"Validate Input"| G["File Operations<br/>- Multipart files<br/>- Image URLs<br/>- File type validation"]
-        G -->|"Process Images"| H["detect_logo.py<br/>- Sequential model testing<br/>- Confidence threshold 0.35<br/>- 5 YOLO models"]
+        G -->|"Process Images"| H["yolo_service/detect_logo.py<br/>- Sequential model testing<br/>- Confidence threshold 0.35<br/>- 5 YOLO models"]
         H -->|"Log Results"| I["Logger Utils<br/>- Batch tracking<br/>- Error handling"]
     end
 
@@ -383,7 +430,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** FastAPI App.py receives requests from React Frontend and applies middleware layers: CORS Middleware → SlowAPI Limiter → Security Utils → Admin Authentication. Requests are routed through API Router Layer (single.py, batch.py, export.py, admin_auth.py, websocket.py) to Validation & Processing (File Operations → detect_logo.py → Logger Utils). Startup & Background Tasks include APScheduler initialization with cleanup jobs, CSRF token cleanup, and WebSocket monitoring. Core Endpoints provide GET /, GET /api, and WebSocket /ws/batch/{batch_id}.
+**Fallback Description:** FastAPI App.py receives requests from React Frontend and applies middleware layers: CORS Middleware → SlowAPI Limiter → Security Utils → Admin Authentication. Requests are routed through API Router Layer (single.py, batch.py, export.py, admin_auth.py, websocket.py) to Validation & Processing (File Operations → yolo_service/detect_logo.py → Logger Utils). Startup & Background Tasks include APScheduler initialization with cleanup jobs, CSRF token cleanup, and WebSocket monitoring. Core Endpoints provide GET /, GET /api, and WebSocket /ws/batch/{batch_id}.
 
 </details>
 
@@ -457,7 +504,7 @@ graph TD
 
 </details>
 
-### Sequential Model Processing Flow (detect_logo.py)
+### Sequential Model Processing Flow (yolo_service/detect_logo.py)
 
 This diagram demonstrates the core AI detection logic, showing how images (files or URLs) are processed through PIL Image processing with white boundary addition, then sequentially tested against 5 YOLO models with early return optimization. It illustrates the decision flow and result structure for both successful detections and error handling.
 
@@ -475,7 +522,7 @@ graph TD
         B -->|"ImageOps.expand(border=10, fill='white')"| C["Add White Boundary"]
     end
 
-    subgraph "Sequential Model Execution (detect_logo.py)"
+    subgraph "Sequential Model Execution (yolo_service/detect_logo.py)"
         style D1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
@@ -512,7 +559,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** Image Input Processing: File Upload or URL → PIL Image Processing → Add White Boundary (10px). Sequential Model Execution: Model 1 (yolov8s_logo_detection) → Model 2 (yolov8s_logo_detection2) → Model 3 (yolov8s_logo_detection3) → Model 4 (yolov11s_logo_detection) → Model 5 (yolov11s_logo_detection), each with confidence ≥ 0.35. Early Return Logic: If Symphony found (Conf ≥ 0.35) → Return Valid Result and stop processing; if no Symphony in all models → Return Invalid. Result Structure: JSON Response with Image_Path_or_URL, Is_Valid, Confidence, Detected_By, Bounding_Box, Error. Error Handling: Invalid file/URL → Error Response with no confidence/bounding box.
+**Fallback Description:** Image Input Processing: File Upload or URL → PIL Image Processing → Add White Boundary (10px). Sequential Model Execution: Model 1 (yolov8s_logo_detection) → Model 2 (yolov8s_logo_detection2) → Model 3 (yolov8s_logo_detection3) → Model 4 (yolov11s_logo_detection) → Model 5 (yolov11s3_logo_detection), each with confidence ≥ 0.35. Early Return Logic: If Symphony found (Conf ≥ 0.35) → Return Valid Result and stop processing; if no Symphony in all models → Return Invalid. Result Structure: JSON Response with Image_Path_or_URL, Is_Valid, Confidence, Detected_By, Bounding_Box, Error. Error Handling: Invalid file/URL → Error Response with no confidence/bounding box.
 
 </details>
 
@@ -565,7 +612,7 @@ sequenceDiagram
     
     rect rgba(90, 50, 100, 0.6)
         loop "For each image"
-            B->>D: "check_logo(image)"
+            B->>D: "yolo_service.detect_logo.check_logo(image)"
             D->>D: "Add white boundary"
             D->>D: "Preprocess image"
             
@@ -616,7 +663,7 @@ sequenceDiagram
     end
 ```
 
-**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Validates batch exists and files provided → For each image: detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id}.
+**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking with pending URLs management. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Creates pending_{batch_id}.json → Validates batch exists and files provided → For each image: yolo_service/detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress → Removes processed URLs from pending list. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id} → Background tasks clear pending.json on completion.
 
 </details>
 
@@ -1572,3 +1619,1191 @@ uvicorn App:app --host 0.0.0.0 --port 8000 --workers 4
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8001
 ```
+
+## API Documentation
+
+The Symphony Logo Detection API is a FastAPI-based service that detects Symphony logos in images using YOLO-based machine learning models. The API supports both single image processing and batch processing with real-time WebSocket updates.
+
+**Base URL:** `http://localhost:8000`  
+**API Documentation:** `http://localhost:8000/docs`  
+**Interactive API Explorer:** `http://localhost:8000/redoc`
+
+---
+
+### Main Endpoints (Business Logic)
+
+#### 1. Single Image Processing
+
+##### Check Logo in Single Image (File Upload)
+```http
+POST /api/check-logo/single/
+```
+
+**Description:** Validate a single image for Symphony logo presence via file upload or image URL.
+
+**Parameters:**
+- `file` (UploadFile, optional): Image file to validate (JPG/PNG)
+- `image_path` (str, optional): URL or path of the image to validate
+
+**Rate Limit:** 100 requests/minute per IP
+
+**Response:**
+```json
+{
+  "image_path": "string",
+  "is_valid": true,
+  "confidence": 0.95,
+  "model": "YOLOv8s #1",
+  "bbox": {
+    "x1": 100,
+    "y1": 150,
+    "x2": 300,
+    "y2": 350
+  },
+  "error": null
+}
+```
+
+##### Check Logo by URL (JSON)
+```http
+POST /api/check-logo/single/url
+```
+
+**Description:** Validate a single image by URL using JSON request body.
+
+**Request Body:**
+```json
+{
+  "image_path": "https://example.com/image.jpg"
+}
+```
+
+**Rate Limit:** 100 requests/minute per IP
+
+---
+
+#### 2. Batch Processing
+
+##### Start Batch Session
+```http
+POST /api/start-batch
+```
+
+**Description:** Initialize a new batch processing session and get a unique batch ID.
+
+**Parameters:**
+- `client_id` (str, optional): Client identifier for WebSocket association
+- `email` (str, optional): Email for batch completion notification
+- `X-Auth-Token` (header, optional): Admin authentication token
+
+**Response:**
+```json
+{
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Batch processing session started"
+}
+```
+
+#### Initialize Batch Tracking
+```http
+POST /api/init-batch
+```
+
+**Description:** Initialize batch tracking with total count before uploading chunks.
+
+**Request Body:**
+```json
+{
+  "batch_id": "string",
+  "client_id": "string",
+  "total": 100
+}
+```
+
+##### Process Batch
+```http
+POST /api/check-logo/batch/
+```
+
+**Description:** Start batch processing with files, zip archive, or URL list. Returns immediately for background processing.
+
+**Parameters:**
+- `files` (List[UploadFile], optional): List of image files
+- `zip_file` (UploadFile, optional): Zip file containing images
+- `batch_id` (str): Batch ID from start-batch endpoint
+- `client_id` (str, optional): Client ID for WebSocket updates
+- `chunkSize` (int, default=10): Chunk size for processing
+
+**For URL processing (JSON body):**
+```json
+{
+  "batch_id": "string",
+  "client_id": "string",
+  "chunkSize": 10,
+  "image_paths": [
+    "https://example.com/image1.jpg",
+    "https://example.com/image2.jpg"
+  ]
+}
+```
+
+**Rate Limit:** 60 requests/minute per IP
+
+**Response:**
+```json
+{
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+  "message": "Batch processing started",
+  "status": "processing"
+}
+```
+
+##### Get Batch Status
+```http
+GET /api/check-logo/batch/{batch_id}/status
+```
+
+**Description:** Get current status and progress of batch processing.
+
+**Response:**
+```json
+{
+  "batch_id": "string",
+  "status": "processing",
+  "processed": 50,
+  "total": 100,
+  "valid": 30,
+  "invalid": 20,
+  "progress_percentage": 50.0
+}
+```
+
+##### Complete Batch
+```http
+POST /api/check-logo/batch/{batch_id}/complete
+```
+
+**Description:** Mark batch as complete and finalize results.
+
+##### Retry Failed Chunk
+```http
+POST /api/check-logo/batch/{batch_id}/retry-chunk
+```
+
+**Description:** Retry processing of a failed chunk in batch processing.
+
+**Parameters:**
+- `chunk_index` (int): Index of chunk to retry
+- `files` (List[UploadFile], optional): Files to retry
+- `client_id` (str, optional): Client ID for updates
+- `total_chunks` (int, optional): Total number of chunks
+- `total_files` (int, optional): Total files in batch
+
+**Rate Limit:** 10 requests/minute per IP
+
+##### Send Batch Email Notification
+```http
+POST /api/check-logo/batch/{batch_id}/send-email
+```
+
+**Description:** Send batch summary email notification.
+
+---
+
+#### 3. Export & Results
+
+##### Get Batch Count
+```http
+GET /check-logo/batch/getCount?batch_id={batch_id}
+```
+
+**Description:** Get count of processed items for a specific batch.
+
+**Response:**
+```json
+{
+  "valid": 30,
+  "invalid": 20,
+  "total": 50
+}
+```
+
+##### Export Batch Results to CSV
+```http
+GET /api/check-logo/batch/export-csv?batch_id={batch_id}
+```
+
+**Description:** Export batch processing results as downloadable CSV file.
+
+**Rate Limit:** 10 requests/minute per IP
+
+**Response:** CSV file download with filename `logo_detection_results_{batch_id}.csv`
+
+##### Get Export File
+```http
+GET /api/exports/{batch_id}/{filename}?token={auth_token}
+```
+
+**Description:** Download an exported file by batch ID and filename (requires authentication).
+
+---
+
+#### 4. WebSocket Connections
+
+##### Batch Progress WebSocket
+```http
+WebSocket: /ws/batch/{batch_id}
+```
+
+**Description:** Real-time updates for batch processing progress with ping/pong support and 10-minute timeout.
+
+**Messages:**
+- **Ping:** `{"type": "ping", "timestamp": 1234567890}`
+- **Pong:** `{"type": "pong", "timestamp": 1234567890}`
+- **Progress Updates:** Automatic progress notifications
+
+##### Client WebSocket
+```http
+WebSocket: /ws/{client_id}
+```
+
+**Description:** General WebSocket endpoint for client connections with heartbeat support.
+
+**Messages:**
+- **Heartbeat:** `{"event": "heartbeat", "timestamp": 1234567890}`
+- **Heartbeat ACK:** `{"event": "heartbeat_ack", "timestamp": 1234567890}`
+
+---
+
+### System Endpoints (Administrative & Infrastructure)
+
+#### 1. Authentication
+
+##### Admin Login
+```http
+POST /api/admin/login
+```
+
+**Description:** Authenticate admin credentials and create session with CSRF protection.
+
+**Request Body (Form Data):**
+- `username` (str): Admin username
+- `password` (str): Admin password
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Login successful",
+  "token": "auth_token_here",
+  "csrf_token": "csrf_token_here"
+}
+```
+
+##### Admin Logout
+```http
+POST /api/admin/logout
+```
+
+**Headers:**
+- `X-Auth-Token`: Session token
+- `X-CSRF-Token`: CSRF token
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Logged out successfully"
+}
+```
+
+##### Check Admin Session
+```http
+GET /api/admin/check-session
+```
+
+**Headers:**
+- `X-Auth-Token`: Session token
+
+**Response:**
+```json
+{
+  "status": "success",
+  "authenticated": true
+}
+```
+
+---
+
+#### 2. Admin Dashboard & Statistics
+
+##### Get Dashboard Statistics
+```http
+GET /api/admin/dashboard-stats
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get key metrics for admin dashboard.
+
+**Response:**
+```json
+{
+  "batches_today": 15,
+  "success_rate": 92.5,
+  "avg_processing_time": 45.2,
+  "error_rate": 7.5
+}
+```
+
+---
+
+#### 3. Batch History Management
+
+##### Get Batch History
+```http
+GET /api/admin/batch-history
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get history of all processed batches (admin only).
+
+**Response:**
+```json
+[
+  {
+    "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "filename": "550e8400-e29b-41d4-a716-446655440000/results.csv",
+    "created_at": "2024-01-15T10:30:00",
+    "file_size": 15420,
+    "download_url": "/api/exports/550e8400-e29b-41d4-a716-446655440000/results.csv",
+    "valid_count": 85,
+    "invalid_count": 15,
+    "total_count": 100
+  }
+]
+```
+
+##### Get Batch Details
+```http
+GET /api/admin/batch/{batch_id}
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get detailed information about a specific batch.
+
+**Response:**
+```json
+{
+  "batch_id": "string",
+  "filename": "string",
+  "created_at": "2024-01-15T10:30:00",
+  "file_size": 15420,
+  "download_url": "string",
+  "valid_count": 85,
+  "invalid_count": 15,
+  "total_count": 100,
+  "metadata": {
+    "status": "completed",
+    "email": "user@example.com"
+  }
+}
+```
+
+##### Get Batch Preview
+```http
+GET /api/admin/batch/{batch_id}/preview
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get preview of first 5 entries in batch results.
+
+**Response:**
+```json
+{
+  "batch_id": "string",
+  "preview": [
+    {
+      "Image_Path_or_URL": "example.jpg",
+      "Is_Valid": "Valid",
+      "Confidence": "0.92",
+      "Detected_By": "YOLOv8s #1",
+      "Bounding_Box": "{\"x1\": 100, \"y1\": 150, \"x2\": 300, \"y2\": 350}",
+      "Error": null
+    }
+  ]
+}
+```
+
+---
+
+#### 4. System Maintenance
+
+##### Manual Cleanup
+```http
+POST /maintenance/cleanup
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Parameters:**
+- `batch_age_hours` (int, default=24): Max age for batch files
+- `temp_age_minutes` (int, default=30): Max age for temp files
+
+**Rate Limit:** 2 requests/minute per IP
+
+**Description:** Manually trigger cleanup of old files.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "batches_cleaned": 5,
+  "temp_files_cleaned": 12,
+  "batch_age_hours": 24,
+  "temp_age_minutes": 30
+}
+```
+
+---
+
+### Error Responses
+
+#### Common HTTP Status Codes
+
+- **400 Bad Request:** Invalid input or missing required fields
+- **401 Unauthorized:** Authentication required or invalid credentials
+- **403 Forbidden:** Invalid CSRF token or insufficient permissions
+- **404 Not Found:** Batch or resource not found
+- **429 Too Many Requests:** Rate limit exceeded
+- **500 Internal Server Error:** Server-side processing error
+
+#### Error Response Format
+```json
+{
+  "detail": "Error description here"
+}
+```
+
+---
+
+### Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| Single image processing | 100/minute per IP |
+| Batch processing | 60/minute per IP |
+| Chunk retry | 10/minute per IP |
+| CSV export | 10/minute per IP |
+| Manual cleanup | 2/minute per IP |
+
+---
+
+### Authentication
+
+- **Session-based:** Admin endpoints use session tokens
+- **CSRF Protection:** Admin state-changing operations require CSRF tokens
+- **Token Headers:** 
+  - `X-Auth-Token`: Session authentication
+  - `X-CSRF-Token`: CSRF protection
+
+---
+
+### WebSocket Features
+
+- **Auto-reconnection:** Clients can recover previous batch associations
+- **Heartbeat Support:** Automatic connection health monitoring
+- **Timeout Handling:** 10-minute inactivity timeout for batch connections
+- **Real-time Updates:** Live progress updates during batch processing
+
+---
+
+### File Support
+
+- **Image Formats:** JPG, PNG
+- **Batch Uploads:** Multiple files, ZIP archives, URL lists
+- **Export Formats:** CSV with detailed results and metadata
+
+---
+
+### Getting Started
+
+1. **Start the server:**
+   ```bash
+   python run.py --host localhost --port 8000
+   ```
+
+2. **Access API documentation:**
+   - Interactive docs: `http://localhost:8000/docs`
+   - Alternative docs: `http://localhost:8000/redoc`
+
+3. **Basic workflow:**
+   - Single image: `POST /api/check-logo/single/`
+   - Batch processing: `POST /api/start-batch` → `POST /api/check-logo/batch/`
+   - Monitor progress: WebSocket `/ws/batch/{batch_id}`
+   - Export results: `GET /api/check-logo/batch/export-csv`
+
+---
+
+## Security
+
+The Symphony Logo Detection System implements enterprise-grade security measures to protect against common threats and ensure data integrity.
+
+### 🔒 Security Features
+
+- **Authentication & Authorization:** Session-based admin authentication with CSRF protection
+- **Input Validation:** Strict file type validation (JPG, PNG only), URL validation, input sanitization
+- **Rate Limiting:** Per-endpoint rate limits using SlowAPI with IP-based throttling
+- **Data Protection:** Temporary files with automatic cleanup (30-minute cycles), 24-hour data retention
+- **Network Security:** CORS protection, HTTPS support, security headers for XSS protection
+
+### 🛡️ Security Best Practices
+
+#### Environment Configuration
+```bash
+# Required security variables
+ADMIN_USERNAME=your_secure_username
+ADMIN_PASSWORD=your_strong_password
+COOKIE_SECRET=your_secure_cookie_secret
+SESSION_DURATION=1800  # 30 minutes
+
+# Optional enhancements
+CORS_ORIGINS=https://yourdomain.com
+RATE_LIMIT_ENABLED=true
+SECURE_COOKIES=true
+```
+
+#### Production Deployment
+1. **Use HTTPS:** Always deploy with SSL/TLS certificates
+2. **Strong Passwords:** Use complex, unique passwords for admin accounts
+3. **Regular Updates:** Keep all dependencies updated to latest secure versions
+4. **Firewall Configuration:** Restrict access to necessary ports only
+5. **Reverse Proxy:** Use nginx or Apache for additional security
+
+### 🚨 Common Threats & Mitigations
+
+| Threat | Mitigation | Implementation |
+|--------|------------|----------------|
+| **SQL Injection** | Input validation | Pydantic models, type checking |
+| **XSS Attacks** | Input sanitization | HTML encoding, CSP headers |
+| **CSRF Attacks** | CSRF tokens | CSRF middleware, token validation |
+| **File Upload Attacks** | File validation | Type/size limits, secure storage |
+| **DDoS Attacks** | Rate limiting | SlowAPI integration, IP-based limits |
+| **Session Hijacking** | Secure cookies | HTTPS-only, automatic expiration |
+
+### 📋 Security Checklist
+
+#### Pre-Deployment
+- [ ] Environment variables in `.env` file (not committed to git)
+- [ ] Strong admin passwords configured
+- [ ] HTTPS/SSL certificates installed
+- [ ] Firewall rules configured
+- [ ] Dependencies updated to latest versions
+- [ ] File permissions properly set
+
+#### Runtime Monitoring
+- [ ] Rate limit violations tracked
+- [ ] Failed authentication attempts monitored
+- [ ] Suspicious file uploads flagged
+- [ ] Error patterns analyzed
+- [ ] Performance metrics tracked
+
+### 🆘 Security Support
+
+**Reporting Security Issues:**
+- **Email:** security@symphony.com
+- **Response Time:** Initial response within 24 hours
+- **Private Disclosure:** Report via secure channels only
+
+---
+
+## Error Handling
+
+The Symphony Logo Detection System implements comprehensive error handling to ensure robust operation and provide clear feedback to users.
+
+### 🔍 Error Categories
+
+- **400 Bad Request:** Invalid file types, missing fields, invalid URLs, file size limits
+- **401/403 Unauthorized:** Invalid credentials, expired sessions, missing tokens, CSRF violations
+- **404 Not Found:** Batch not found, files missing, model weights missing
+- **429 Too Many Requests:** Rate limits exceeded (100/min single, 60/min batch, 10/min export)
+- **500 Internal Server Error:** Model failures, memory issues, file processing errors
+
+### 🛠️ Error Handling Strategies
+
+- **Graceful Degradation:** Model cascade with automatic fallback to backup models
+- **Retry Mechanisms:** Server-side retry logic with exponential backoff
+- **Error Recovery:** Automatic batch recovery and state restoration
+- **Cleanup Procedures:** Automatic cleanup of failed operations
+
+### 📊 Error Response Format
+
+```json
+{
+  "detail": "Error description",
+  "error_code": "VALIDATION_ERROR",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "request_id": "req_123456789"
+}
+```
+
+### 🔧 Troubleshooting Guide
+
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| **Model Loading Failures** | 500 errors, "Model not found" | Check model weights in `runs/detect/` directories |
+| **Memory Issues** | Out of memory errors | Reduce batch size, increase system memory |
+| **File Upload Failures** | 400 errors, file validation fails | Verify file format (JPG/PNG), check file size |
+| **Rate Limiting** | 429 errors, "Too many requests" | Implement request throttling, increase limits |
+| **Authentication Issues** | 401/403 errors | Check credentials, verify session tokens |
+
+#### Debug Mode
+```bash
+# Enable debug logging
+export LOG_LEVEL=DEBUG
+uvicorn App:app --reload --log-level debug
+```
+
+#### Health Check Endpoints
+```http
+GET /health
+GET /api/health
+GET /api/admin/system-status
+```
+
+### 🔄 Recovery Procedures
+
+- **Automatic Recovery:** Startup recovery, batch resume, state restoration
+- **Manual Recovery:** Batch recovery and cleanup commands
+- **Monitoring:** Error rate tracking, performance metrics, resource usage
+
+### 🆘 Getting Help
+
+**When reporting errors, include:**
+- Complete error message and stack trace
+- API endpoint, request parameters, headers
+- System details, Python version, dependencies
+- Steps to reproduce the error
+
+**Support Channels:**
+- **GitHub Issues:** [Create an issue](https://github.com/Dhruv0306/SymphonyProject1/issues)
+- **Documentation:** Check [API documentation](http://localhost:8000/docs)
+- **Logs:** Review application logs in `logs/` directory
+
+---
+
+## Logging System
+
+The Symphony Logo Detection System implements a comprehensive logging system to track application behavior, debug issues, and monitor performance.
+
+### 📝 Logging Features
+
+- **Structured Logging:** JSON-formatted logs with consistent structure
+- **Log Rotation:** Automatic rotation at 10MB with size-based cleanup
+- **Multiple Log Levels:** DEBUG, INFO, WARNING, ERROR, CRITICAL
+- **Context Tracking:** Request IDs, batch IDs, user sessions
+- **Performance Metrics:** Response times, processing durations, resource usage
+
+### 🔧 Log Configuration
+
+#### Environment Variables
+```bash
+# Logging configuration
+LOG_LEVEL=INFO                    # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FORMAT=json                   # json or text
+LOG_FILE=logs/app.log            # Log file path
+LOG_MAX_SIZE=10MB                # Maximum log file size
+LOG_BACKUP_COUNT=5               # Number of backup files to keep
+```
+
+#### Log Levels
+- **DEBUG:** Detailed debugging information
+- **INFO:** General application information
+- **WARNING:** Warning messages for potential issues
+- **ERROR:** Error messages for failed operations
+- **CRITICAL:** Critical errors requiring immediate attention
+
+### 📊 Log Categories
+
+#### Application Logs
+- **Startup/Shutdown:** System initialization and cleanup
+- **Request Processing:** API endpoint requests and responses
+- **Batch Operations:** Batch processing status and progress
+- **Authentication:** Login attempts and session management
+
+#### Error Logs
+- **Validation Errors:** Input validation failures
+- **Processing Errors:** Image processing and model inference errors
+- **System Errors:** File system, memory, and network issues
+- **Security Events:** Authentication failures and security violations
+
+#### Performance Logs
+- **Response Times:** API endpoint response time tracking
+- **Resource Usage:** Memory, CPU, and disk usage monitoring
+- **Model Performance:** YOLO model loading and inference times
+- **Batch Statistics:** Processing speed and throughput metrics
+
+### 📁 Log File Structure
+
+```
+logs/
+├── app.log                    # Current application log
+├── app.log.1                  # Previous log file
+├── app.log.2                  # Older log file
+├── error.log                  # Error-specific log
+├── access.log                 # Request access log
+└── batch.log                  # Batch processing log
+```
+
+### 🔍 Log Analysis
+
+#### Common Log Patterns
+```bash
+# View recent errors
+grep "ERROR" logs/app.log | tail -20
+
+# Monitor batch processing
+grep "batch" logs/app.log | tail -10
+
+# Check authentication events
+grep "auth" logs/app.log | tail -10
+
+# Performance analysis
+grep "response_time" logs/app.log | awk '{print $NF}'
+```
+
+#### Log Monitoring
+- **Real-time Monitoring:** `tail -f logs/app.log`
+- **Error Rate Tracking:** Count errors per time period
+- **Performance Alerts:** Monitor response time thresholds
+- **Resource Monitoring:** Track memory and disk usage
+
+### 🛠️ Logging Utilities
+
+#### Python Logging Setup
+```python
+import logging
+from utils.logger import setup_logging
+
+# Initialize logging
+logger = setup_logging()
+
+# Usage examples
+logger.info("Batch processing started", extra={"batch_id": "123"})
+logger.error("Model loading failed", extra={"model": "yolov8s"})
+logger.warning("High memory usage", extra={"memory_usage": "85%"})
+```
+
+#### Log Format Example
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "level": "INFO",
+  "message": "Batch processing completed",
+  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+  "processed": 100,
+  "duration": 45.2,
+  "request_id": "req_123456789"
+}
+```
+
+### 📋 Log Management
+
+#### Log Cleanup
+- **Automatic Rotation:** Logs rotated when size exceeds 10MB
+- **Retention Policy:** Keep last 5 log files
+- **Archive Old Logs:** Compress and archive logs older than 30 days
+- **Disk Space Monitoring:** Alert when disk usage exceeds 80%
+
+#### Log Security
+- **Access Control:** Restrict log file access to authorized users
+- **Sensitive Data:** Mask passwords and tokens in logs
+- **Audit Trail:** Track log file access and modifications
+- **Backup Strategy:** Regular backup of log files
+
+---
+
+## Testing
+
+The Symphony Logo Detection System includes comprehensive testing to ensure reliability, performance, and code quality.
+
+### 🧪 Backend Testing
+
+#### Test Framework
+- **Pytest:** Primary testing framework with async support
+- **Pytest-asyncio:** Async testing capabilities for FastAPI endpoints
+- **Coverage Reporting:** Code coverage analysis and reporting
+- **Test Discovery:** Automatic test discovery and execution
+
+#### Test Categories
+```bash
+# Run all backend tests
+pytest tests/
+
+# Run specific test categories
+pytest tests/test_batch.py          # Batch processing tests
+pytest tests/test_single.py         # Single image tests
+pytest tests/test_detect_logo.py    # YOLO model tests
+pytest tests/test_cleanup.py        # Cleanup utility tests
+pytest tests/test_ws_manager.py     # WebSocket tests
+```
+
+#### Test Coverage
+- **Unit Tests:** Individual function and class testing
+- **Integration Tests:** API endpoint and service integration
+- **Model Tests:** YOLO model loading and inference testing
+- **Error Handling:** Error scenarios and edge case testing
+- **Performance Tests:** Response time and throughput testing
+
+#### Test Configuration
+```ini
+# pytest.ini configuration
+[tool:pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+addopts = -v --tb=short --strict-markers
+markers =
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    integration: marks tests as integration tests
+    unit: marks tests as unit tests
+```
+
+### 🎨 Frontend Testing
+
+#### Test Framework
+- **Jest:** JavaScript testing framework
+- **React Testing Library:** Component testing utilities
+- **MSW (Mock Service Worker):** API mocking for tests
+- **Jest WebSocket Mock:** WebSocket testing support
+
+#### Test Categories
+```bash
+# Run all frontend tests
+npm test
+
+# Run specific test files
+npm test -- --testPathPattern=FileUploader
+npm test -- --testPathPattern=AdminLogin
+npm test -- --testPathPattern=ProgressBar
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+#### Component Tests
+- **FileUploader:** File upload and batch processing UI
+- **AdminLogin:** Authentication and session management
+- **ProgressBar:** Real-time progress tracking
+- **Dashboard:** Admin dashboard functionality
+- **BatchHistory:** Batch history and management
+
+#### Test Utilities
+```javascript
+// Example test setup
+import { render, screen, fireEvent } from '@testing-library/react';
+import { rest } from 'msw';
+import { setupServer } from 'msw/node';
+
+// Mock API responses
+const server = setupServer(
+  rest.post('/api/check-logo/single/', (req, res, ctx) => {
+    return res(ctx.json({ is_valid: true, confidence: 0.95 }));
+  })
+);
+```
+
+### 📊 Test Results & Coverage
+
+#### Backend Coverage
+- **Overall Coverage:** >90% code coverage
+- **Critical Paths:** 100% coverage for core functionality
+- **Error Handling:** Comprehensive error scenario testing
+- **Performance:** Response time and throughput benchmarks
+
+#### Frontend Coverage
+- **Component Coverage:** >85% component testing
+- **User Interactions:** Complete user workflow testing
+- **Error States:** Error handling and recovery testing
+- **Accessibility:** WCAG compliance testing
+
+#### Continuous Integration
+- **Automated Testing:** Tests run on every commit
+- **Coverage Reports:** Automated coverage reporting
+- **Quality Gates:** Minimum coverage requirements
+- **Performance Regression:** Automated performance testing
+
+---
+
+## Deployment
+
+The Symphony Logo Detection System supports multiple deployment scenarios from development to production environments.
+
+### 🚀 Production Deployment
+
+#### System Requirements
+- **Python 3.7+:** Backend runtime environment
+- **Node.js 14+:** Frontend build environment
+- **4GB+ RAM:** Minimum system memory
+- **10GB+ Storage:** Application and model storage
+- **GPU (Optional):** CUDA support for faster inference
+
+#### Backend Deployment
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export ADMIN_USERNAME=your_admin_username
+export ADMIN_PASSWORD=your_secure_password
+export COOKIE_SECRET=your_secure_cookie_secret
+
+# Start main API service
+uvicorn App:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Start YOLO detection service
+cd yolo_service
+uvicorn main:app --host 0.0.0.0 --port 8001 --workers 2
+```
+
+#### Frontend Deployment
+```bash
+# Build production assets
+cd frontend
+npm run build
+
+# Serve with nginx or Apache
+# Copy build/ contents to web server directory
+```
+
+#### Reverse Proxy Configuration (Nginx)
+```nginx
+# Main API proxy
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location /api/ {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Frontend static files
+    location / {
+        root /var/www/frontend/build;
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+### 🔧 Environment Configuration
+
+#### Production Environment Variables
+```bash
+# Required variables
+ADMIN_USERNAME=production_admin
+ADMIN_PASSWORD=secure_production_password
+COOKIE_SECRET=your_secure_cookie_secret
+SESSION_DURATION=1800
+
+# Optional enhancements
+CORS_ORIGINS=https://yourdomain.com
+RATE_LIMIT_ENABLED=true
+SECURE_COOKIES=true
+LOG_LEVEL=INFO
+YOLO_SERVICE_URL=http://localhost:8001
+
+# Email configuration (optional)
+SMTP_SERVER=smtp.your-provider.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@domain.com
+SMTP_PASSWORD=your_email_password
+SENDER_EMAIL=your_email@domain.com
+```
+
+#### SSL/TLS Configuration
+```bash
+# Install SSL certificate (Let's Encrypt)
+sudo certbot --nginx -d yourdomain.com
+
+# Or configure custom SSL certificate
+ssl_certificate /path/to/certificate.crt;
+ssl_certificate_key /path/to/private.key;
+```
+
+### 📦 Container Deployment (Docker)
+
+#### Docker Compose Setup
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+    depends_on:
+      - yolo-service
+
+  yolo-service:
+    build: ./yolo_service
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./runs:/app/runs
+      - ./models:/app/models
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+```
+
+#### Dockerfile Example
+```dockerfile
+# Backend Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["uvicorn", "App:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### 🔄 CI/CD Pipeline
+
+#### GitHub Actions Workflow
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Backend Tests
+        run: |
+          pip install -r requirements.txt
+          pytest tests/
+      - name: Run Frontend Tests
+        run: |
+          cd frontend
+          npm install
+          npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server
+        run: |
+          # Deployment commands
+          ssh user@server "cd /app && git pull"
+          ssh user@server "cd /app && docker-compose up -d"
+```
+
+### 📊 Monitoring & Health Checks
+
+#### Health Check Endpoints
+```http
+GET /health                    # Basic health check
+GET /api/health               # API health status
+GET /api/admin/system-status  # Detailed system status
+```
+
+#### Monitoring Setup
+- **Application Monitoring:** Response times, error rates, throughput
+- **Resource Monitoring:** CPU, memory, disk usage
+- **Model Performance:** YOLO model loading and inference times
+- **Batch Processing:** Processing speed and success rates
+
+#### Logging in Production
+```bash
+# View application logs
+tail -f logs/app.log
+
+# Monitor error rates
+grep "ERROR" logs/app.log | wc -l
+
+# Check system resources
+htop
+df -h
+free -h
+```
+
+### 🔒 Security Considerations
+
+#### Production Security
+- **HTTPS Only:** Enforce HTTPS for all communications
+- **Firewall Rules:** Restrict access to necessary ports only
+- **Regular Updates:** Keep dependencies updated
+- **Backup Strategy:** Regular backups of data and configuration
+- **Access Control:** Restrict server access to authorized personnel
+
+#### SSL/TLS Configuration
+```nginx
+# Security headers
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Frame-Options DENY;
+add_header X-Content-Type-Options nosniff;
+add_header X-XSS-Protection "1; mode=block";
+```
+
+---
+
+## License & Support
+
+### License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+### Support & Contact
+
+- **Documentation:** [Project Wiki](https://github.com/Dhruv0306/SymphonyProject1/wiki)
+- **Issues:** [GitHub Issues](https://github.com/Dhruv0306/SymphonyProject1/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/Dhruv0306/SymphonyProject1/discussions)
+
+### Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Acknowledgments
+
+- **YOLO Framework:** Ultralytics for the YOLO implementation
+- **FastAPI:** Sebastián Ramírez for the excellent web framework
+- **React Team:** For the powerful frontend framework
+- **Open Source Community:** All contributors and maintainers
+
+---
+
+**⚠️ Security Notice:** This system processes image data and should be deployed with appropriate security measures. Always follow security best practices and keep the system updated with the latest security patches.

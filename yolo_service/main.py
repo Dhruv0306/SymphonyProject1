@@ -3,8 +3,13 @@ from pydantic import BaseModel
 from typing import Optional
 import tempfile
 import os
-from yolo_service.detect_logo import check_logo
-import yolo_service.detect_logo as detect_logo
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from detect_logo import check_logo
+import detect_logo
 
 print(f"[DEBUG] detect_logo loaded from: {detect_logo.__file__}")
 
