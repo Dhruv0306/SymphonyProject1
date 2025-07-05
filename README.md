@@ -239,7 +239,7 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 
 #### Pending URLs Tracking System
 
-The system uses `pending.json` files to track unprocessed URLs for each batch, enabling robust recovery and progress tracking:
+The system uses `pending_urls.json` files to track unprocessed URLs for each batch, enabling robust recovery and progress tracking:
 
 **File Structure:**
 - Location: `exports/pending_{batch_id}.json`
@@ -247,10 +247,10 @@ The system uses `pending.json` files to track unprocessed URLs for each batch, e
 - Purpose: Enables automatic recovery of interrupted batch processing
 
 **Recovery Process:**
-- On startup, system scans for pending.json files
+- On startup, system scans for pending_urls.json files
 - Automatically resumes processing of incomplete batches
 - Removes URLs from pending list as they are processed
-- Deletes pending.json when batch completes successfully
+- Deletes pending_urls.json when batch completes successfully
 
 **Benefits:**
 - Fault tolerance for long-running batch jobs
@@ -663,7 +663,7 @@ sequenceDiagram
     end
 ```
 
-**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking with pending URLs management. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Creates pending_{batch_id}.json → Validates batch exists and files provided → For each image: yolo_service/detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress → Removes processed URLs from pending list. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id} → Background tasks clear pending.json on completion.
+**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking with pending URLs management. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Creates pending_{batch_id}.json → Validates batch exists and files provided → For each image: yolo_service/detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress → Removes processed URLs from pending list. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id} → Background tasks clear pending_urls.json on completion.
 
 </details>
 

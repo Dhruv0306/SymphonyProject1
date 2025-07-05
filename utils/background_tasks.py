@@ -80,6 +80,11 @@ async def process_image_async(
         # Update batch progress metrics
         progress = await update_batch(batch_id, result["Is_Valid"] == "Valid")
 
+        # remove the file from pending files
+        from utils.batch_tracker import remove_processed_file
+
+        remove_processed_file(batch_id, filename, result["Is_Valid"] == "Valid")
+
         # Send progress update to client if client_id provided
         if client_id:
             await broadcast_json(
@@ -314,10 +319,13 @@ async def process_with_chunks(
             )
         clear_batch(batch_id)
 
-        # Clear pending URLs for this batch
-        from utils.batch_tracker import clear_pending_urls
+        # Clear pending URLs and files for this batch
+        from utils.batch_tracker import clear_pending_urls, clear_pending_files
 
-        clear_pending_urls(batch_id)
+        if image_urls:
+            clear_pending_urls(batch_id)
+        if files_data:
+            clear_pending_files(batch_id)
 
     # Send email after all chunks complete
     try:

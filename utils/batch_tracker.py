@@ -16,7 +16,7 @@ Key features:
 """
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from collections import defaultdict
 import asyncio
 import logging
@@ -134,7 +134,7 @@ def get_progress(batch_id: str) -> Dict:
     return _batch_data.get(batch_id, {})
 
 
-def save_panding_urls(
+def save_pending_urls(
     batch_id: str, client_id: str, chunk_size: int, image_urls: List[str]
 ):
     """
@@ -148,7 +148,7 @@ def save_panding_urls(
 
     Saves the URLs in a JSON file named with the batch_id.
     """
-    pending_path = os.path.join("exports", batch_id, "pending.json")
+    pending_path = os.path.join("exports", batch_id, "pending_urls.json")
     data = {
         "batch_id": batch_id,
         "client_id": client_id,
@@ -165,6 +165,45 @@ def save_panding_urls(
     logger.info(f"Saved pending URLs for batch {batch_id} to {pending_path}")
 
 
+def save_pending_files(
+    batch_id: str, client_id: str, chunk_size: int, files_data: List[Tuple[str, bytes]]
+):
+    """
+    Save pending files for a batch.
+    Args:
+        batch_id (str): Batch identifier
+        client_id (str): Client identifier
+        chunk_size (int): Size of each chunk
+        files (List[str, bytes]): List of file names and their content
+    Saves the files in a JSON file named with the batch_id.
+    """
+    pending_path = os.path.join("exports", batch_id, "pending_files.json")
+    files = [file[0] for file in files_data]  # Extract file names from the tuples
+    data = {
+        "batch_id": batch_id,
+        "client_id": client_id,
+        "chunk_size": chunk_size,
+        "files_names": files,
+        "processed": 0,
+        "total": len(files),
+        "valid": 0,
+        "invalid": 0,
+        "created_at": asyncio.get_event_loop().time(),
+    }
+    with open(pending_path, "w") as f:
+        json.dump(data, f)
+
+    # Save images to disk
+    pending_files_dir = os.path.join("exports", batch_id, "pending_files")
+    os.makedirs(pending_files_dir, exist_ok=True)
+    for file_name, file_content in files_data:
+        file_path = os.path.join(pending_files_dir, file_name)
+        with open(file_path, "wb") as file:
+            file.write(file_content)
+            logger.debug(f"Saved file {file_name} to {file_path}")
+    logger.info(f"Saved pending files for batch {batch_id} to {pending_path}")
+
+
 def remove_processed_url(batch_id: str, url: str, is_valid: bool):
     """
     Remove a processed URL from the pending list.
@@ -175,7 +214,7 @@ def remove_processed_url(batch_id: str, url: str, is_valid: bool):
 
     Updates the JSON file by removing the specified URL.
     """
-    pending_path = os.path.join("exports", batch_id, "pending.json")
+    pending_path = os.path.join("exports", batch_id, "pending_urls.json")
     if not os.path.exists(pending_path):
         logger.warning(
             f"No pending URLs found for batch {batch_id} to remove URL {url}."
@@ -198,6 +237,46 @@ def remove_processed_url(batch_id: str, url: str, is_valid: bool):
         logger.warning(f"URL {url} not found in pending list for batch {batch_id}.")
 
 
+def remove_processed_file(batch_id: str, file_name: str, is_valid: bool):
+    """
+    Remove a processed file from the pending list.
+
+    Args:
+        batch_id (str): Batch identifier
+        file_name (str): Name of the file to remove
+
+    Updates the JSON file by removing the specified file.
+    """
+    pending_path = os.path.join("exports", batch_id, "pending_files.json")
+    if not os.path.exists(pending_path):
+        logger.warning(
+            f"No pending files found for batch {batch_id} to remove file {file_name}."
+        )
+        return
+
+    with open(pending_path, "r") as f:
+        data = json.load(f)
+
+    if file_name in data.get("files_names", []):
+        data["files_names"].remove(file_name)
+        data["processed"] += 1
+        data["valid" if is_valid else "invalid"] += 1
+        with open(pending_path, "w") as f:
+            json.dump(data, f)
+        logger.info(
+            f"Removed file {file_name} from pending list for batch {batch_id}. Total processed: {data['processed']}, valid: {data['valid']}, invalid: {data['invalid']}"
+        )
+        # Remove the actual file from disk
+        file_path = os.path.join("exports", batch_id, "pending_files", file_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Removed file {file_name} from disk at {file_path}")
+    else:
+        logger.warning(
+            f"File {file_name} not found in pending list for batch {batch_id}."
+        )
+
+
 def clear_pending_urls(batch_id: str):
     """
     Clear pending URLs for a batch.
@@ -207,12 +286,43 @@ def clear_pending_urls(batch_id: str):
 
     Deletes the JSON file containing pending URLs for the batch.
     """
-    pending_path = os.path.join("exports", batch_id, "pending.json")
+    pending_path = os.path.join("exports", batch_id, "pending_urls.json")
     if os.path.exists(pending_path):
         os.remove(pending_path)
         logger.info(f"Cleared pending URLs for batch {batch_id} from {pending_path}")
     else:
         logger.warning(f"No pending URLs found for batch {batch_id} to clear.")
+
+
+def clear_pending_files(batch_id: str):
+    """
+    Clear pending files for a batch.
+
+    Args:
+        batch_id (str): Batch identifier
+
+    Deletes the JSON file and all files in the pending directory for the batch.
+    """
+    pending_path = os.path.join("exports", batch_id, "pending_files.json")
+    pending_files_dir = os.path.join("exports", batch_id, "pending_files")
+
+    if os.path.exists(pending_path):
+        os.remove(pending_path)
+        logger.info(
+            f"Cleared pending files JSON for batch {batch_id} from {pending_path}"
+        )
+
+    if os.path.exists(pending_files_dir):
+        for file in os.listdir(pending_files_dir):
+            file_path = os.path.join(pending_files_dir, file)
+            os.remove(file_path)
+            logger.debug(f"Removed file {file} from pending files directory.")
+        os.rmdir(pending_files_dir)  # Remove the directory itself
+        logger.info(f"Cleared pending files directory for batch {batch_id}.")
+    else:
+        logger.warning(
+            f"No pending files directory found for batch {batch_id} to clear."
+        )
 
 
 async def mark_done(batch_id: str) -> Dict:
