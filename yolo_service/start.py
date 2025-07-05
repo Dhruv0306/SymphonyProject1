@@ -11,9 +11,9 @@ import argparse
 
 if __name__ == "__main__":
     # Set up command line argument parser
-    parser = argparse.ArgumentParser(description='Run FastAPI application server')
-    parser.add_argument('--host', default='localhost', help='Host interface to bind to')
-    parser.add_argument('--port', type=int, default=8001, help='Port to run server on')
+    parser = argparse.ArgumentParser(description="Run FastAPI application server")
+    parser.add_argument("--host", default="localhost", help="Host interface to bind to")
+    parser.add_argument("--port", type=int, default=8001, help="Port to run server on")
     args = parser.parse_args()
 
     # Run the FastAPI application using uvicorn server
