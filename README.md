@@ -19,7 +19,7 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 ## Table of Contents
 - [Key Features](#key-features)
 - [Example Workflow](#example-workflow)
-  -[Updated Batch Processing Flow](#updated-batch-processing-flow)
+  - [Updated Batch Processing Flow](#updated-batch-processing-flow)
 - [System Architecture](#system-architecture)
   - [High-Level System Overview](#high-level-system-overview)
   - [FastAPI Application Architecture](#fastapi-application-architecture-apppy)
