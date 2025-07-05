@@ -25,19 +25,15 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import ProgressBar from './ProgressBar';
 import BatchHistory from './BatchHistory';
 import { API_BASE_URL } from '../config';
 
 /**
  * Admin Dashboard Component
  * 
- * Main admin interface for monitoring batch processing jobs
+ * Main admin interface for monitoring system statistics and batch history
  */
 const Dashboard = () => {
-  const [activeBatch, setActiveBatch] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -47,7 +43,6 @@ const Dashboard = () => {
     processingTime: 0,
     errorRate: 0
   });
-  const [uploadStatus, setUploadStatus] = useState(null);
   
   const navigate = useNavigate();
 
@@ -159,35 +154,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleStartBatch = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const token = localStorage.getItem('auth_token');
-      
-      const response = await fetch(`${API_BASE_URL}/api/start-batch`, {
-        method: 'POST',
-        headers: {
-          'X-Auth-Token': token
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setActiveBatch(data.batch_id);
-      } else {
-        const data = await response.json();
-        setError(data.detail || 'Failed to start batch');
-      }
-    } catch (err) {
-      setError('An error occurred while starting the batch');
-      console.error('Start batch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
   };
@@ -289,145 +255,12 @@ const Dashboard = () => {
             <Box>
               <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h5" sx={{ mb: 2 }}>
-                  Batch Processing Dashboard
+                  System Overview
                 </Typography>
                 
-                {!activeBatch ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-                    <Typography variant="body1" sx={{ mb: 3 }}>
-                      Start a new batch processing job to monitor progress in real-time.
-                    </Typography>
-                    
-                    <Button
-                      variant="contained"
-                      onClick={handleStartBatch}
-                      disabled={loading}
-                      sx={{ bgcolor: '#0066B3' }}
-                    >
-                      {loading ? <CircularProgress size={24} color="inherit" /> : 'Start New Batch'}
-                    </Button>
-                    
-                    {error && (
-                      <Typography color="error" sx={{ mt: 2 }}>
-                        {error}
-                      </Typography>
-                    )}
-                  </Box>
-                ) : (
-                  <Box>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                      Active Batch: {activeBatch}
-                    </Typography>
-                    
-                    <ProgressBar batchId={activeBatch} />
-                    
-                    <Box sx={{ mt: 3, p: 2, border: '1px dashed #ccc', borderRadius: 1 }}>
-                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                        Use this batch:
-                      </Typography>
-                      
-                      <Box sx={{ display: 'flex', mb: 2 }}>
-                        <Button
-                          variant="outlined"
-                          onClick={() => {
-                            navigator.clipboard.writeText(activeBatch);
-                            alert('Batch ID copied to clipboard!');
-                          }}
-                          size="small"
-                        >
-                          Copy Batch ID
-                        </Button>
-                      </Box>
-                      
-                      <Box sx={{ mt: 2 }}>
-                        {uploadStatus && (
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              mb: 2, 
-                              color: uploadStatus === 'uploading' ? 'warning.main' : 
-                                     uploadStatus === 'Upload failed' ? 'error.main' : 'success.main'
-                            }}
-                          >
-                            {uploadStatus === 'uploading' ? 'Uploading files...' : uploadStatus}
-                          </Typography>
-                        )}
-                        <input
-                          accept="image/*"
-                          style={{ display: 'none' }}
-                          id="batch-file-upload"
-                          multiple
-                          type="file"
-                          onChange={async (e) => {
-                            if (e.target.files.length === 0) return;
-                            
-                            // Check if the number of files is 1000 or more
-                            if (e.target.files.length >= 1000) {
-                              alert("Please upload less than 1000 images");
-                              e.target.value = '';
-                              return;
-                            }
-                            
-                            setUploadStatus('uploading');
-                            const formData = new FormData();
-                            for (let i = 0; i < e.target.files.length; i++) {
-                              formData.append('files', e.target.files[i]);
-                            }
-                            formData.append('batch_id', activeBatch);
-                            
-                            try {
-                              const token = localStorage.getItem('auth_token');
-                              const response = await fetch(`${API_BASE_URL}/api/check-logo/batch/`, {
-                                method: 'POST',
-                                headers: {
-                                  'X-Auth-Token': token
-                                },
-                                body: formData
-                              });
-                              
-                              if (response.ok) {
-                                const result = await response.json();
-                                setUploadStatus(`Uploaded ${result.total_processed} files (${result.valid_count} valid, ${result.invalid_count} invalid)`);
-                              } else {
-                                setUploadStatus('Upload failed');
-                              }
-                            } catch (err) {
-                              console.error('Upload error:', err);
-                              setUploadStatus('Upload failed');
-                            }
-                            
-                            // Reset the file input
-                            e.target.value = '';
-                          }}
-                        />
-                        <label htmlFor="batch-file-upload">
-                          <Button variant="contained" component="span" sx={{ bgcolor: '#0066B3' }}>
-                            Upload Images to Batch
-                          </Button>
-                        </label>
-                      </Box>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setActiveBatch(null)}
-                        sx={{ mr: 2 }}
-                      >
-                        Clear
-                      </Button>
-                      
-                      <Button
-                        variant="contained"
-                        onClick={handleStartBatch}
-                        disabled={loading}
-                        sx={{ bgcolor: '#0066B3' }}
-                      >
-                        Start New Batch
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                  Monitor system performance and batch processing statistics.
+                </Typography>
               </Paper>
               
               <Paper elevation={2} sx={{ p: 3 }}>

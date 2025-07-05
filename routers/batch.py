@@ -380,12 +380,12 @@ async def check_logo_batch(
                 )
 
             # Save pending URLs for this batch
-            from utils.batch_tracker import save_panding_urls
+            from utils.batch_tracker import save_pending_urls
 
             logger.info(
                 f"Saving pending URLs for batch {batch_id} with client id {client_id} and chunk size {chunkSize}"
             )
-            save_panding_urls(
+            save_pending_urls(
                 batch_id=batch_id,
                 client_id=client_id,
                 chunk_size=chunkSize,
@@ -444,6 +444,20 @@ async def check_logo_batch(
             if not progress or "processed" not in progress:
                 init_batch(batch_id, len(files_data))
 
+            # Save pending files for this batch
+            from utils.batch_tracker import save_pending_files
+
+            logger.info(
+                f"Saving pending files for batch {batch_id} with client id {client_id} and chunk size {chunkSize}"
+            )
+            save_pending_files(
+                batch_id=batch_id,
+                client_id=client_id,
+                chunk_size=chunkSize,
+                files_data=files_data,
+            )
+
+            logger.info(f"Starting batch {batch_id} with chunk size {chunkSize}")
             # Start background processing for extracted images
             asyncio.create_task(
                 process_with_chunks(
@@ -478,8 +492,27 @@ async def check_logo_batch(
                 content = await file.read()
                 files_data.append((file.filename, content))
 
-            # Batch should already be initialized via /init-batch
+            # Defensive: Ensure batch is initialized after extracting files
+            from utils.batch_tracker import get_progress, init_batch
 
+            progress = get_progress(batch_id)
+            if not progress or "processed" not in progress:
+                init_batch(batch_id, len(files_data))
+
+            # Save pending files for this batch
+            from utils.batch_tracker import save_pending_files
+
+            logger.info(
+                f"Saving pending files for batch {batch_id} with client id {client_id} and chunk size {chunkSize}"
+            )
+            save_pending_files(
+                batch_id=batch_id,
+                client_id=client_id,
+                chunk_size=chunkSize,
+                files_data=files_data,
+            )
+
+            logger.info(f"Starting batch {batch_id} with chunk size {chunkSize}")
             # Start background processing for file uploads
             asyncio.create_task(
                 process_with_chunks(

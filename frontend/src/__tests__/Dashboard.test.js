@@ -11,13 +11,6 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-// Mock ProgressBar component
-jest.mock('../components/ProgressBar', () => {
-  return function MockProgressBar({ batchId }) {
-    return <div data-testid="progress-bar">Progress for {batchId}</div>;
-  };
-});
-
 // Mock BatchHistory component
 jest.mock('../components/BatchHistory', () => {
   return function MockBatchHistory() {
@@ -110,75 +103,6 @@ describe('Dashboard Component', () => {
     });
   });
 
-  test('starts new batch successfully', async () => {
-    window.localStorage.getItem.mockReturnValue('valid-token');
-    
-    // Mock session check
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
-    
-    // Mock stats fetch
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
-    
-    // Mock start batch
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ batch_id: 'batch_123' }),
-    });
-
-    renderDashboard();
-    
-    await waitFor(() => {
-      expect(screen.getByText('Start New Batch')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Start New Batch'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Active Batch: batch_123')).toBeInTheDocument();
-      expect(screen.getByTestId('progress-bar')).toBeInTheDocument();
-    });
-  });
-
-  test('handles start batch error', async () => {
-    window.localStorage.getItem.mockReturnValue('valid-token');
-    
-    // Mock session check
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
-    
-    // Mock stats fetch
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
-    
-    // Mock start batch error
-    global.fetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ detail: 'Failed to start batch' }),
-    });
-
-    renderDashboard();
-    
-    await waitFor(() => {
-      expect(screen.getByText('Start New Batch')).toBeInTheDocument();
-    });
-    
-    fireEvent.click(screen.getByText('Start New Batch'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Failed to start batch')).toBeInTheDocument();
-    });
-  });
-
   test('handles logout successfully', async () => {
     window.localStorage.getItem.mockImplementation((key) => {
       if (key === 'auth_token') return 'valid-token';
@@ -206,27 +130,57 @@ describe('Dashboard Component', () => {
 
     renderDashboard();
     
-    // Open drawer
     await waitFor(() => {
-      expect(screen.getByLabelText('open drawer')).toBeInTheDocument();
+      expect(screen.getByText('Symphony Admin Dashboard')).toBeInTheDocument();
     });
     
+    // Open drawer and click logout
     fireEvent.click(screen.getByLabelText('open drawer'));
-    
-    await waitFor(() => {
-      expect(screen.getByText('Logout')).toBeInTheDocument();
-    });
-    
     fireEvent.click(screen.getByText('Logout'));
     
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/login');
-      expect(window.localStorage.removeItem).toHaveBeenCalledWith('auth_token');
-      expect(window.localStorage.removeItem).toHaveBeenCalledWith('csrf_token');
     });
   });
 
-  test('switches between dashboard and batch history tabs', async () => {
+  test('handles logout error gracefully', async () => {
+    window.localStorage.getItem.mockImplementation((key) => {
+      if (key === 'auth_token') return 'valid-token';
+      if (key === 'csrf_token') return 'csrf-token';
+      return null;
+    });
+    
+    // Mock session check
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    });
+    
+    // Mock stats fetch
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    });
+    
+    // Mock logout error
+    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+    renderDashboard();
+    
+    await waitFor(() => {
+      expect(screen.getByText('Symphony Admin Dashboard')).toBeInTheDocument();
+    });
+    
+    // Open drawer and click logout
+    fireEvent.click(screen.getByLabelText('open drawer'));
+    fireEvent.click(screen.getByText('Logout'));
+    
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/login');
+    });
+  });
+
+  test('switches between tabs', async () => {
     window.localStorage.getItem.mockReturnValue('valid-token');
     
     // Mock session check
@@ -244,29 +198,26 @@ describe('Dashboard Component', () => {
     renderDashboard();
     
     await waitFor(() => {
-      expect(screen.getByText('Batch Processing Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('System Overview')).toBeInTheDocument();
     });
     
-    // Click Batch History tab
+    // Switch to Batch History tab
     fireEvent.click(screen.getByText('Batch History'));
     
     await waitFor(() => {
       expect(screen.getByTestId('batch-history')).toBeInTheDocument();
     });
+    
+    // Switch back to Dashboard tab
+    fireEvent.click(screen.getByText('Dashboard'));
+    
+    await waitFor(() => {
+      expect(screen.getByText('System Overview')).toBeInTheDocument();
+    });
   });
 
-  test('copies batch ID to clipboard', async () => {
+  test('refreshes stats when refresh button is clicked', async () => {
     window.localStorage.getItem.mockReturnValue('valid-token');
-    
-    // Mock clipboard API
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: jest.fn(),
-      },
-    });
-    
-    // Mock alert
-    window.alert = jest.fn();
     
     // Mock session check
     global.fetch.mockResolvedValueOnce({
@@ -274,73 +225,68 @@ describe('Dashboard Component', () => {
       json: async () => ({}),
     });
     
-    // Mock stats fetch
+    // Mock initial stats fetch
     global.fetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({}),
+      json: async () => ({
+        batches_today: 5,
+        success_rate: 85,
+        avg_processing_time: 120,
+        error_rate: 15,
+      }),
     });
     
-    // Mock start batch
+    // Mock refresh stats fetch
     global.fetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ batch_id: 'batch_123' }),
+      json: async () => ({
+        batches_today: 10,
+        success_rate: 90,
+        avg_processing_time: 100,
+        error_rate: 10,
+      }),
     });
 
     renderDashboard();
     
     await waitFor(() => {
-      expect(screen.getByText('Start New Batch')).toBeInTheDocument();
+      expect(screen.getByText('5')).toBeInTheDocument();
     });
     
-    fireEvent.click(screen.getByText('Start New Batch'));
+    // Click refresh button
+    fireEvent.click(screen.getByText('Refresh'));
     
     await waitFor(() => {
-      expect(screen.getByText('Copy Batch ID')).toBeInTheDocument();
+      expect(screen.getByText('10')).toBeInTheDocument();
     });
-    
-    fireEvent.click(screen.getByText('Copy Batch ID'));
-    
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('batch_123');
-    expect(window.alert).toHaveBeenCalledWith('Batch ID copied to clipboard!');
   });
 
-  test('handles file upload with validation', async () => {
-    window.localStorage.getItem.mockReturnValue('valid-token');
+  test('handles session check failure', async () => {
+    window.localStorage.getItem.mockReturnValue('invalid-token');
     
-    // Mock alert
-    window.alert = jest.fn();
-    
-    // Mock session check
+    // Mock session check failure
     global.fetch.mockResolvedValueOnce({
-      ok: true,
+      ok: false,
       json: async () => ({}),
-    });
-    
-    // Mock stats fetch
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({}),
-    });
-    
-    // Mock start batch
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ batch_id: 'batch_123' }),
     });
 
     renderDashboard();
     
     await waitFor(() => {
-      expect(screen.getByText('Start New Batch')).toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/login');
     });
+  });
+
+  test('handles network error during session check', async () => {
+    window.localStorage.getItem.mockReturnValue('valid-token');
     
-    fireEvent.click(screen.getByText('Start New Batch'));
+    // Mock network error
+    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+    renderDashboard();
     
     await waitFor(() => {
-      expect(screen.getByText('Upload Images to Batch')).toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/login');
     });
-    
-    // Test passes if we can find the upload button
-    expect(screen.getByText('Upload Images to Batch')).toBeInTheDocument();
   });
 });

@@ -518,8 +518,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Highlight new features with animation
+    function highlightNewFeatures() {
+        const newFeatures = document.querySelectorAll('.fault-tolerance, .file-storage');
+        newFeatures.forEach((feature, index) => {
+            setTimeout(() => {
+                feature.style.animation = 'pulse 2s ease-in-out';
+                setTimeout(() => {
+                    feature.style.animation = '';
+                }, 2000);
+            }, index * 500);
+        });
+    }
+    
+    // Add pulse animation for new features
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Highlight new features after page load
+    setTimeout(highlightNewFeatures, 1000);
+    
     console.log('Symphony Logo Detection Documentation loaded successfully');
     console.log('Features: 5 YOLO models, FastAPI 0.115.12, React 19.1.0, Real-time WebSocket updates');
+    console.log('New Features: Fault-tolerant batch processing, Smart cleanup protection, Automatic recovery system');
 });
 
 

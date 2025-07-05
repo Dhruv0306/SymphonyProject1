@@ -129,6 +129,8 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - Material-UI 7.1.0 for professional design components
   - **Enhanced File Upload**: Multi-method support (drag-drop, file picker, URL input)
   - **Smart Preview System**: Grid-based image previews with status indicators
+  - **Enhanced Admin Dashboard**: Advanced batch upload with configurable processing, email notifications, and professional UI
+  - **Improved ProgressBar**: Real-time progress with processing speed, success rate, and connection status
   - Responsive design for desktop and mobile devices
   - Symphony branding with consistent color scheme (#0066B3)
   - Mobile-first responsive design with drawer navigation
@@ -144,8 +146,17 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - Role-based access to administrative functions
   - CSRF protection and security middleware
 
-- **📈 Dashboard & Analytics**
-  - Comprehensive admin dashboard for system overview
+- **📈 Enhanced Dashboard & Analytics**
+  - **Advanced Admin Dashboard** with enhanced batch upload functionality
+  - **Configurable Batch Processing** with chunk size slider (1-999 images) and preset buttons
+  - **Email Notifications** for batch completion alerts
+  - **Large File Optimization** with automatic zipping for batches >300 files
+  - **Enhanced Error Handling** with connection recovery and retry mechanisms
+  - **Improved Status Tracking** with detailed progress messages and alerts
+  - **Client ID Integration** for proper WebSocket communication
+  - **Batch Tracking Initialization** for server-side progress monitoring
+  - **Enhanced ProgressBar** with processing speed, success rate, and connection status
+  - **Professional UI/UX** with Material-UI alerts and better visual feedback
   - Batch history management and monitoring
   - Processing statistics and performance metrics
   - System health monitoring and status tracking
@@ -180,6 +191,7 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - Performance monitoring and metrics collection
   - WebSocket connection management with timeout handling
   - Real-time system health monitoring
+  - **Enhanced Connection Recovery** with exponential backoff and retry mechanisms
 
 - **🧹 Automated Resource Management**
   - Automatic cleanup of temporary files (30-minute cycles)
@@ -187,6 +199,7 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - Environment-based configuration management
   - Memory and storage optimization
   - Automated maintenance and housekeeping tasks
+  - **Smart Cleanup Protection** for pending batches (3-day retention)
 
 - **🚀 Scalability & Performance**
   - **Microservice Architecture**: Decoupled Main API (App.py) and YOLO Service (yolo_service/)
@@ -237,26 +250,98 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 3. CSV export available via `/api/check-logo/batch/export-csv/{batch_id}`
 4. Email notifications sent automatically (if configured)
 
-#### Pending URLs Tracking System
+### Enhanced Admin Dashboard Features
 
-The system uses `pending.json` files to track unprocessed URLs for each batch, enabling robust recovery and progress tracking:
+The admin dashboard now includes advanced batch upload functionality with the following enhancements:
+
+**🔧 Configurable Batch Processing:**
+- Chunk size slider (1-999 images) for optimal processing
+- Quick preset buttons (10, 50, 100, 250) for common batch sizes
+- Real-time validation and feedback
+
+**📧 Email Notifications:**
+- Optional email input for batch completion alerts
+- Automatic summary statistics in email notifications
+- Configurable notification preferences
+
+**📦 Large File Optimization:**
+- Automatic zipping for batches >300 files
+- Smart file size management
+- Optimized upload performance
+
+**🛡️ Enhanced Error Handling:**
+- Connection recovery with exponential backoff
+- Automatic retry mechanisms
+- Detailed error messages and alerts
+
+**📊 Improved Status Tracking:**
+- Real-time processing speed display
+- Success rate calculations
+- Connection status indicators
+- Professional Material-UI alerts
+
+**🔗 Advanced WebSocket Integration:**
+- Client ID generation for proper communication
+- Batch tracking initialization
+- Enhanced connection management
+
+#### Fault-Tolerant Batch Processing System
+
+The system implements a **dual tracking system** for both URL-based and file-based batch processing with enhanced recovery mechanisms:
+
+##### **File-Based Batch Processing** 🆕
+
+**Problem Solved:** Previously, if the server restarted during large batch processing, remaining images were lost, leading to incomplete batches and wasted compute time.
+
+**Solution:** File-based batch processing now saves uploaded images to disk before processing, enabling automatic recovery after server restarts.
 
 **File Structure:**
-- Location: `exports/pending_{batch_id}.json`
-- Contains: Array of unprocessed image URLs for the batch
-- Purpose: Enables automatic recovery of interrupted batch processing
+- **Metadata:** `exports/{batch_id}/pending_files.json`
+- **Image Storage:** `exports/{batch_id}/pending_files/<filename>`
+- **Contains:** File names, processing counters, batch metadata
 
 **Recovery Process:**
-- On startup, system scans for pending.json files
+- On startup, system scans for `pending_files.json` files
+- Automatically resumes processing of unprocessed images
+- Removes files from disk and pending list as they are processed
+- Cleans up all files and metadata when batch completes
+
+**Benefits:**
+- **Zero data loss** - no batch is ever lost mid-way
+- **Automatic recovery** - server restarts don't break ongoing jobs
+- **Reliable tracking** - every image is accounted for
+- **Clean finish** - no extra temp files or memory leaks
+
+##### **URL-Based Batch Processing**
+
+**File Structure:**
+- Location: `exports/{batch_id}/pending_urls.json`
+- Contains: Array of unprocessed image URLs for the batch
+- Purpose: Enables automatic recovery of interrupted URL batch processing
+
+**Recovery Process:**
+- On startup, system scans for `pending_urls.json` files
 - Automatically resumes processing of incomplete batches
 - Removes URLs from pending list as they are processed
-- Deletes pending.json when batch completes successfully
+- Deletes `pending_urls.json` when batch completes successfully
 
 **Benefits:**
 - Fault tolerance for long-running batch jobs
 - Progress preservation across application restarts
 - Reliable processing of large URL batches
 - Automatic cleanup of completed batches
+
+##### **Cleanup Protection** 🛡️
+
+**Smart Cleanup Strategy:**
+- **Regular batches:** Cleaned up after 24 hours
+- **Pending batches:** **PRESERVED** from cleanup until 3 days
+- **Very old pending:** Special cleanup after 3 days (safety mechanism)
+
+**Protection Against Data Loss:**
+- Cleanup mechanism preserves batches with pending files/URLs
+- Prevents race conditions between cleanup and recovery
+- Ensures no data loss during server restarts or deployments
 
 ---
 
@@ -663,7 +748,7 @@ sequenceDiagram
     end
 ```
 
-**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking with pending URLs management. Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → Creates pending_{batch_id}.json → Validates batch exists and files provided → For each image: yolo_service/detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress → Removes processed URLs from pending list. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id} → Background tasks clear pending.json on completion.
+**Fallback Description:** Frontend uploads all files (or a zip) or URLs in a single request. Backend handles chunking, retry, and progress tracking with **dual pending management** (pending_files.json for file uploads, pending_urls.json for URLs). Real-time progress and per-file status are delivered via WebSocket. Final results are fetched after completion via /api/check-logo/batch/{batch_id}/complete. Step 1: Client → POST /api/start-batch → FastAPI App creates batch_id → batch_tracker initializes batch → File Storage creates batch state → Returns 201 with batch_id. Step 2: Client → POST /api/init-batch with batch_id, client_id, total → batch_tracker updates state → Returns 200. Step 3: Client → POST /api/check-logo/batch/ with files/URLs + batch_id → **Creates pending_files.json OR pending_urls.json** → **Saves uploaded files to disk (for file uploads)** → Validates batch exists and files provided → For each image: yolo_service/detect_logo processes with white boundary and sequential model testing (yolov8s_logo_detection variants → yolov11s variants) → Updates batch progress → **Removes processed files from disk and pending list**. Step 4: Client checks status via GET /api/check-logo/batch/{batch_id}/status and optionally exports CSV via GET /api/check-logo/batch/export-csv/{batch_id} → Background tasks clear pending files/URLs on completion.
 
 </details>
 
@@ -980,6 +1065,7 @@ graph TD
         A3 -->|"Store Uploads"| B2["uploads/<br/>Persistent uploaded files<br/>Long-term storage"]
         A3 -->|"Generate CSV"| B3["exports/<br/>CSV export files<br/>batch_{id}_results.csv<br/>24h retention"]
         A3 -->|"Track Batches"| B4["data/<br/>Batch state JSON files<br/>{batch_id}.json<br/>24h retention"]
+        A3 -->|"Pending Files"| B6["exports/{batch_id}/<br/>pending_files.json<br/>pending_files/ directory<br/>Fault-tolerant recovery"]
         A3 -->|"Write Logs"| B5["logs/<br/>Application logs<br/>10MB rotation limit"]
     end
 
@@ -998,10 +1084,12 @@ graph TD
         style D3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         B1 -->|"Delete Old Files"| D1["cleanup_temp_uploads()<br/>Every 30 minutes<br/>Remove processing artifacts"]
-        B4 -->|"Remove Expired Batches"| D2["cleanup_old_batches()<br/>Every 1 hour<br/>24h retention policy"]
+        B4 -->|"Remove Expired Batches"| D2["cleanup_old_batches()<br/>Every 1 hour<br/>24h retention policy<br/>Preserves pending batches"]
+        B6 -->|"Clean Old Pending"| D5["cleanup_old_pending_batches()<br/>Every 24 hours<br/>3-day retention for pending"]
         B5 -->|"Rotate Large Logs"| D3["Log Rotation<br/>10MB size limit<br/>Prevent disk overflow"]
         D1 -->|"Execute Cleanup"| D4["utils/cleanup.py<br/>Scheduled maintenance<br/>Resource management"]
         D2 -->|"Execute Cleanup"| D4
+        D5 -->|"Execute Cleanup"| D4
         D3 -->|"Execute Cleanup"| D4
     end
 
@@ -1013,7 +1101,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** File Input Processing: Multipart File Upload (FastAPI UploadFile[]) and Image URL Array (JSON image_paths[]) → utils/file_ops.py for validation & processing. Storage Directories: temp_uploads/ (temporary processing files, 30min auto-cleanup), uploads/ (persistent uploaded files), exports/ (CSV export files, batch_{id}_results.csv, 24h retention), data/ (batch state JSON files, {batch_id}.json, 24h retention), logs/ (application logs, 10MB rotation limit). Batch State Management: utils/batch_tracker.py (initialize_batch(), update_batch_state(), validate_batch_exists()) → JSON State Files (batch_id, client_id, total/processed counts, results array) → test_batch.py (batch lifecycle tests, status validation, error scenarios). Automated Cleanup (APScheduler): cleanup_temp_uploads() every 30 minutes, cleanup_old_batches() every 1 hour with 24h retention, Log Rotation with 10MB size limit → utils/cleanup.py for scheduled maintenance. WebSocket State Management: utils/ws_manager.py for real-time communication → Progress Updates with batch processing status.
+**Fallback Description:** File Input Processing: Multipart File Upload (FastAPI UploadFile[]) and Image URL Array (JSON image_paths[]) → utils/file_ops.py for validation & processing. Storage Directories: temp_uploads/ (temporary processing files, 30min auto-cleanup), uploads/ (persistent uploaded files), exports/ (CSV export files, batch_{id}_results.csv, 24h retention), data/ (batch state JSON files, {batch_id}.json, 24h retention), **exports/{batch_id}/ (pending_files.json and pending_files/ directory for fault-tolerant recovery)**, logs/ (application logs, 10MB rotation limit). Batch State Management: utils/batch_tracker.py (initialize_batch(), update_batch_state(), validate_batch_exists()) → JSON State Files (batch_id, client_id, total/processed counts, results array) → test_batch.py (batch lifecycle tests, status validation, error scenarios). Automated Cleanup (APScheduler): cleanup_temp_uploads() every 30 minutes, cleanup_old_batches() every 1 hour with 24h retention **and preserves pending batches**, **cleanup_old_pending_batches() every 24 hours with 3-day retention for pending batches**, Log Rotation with 10MB size limit → utils/cleanup.py for scheduled maintenance. WebSocket State Management: utils/ws_manager.py for real-time communication → Progress Updates with batch processing status.
 
 </details>
 
@@ -2057,10 +2145,11 @@ POST /maintenance/cleanup
 **Parameters:**
 - `batch_age_hours` (int, default=24): Max age for batch files
 - `temp_age_minutes` (int, default=30): Max age for temp files
+- `pending_age_hours` (int, default=72): Max age for pending batches (3 days)
 
 **Rate Limit:** 2 requests/minute per IP
 
-**Description:** Manually trigger cleanup of old files.
+**Description:** Manually trigger cleanup of old files with smart pending batch protection.
 
 **Response:**
 ```json
@@ -2068,8 +2157,10 @@ POST /maintenance/cleanup
   "status": "success",
   "batches_cleaned": 5,
   "temp_files_cleaned": 12,
+  "pending_batches_cleaned": 2,
   "batch_age_hours": 24,
-  "temp_age_minutes": 30
+  "temp_age_minutes": 30,
+  "pending_age_hours": 72
 }
 ```
 
@@ -2556,6 +2647,7 @@ The Symphony Logo Detection System supports multiple deployment scenarios from d
 - **4GB+ RAM:** Minimum system memory
 - **10GB+ Storage:** Application and model storage
 - **GPU (Optional):** CUDA support for faster inference
+- **Fault Tolerance:** Automatic recovery from server restarts
 
 #### Backend Deployment
 ```bash
@@ -2567,7 +2659,7 @@ export ADMIN_USERNAME=your_admin_username
 export ADMIN_PASSWORD=your_secure_password
 export COOKIE_SECRET=your_secure_cookie_secret
 
-# Start main API service
+# Start main API service (with automatic recovery)
 uvicorn App:app --host 0.0.0.0 --port 8000 --workers 4
 
 # Start YOLO detection service
@@ -2624,6 +2716,9 @@ RATE_LIMIT_ENABLED=true
 SECURE_COOKIES=true
 LOG_LEVEL=INFO
 YOLO_SERVICE_URL=http://localhost:8001
+
+# Fault tolerance settings
+PENDING_BATCH_CLEANUP_HOURS=72  # 3 days for pending batch cleanup
 
 # Email configuration (optional)
 SMTP_SERVER=smtp.your-provider.com

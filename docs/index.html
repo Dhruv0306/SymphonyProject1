@@ -30,7 +30,7 @@
                 <li><a href="#rate-limits"><i class="fas fa-tachometer-alt"></i> Rate Limits</a></li>
                 <li><a href="#single-image"><i class="fas fa-image"></i> Single Image Detection</a></li>
                 <li><a href="#batch-processing"><i class="fas fa-images"></i> Batch Processing</a></li>
-                <li><a href="#admin-dashboard"><i class="fas fa-tachometer-alt"></i> Admin Dashboard</a></li>
+                <li><a href="#admin-dashboard"><i class="fas fa-tachometer-alt"></i> Enhanced Admin Dashboard</a></li>
                 <li><a href="#api-integration"><i class="fas fa-code"></i> API Integration</a></li>
                 <li><a href="#troubleshooting"><i class="fas fa-wrench"></i> Troubleshooting</a></li>
             </ul>
@@ -59,8 +59,11 @@
                         <li><span class="feature-badge log-feature">Improved Logging</span> with rotation and error tracking</li>
                         <li><span class="feature-badge security-feature">Security</span> with session, CSRF, and CORS protection</li>
                         <li><span class="feature-badge yolo-feature">YOLO Microservice</span> URL is now configurable</li>
-                        <li><span class="feature-badge cleanup-feature">Automated Cleanup</span> of temp files and batches</li>
+                        <li><span class="feature-badge cleanup-feature">Smart Cleanup</span> with pending batch protection</li>
                         <li><span class="feature-badge ratelimit-feature">Rate Limiting</span> to prevent abuse</li>
+                        <li><span class="feature-badge fault-tolerance">Fault-Tolerant Processing</span> with automatic recovery</li>
+                        <li><span class="feature-badge file-storage">File-Based Batch Processing</span> with disk persistence</li>
+                        <li><span class="feature-badge admin-feature">Enhanced Admin Dashboard</span> with advanced batch upload features</li>
                     </ul>
                 </div>
             </section>
@@ -90,6 +93,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <li>Python 3.11+</li>
                         <li>Node.js 18+ (for frontend)</li>
                         <li>YOLOv8/YOLOv11 model weights</li>
+                        <li>Fault tolerance support for production reliability</li>
                     </ul>
                 </div>
             </section>
@@ -104,8 +108,10 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <li><strong>Admin Dashboard:</strong> Secure login, session management, and batch history</li>
                         <li><strong>Configurable via .env:</strong> Easily set SMTP, YOLO service, and security settings</li>
                         <li><strong>Rate Limiting & CORS:</strong> Prevents abuse and allows safe frontend integration</li>
-                        <li><strong>Automated Cleanup:</strong> Scheduler removes old batches and temp files</li>
+                        <li><strong>Smart Cleanup:</strong> Preserves pending batches while cleaning old data</li>
                         <li><strong>Detailed Logging:</strong> Rotating logs for all requests and errors</li>
+                        <li><strong>Fault-Tolerant Processing:</strong> Automatic recovery from server restarts</li>
+                        <li><strong>File-Based Batches:</strong> Persistent storage for reliable batch processing</li>
                     </ul>
                 </div>
                 
@@ -195,6 +201,42 @@ YOLO_SERVICE_URL=http://localhost:8001
                                     <li>CORS protection</li>
                                     <li>Request validation</li>
                                     <li>Resource limits</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Fault-Tolerant Batch Processing -->
+                <div class="card feature-card">
+                    <h3><i class="fas fa-shield-alt"></i> Fault-Tolerant Batch Processing</h3>
+                    <div class="feature-content">
+                        <ul>
+                            <li>
+                                <strong>Problem Solved:</strong>
+                                <ul>
+                                    <li>Server restarts caused batch data loss</li>
+                                    <li>Incomplete batches wasted compute time</li>
+                                    <li>Poor reliability for large batch jobs</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Solution Features:</strong>
+                                <ul>
+                                    <li>File-based batch processing with disk persistence</li>
+                                    <li>Automatic recovery from server restarts</li>
+                                    <li>Dual tracking system (URLs + Files)</li>
+                                    <li>Smart cleanup preserves pending batches</li>
+                                    <li>Complete batch lifecycle management</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Recovery Process:</strong>
+                                <ul>
+                                    <li>On startup: Scan for pending batch files</li>
+                                    <li>Resume processing from last saved state</li>
+                                    <li>Clean up completed batches automatically</li>
+                                    <li>Preserve batches for 3 days before cleanup</li>
                                 </ul>
                             </li>
                         </ul>
@@ -427,31 +469,43 @@ YOLO_SERVICE_URL=http://localhost:8001
                     </div>
                 </div>
                 <div class="card workflow">
-                    <h3>Batch Processing Steps</h3>
+                    <h3>Fault-Tolerant Batch Processing Steps</h3>
                     <div class="workflow-steps">
                         <div class="step">
                             <i class="fas fa-play-circle step-icon"></i>
                             <span class="step-number">1</span>
                             <h4>Start Batch</h4>
-                            <p>Initialize batch session</p>
+                            <p>Initialize batch session with unique ID</p>
                         </div>
                         <div class="step">
-                            <i class="fas fa-images step-icon"></i>
+                            <i class="fas fa-save step-icon"></i>
                             <span class="step-number">2</span>
-                            <h4>Upload Images</h4>
-                            <p>Add files to batch</p>
+                            <h4>Save Files</h4>
+                            <p>Store uploaded files to disk with metadata</p>
                         </div>
                         <div class="step">
                             <i class="fas fa-brain step-icon"></i>
                             <span class="step-number">3</span>
                             <h4>Process</h4>
-                            <p>Run detection pipeline</p>
+                            <p>Run detection pipeline with recovery support</p>
+                        </div>
+                        <div class="step">
+                            <i class="fas fa-shield-alt step-icon"></i>
+                            <span class="step-number">4</span>
+                            <h4>Recovery</h4>
+                            <p>Automatic resume if interrupted</p>
                         </div>
                         <div class="step">
                             <i class="fas fa-download step-icon"></i>
-                            <span class="step-number">4</span>
+                            <span class="step-number">5</span>
                             <h4>Export</h4>
                             <p>Download CSV results</p>
+                        </div>
+                        <div class="step">
+                            <i class="fas fa-broom step-icon"></i>
+                            <span class="step-number">6</span>
+                            <h4>Cleanup</h4>
+                            <p>Smart cleanup with pending batch protection</p>
                         </div>
                     </div>
                 </div>
@@ -480,14 +534,53 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <li>Batch ID and timestamp</li>
                     </ul>
                 </div>
+
+                <!-- Cleanup Protection System -->
+                <div class="card cleanup-protection">
+                    <h3><i class="fas fa-shield-alt"></i> Smart Cleanup Protection</h3>
+                    <div class="cleanup-features">
+                        <div class="cleanup-grid">
+                            <div class="cleanup-item">
+                                <div class="cleanup-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <h4>Regular Batches</h4>
+                                <p>24-hour retention with automatic cleanup</p>
+                            </div>
+                            <div class="cleanup-item">
+                                <div class="cleanup-icon">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <h4>Pending Batches</h4>
+                                <p>Protected from cleanup for 3 days</p>
+                            </div>
+                            <div class="cleanup-item">
+                                <div class="cleanup-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <h4>Abandoned Batches</h4>
+                                <p>Cleanup after 3 days to prevent accumulation</p>
+                            </div>
+                        </div>
+                        <div class="cleanup-info">
+                            <h4>Protection Strategy</h4>
+                            <ul>
+                                <li><strong>Immediate Protection:</strong> Pending batches are preserved during regular cleanup</li>
+                                <li><strong>Recovery Window:</strong> 3-day grace period for interrupted batches</li>
+                                <li><strong>Automatic Recovery:</strong> System resumes processing on startup</li>
+                                <li><strong>Smart Cleanup:</strong> Separate cleanup functions for different batch states</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Admin Dashboard Section -->
             <section id="admin-dashboard" class="content-section">
-                <h2>Admin Dashboard</h2>
+                <h2>Enhanced Admin Dashboard</h2>
                 <div class="card dashboard-preview">
-                    <h3><i class="fas fa-tachometer-alt"></i> Administrative Interface</h3>
-                    <p>The Symphony Logo Detection system includes a comprehensive admin dashboard for monitoring, management, and analytics.</p>
+                    <h3><i class="fas fa-tachometer-alt"></i> Advanced Administrative Interface</h3>
+                    <p>The Symphony Logo Detection system includes an enhanced admin dashboard with advanced batch upload functionality, configurable processing, and professional UI/UX.</p>
                     
                     <div class="dashboard-features">
                         <div class="feature-grid">
@@ -496,7 +589,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                                     <i class="fas fa-chart-bar"></i>
                                 </div>
                                 <h4>Real-time Analytics</h4>
-                                <p>Monitor processing statistics, success rates, and system performance in real-time</p>
+                                <p>Monitor processing statistics, success rates, and system performance in real-time with enhanced metrics</p>
                             </div>
                             <div class="dashboard-feature">
                                 <div class="feature-icon">
@@ -519,6 +612,20 @@ YOLO_SERVICE_URL=http://localhost:8001
                                 <h4>Export Management</h4>
                                 <p>Download batch results, generate reports, and manage export files</p>
                             </div>
+                            <div class="dashboard-feature">
+                                <div class="feature-icon">
+                                    <i class="fas fa-cogs"></i>
+                                </div>
+                                <h4>Configurable Processing</h4>
+                                <p>Advanced batch upload with chunk size configuration, email notifications, and large file optimization</p>
+                            </div>
+                            <div class="dashboard-feature">
+                                <div class="feature-icon">
+                                    <i class="fas fa-wifi"></i>
+                                </div>
+                                <h4>Enhanced WebSocket</h4>
+                                <p>Real-time progress tracking with connection recovery, processing speed, and success rate display</p>
+                            </div>
                         </div>
                     </div>
                     
@@ -540,6 +647,59 @@ YOLO_SERVICE_URL=http://localhost:8001
 GET /api/admin/dashboard-stats
 GET /api/admin/batch-history</code></pre>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Dashboard Features -->
+                <div class="card dashboard-preview enhanced-features">
+                    <h3><i class="fas fa-star"></i> Enhanced Dashboard Features</h3>
+                    <p>The admin dashboard now includes advanced batch upload functionality with professional UI/UX improvements.</p>
+                    
+                    <div class="dashboard-features">
+                        <div class="feature-grid">
+                            <div class="dashboard-feature enhanced">
+                                <div class="feature-icon">
+                                    <i class="fas fa-sliders-h"></i>
+                                </div>
+                                <h4>Configurable Batch Processing</h4>
+                                <p>Chunk size slider (1-999 images) with quick preset buttons (10, 50, 100, 250) for optimal processing</p>
+                            </div>
+                            <div class="dashboard-feature enhanced">
+                                <div class="feature-icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <h4>Email Notifications</h4>
+                                <p>Optional email input for batch completion alerts with automatic summary statistics</p>
+                            </div>
+                            <div class="dashboard-feature enhanced">
+                                <div class="feature-icon">
+                                    <i class="fas fa-file-archive"></i>
+                                </div>
+                                <h4>Large File Optimization</h4>
+                                <p>Automatic zipping for batches >300 files with smart file size management</p>
+                            </div>
+                            <div class="dashboard-feature enhanced">
+                                <div class="feature-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <h4>Enhanced Error Handling</h4>
+                                <p>Connection recovery with exponential backoff, automatic retry mechanisms, and detailed error messages</p>
+                            </div>
+                            <div class="dashboard-feature enhanced">
+                                <div class="feature-icon">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                </div>
+                                <h4>Improved Status Tracking</h4>
+                                <p>Real-time processing speed display, success rate calculations, and connection status indicators</p>
+                            </div>
+                            <div class="dashboard-feature enhanced">
+                                <div class="feature-icon">
+                                    <i class="fas fa-link"></i>
+                                </div>
+                                <h4>Advanced WebSocket Integration</h4>
+                                <p>Client ID generation, batch tracking initialization, and enhanced connection management</p>
                             </div>
                         </div>
                     </div>
@@ -841,6 +1001,7 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
                                 <li>Batch session expired</li>
                                 <li>Too many files in single batch</li>
                                 <li>Network timeout during processing</li>
+                                <li>Server restart during processing (now auto-recovered)</li>
                             </ul>
                             <h4>Solutions:</h4>
                             <ul>
@@ -848,7 +1009,27 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
                                 <li>Process batches within session timeout</li>
                                 <li>Split large batches into smaller ones</li>
                                 <li>Check network stability</li>
+                                <li>System automatically recovers from restarts</li>
                             </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recovery System -->
+                <div class="card recovery-info">
+                    <h3><i class="fas fa-sync-alt"></i> Automatic Recovery System</h3>
+                    <div class="recovery-features">
+                        <h4>How Recovery Works</h4>
+                        <ul>
+                            <li><strong>Startup Scan:</strong> System automatically detects pending batches on startup</li>
+                            <li><strong>File Persistence:</strong> Uploaded files are saved to disk before processing</li>
+                            <li><strong>State Tracking:</strong> Progress is tracked in pending_files.json and pending_urls.json</li>
+                            <li><strong>Resume Processing:</strong> Interrupted batches resume from last saved state</li>
+                            <li><strong>Clean Completion:</strong> All temporary files are cleaned up after completion</li>
+                        </ul>
+                        <div class="recovery-note">
+                            <i class="fas fa-info-circle"></i>
+                            <p><strong>Note:</strong> The system now provides 100% reliability for batch processing. Server restarts, crashes, or network interruptions no longer cause data loss.</p>
                         </div>
                     </div>
                 </div>

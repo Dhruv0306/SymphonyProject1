@@ -35,7 +35,12 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 # Local application imports
 from utils.logger import setup_logging
 from utils.file_ops import create_upload_dir
-from utils.cleanup import cleanup_old_batches, cleanup_temp_uploads, log_cleanup_stats
+from utils.cleanup import (
+    cleanup_old_batches,
+    cleanup_old_pending_batches,
+    cleanup_temp_uploads,
+    log_cleanup_stats,
+)
 from utils.ws_manager import connection_manager
 from utils.security import csrf_protection
 from utils.background_tasks import process_with_chunks
@@ -78,12 +83,13 @@ async def lifespan(app):
         logger.info("Performing initial cleanup on startup...")
         batch_cleaned = cleanup_old_batches(max_age_hours=24)
         temp_cleaned = cleanup_temp_uploads(max_age_minutes=30)
-        log_cleanup_stats(batch_cleaned, temp_cleaned)
+        pending_cleaned = cleanup_old_pending_batches(max_age_hours=72)  # 3 days
+        log_cleanup_stats(batch_cleaned, temp_cleaned, pending_cleaned)
         print(
-            f"Initial cleanup summary: {batch_cleaned} batches and {temp_cleaned} temp files removed"
+            f"Initial cleanup summary: {batch_cleaned} batches, {temp_cleaned} temp files, {pending_cleaned} pending batches removed"
         )
         logger.info(
-            f"Initial cleanup completed: {batch_cleaned} batches and {temp_cleaned} temp files removed"
+            f"Initial cleanup completed: {batch_cleaned} batches, {temp_cleaned} temp files, {pending_cleaned} pending batches removed"
         )
         print("Initializing scheduler...")
         app.state.scheduler = AsyncIOScheduler()
@@ -91,6 +97,9 @@ async def lifespan(app):
         app.state.scheduler.add_job(
             cleanup_temp_uploads, "interval", minutes=30, args=[30]
         )
+        app.state.scheduler.add_job(
+            cleanup_old_pending_batches, "interval", hours=24, args=[72]
+        )  # Daily cleanup of very old pending batches
         app.state.scheduler.add_job(
             csrf_protection.clean_expired_tokens, "interval", minutes=15
         )
@@ -102,8 +111,8 @@ async def lifespan(app):
         logger.info("Scheduler started successfully")
 
         async def recover_incomplete_url_batches():
-            """Recover and resume URL batches from pending.json files."""
-            for pending_path in glob.glob("exports/*/pending.json"):
+            """Recover and resume URL batches from pending_urls.json files."""
+            for pending_path in glob.glob("exports/*/pending_urls.json"):
                 try:
                     with open(pending_path) as f:
                         data = json.load(f)
@@ -150,6 +159,68 @@ async def lifespan(app):
                         f"Error recovering batch from {pending_path}: {str(e)}"
                     )
 
+        async def recover_incomplete_file_batches():
+            """Recover and resume file batches from pending_files.json files."""
+            for pending_path in glob.glob("exports/*/pending_files.json"):
+                try:
+                    with open(pending_path) as f:
+                        data = json.load(f)
+
+                    batch_id = data["batch_id"]
+                    client_id = data["client_id"]
+                    chunk_size = data["chunk_size"]
+                    files_name = data["files_names"]
+                    processed = data.get("processed", 0)
+                    total = data.get("total", len(files_name))
+                    valid = data.get("valid", 0)
+                    invalid = data.get("invalid", 0)
+
+                    from utils.batch_tracker import re_init_batch
+
+                    re_init_batch(
+                        batch_id=batch_id,
+                        processed=processed,
+                        total=total,
+                        valid=valid,
+                        invalid=invalid,
+                    )
+                    print(
+                        f"[Recovery] Resuming batch {batch_id} with {len(files_name)} files"
+                    )
+                    logger.info(
+                        f"Recovering batch {batch_id} with {len(files_name)} files"
+                    )
+
+                    files_data = []
+                    pending_files_dir = os.path.join(
+                        "exports", batch_id, "pending_files"
+                    )
+                    for file_name in files_name:
+                        file_path = os.path.join(pending_files_dir, file_name)
+                        if os.path.exists(file_path):
+                            with open(file_path, "rb") as file:
+                                files_data.append((file_name, file.read()))
+                        else:
+                            logger.warning(
+                                f"File {file_name} not found in pending files directory"
+                            )
+                    await process_with_chunks(
+                        batch_id=batch_id,
+                        client_id=client_id,
+                        chunk_size=chunk_size,
+                        files_data=files_data,
+                    )
+
+                    print(f"[Recovery] Batch {batch_id} resumed successfully")
+                    logger.info(
+                        f"Recovered batch {batch_id} with {len(files_data)} files"
+                    )
+                except Exception as e:
+                    print(f"[Recovery Error] {pending_path} → {e}")
+                    logger.error(
+                        f"Error recovering batch from {pending_path}: {str(e)}"
+                    )
+
         async def monitor_websockets():
             """Periodically check and remove stale WebSocket connections"""
             while True:
@@ -157,7 +228,12 @@ async def lifespan(app):
                 await asyncio.sleep(30)
 
         app.state.monitor_ws_task = asyncio.create_task(monitor_websockets())
-        app.state.recover_task = asyncio.create_task(recover_incomplete_url_batches())
+        app.state.recover_url_task = asyncio.create_task(
+            recover_incomplete_url_batches()
+        )
+        app.state.recover_file_task = asyncio.create_task(
+            recover_incomplete_file_batches()
+        )
     except Exception as e:
         error_msg = f"Error during startup: {str(e)}"
         print(error_msg)
@@ -176,10 +252,14 @@ async def lifespan(app):
             app.state.monitor_ws_task.cancel()
             print("[DEBUG] WebSocket monitor task cancelled")
             logger.info("WebSocket monitor task cancelled")
-        if hasattr(app.state, "recover_task"):
-            app.state.recover_task.cancel()
-            print("[DEBUG] Recovery task cancelled")
-            logger.info("Recovery task cancelled")
+        if hasattr(app.state, "recover_url_task"):
+            app.state.recover_url_task.cancel()
+            print("[DEBUG] URL Recovery task cancelled")
+            logger.info("URL Recovery task cancelled")
+        if hasattr(app.state, "recover_file_task"):
+            app.state.recover_file_task.cancel()
+            print("[DEBUG] File Recovery task cancelled")
+            logger.info("File Recovery task cancelled")
         print("[DEBUG] Application shutdown complete")
     except Exception as e:
         error_msg = f"Error during shutdown: {str(e)}"
