@@ -30,7 +30,6 @@
                 <li><a href="#rate-limits"><i class="fas fa-tachometer-alt"></i> Rate Limits</a></li>
                 <li><a href="#single-image"><i class="fas fa-image"></i> Single Image Detection</a></li>
                 <li><a href="#batch-processing"><i class="fas fa-images"></i> Batch Processing</a></li>
-                <li><a href="#admin-dashboard"><i class="fas fa-tachometer-alt"></i> Enhanced Admin Dashboard</a></li>
                 <li><a href="#api-integration"><i class="fas fa-code"></i> API Integration</a></li>
                 <li><a href="#troubleshooting"><i class="fas fa-wrench"></i> Troubleshooting</a></li>
             </ul>
@@ -63,7 +62,6 @@
                         <li><span class="feature-badge ratelimit-feature">Rate Limiting</span> to prevent abuse</li>
                         <li><span class="feature-badge fault-tolerance">Fault-Tolerant Processing</span> with automatic recovery</li>
                         <li><span class="feature-badge file-storage">File-Based Batch Processing</span> with disk persistence</li>
-                        <li><span class="feature-badge admin-feature">Enhanced Admin Dashboard</span> with advanced batch upload features</li>
                     </ul>
                 </div>
             </section>
@@ -570,137 +568,6 @@ YOLO_SERVICE_URL=http://localhost:8001
                                 <li><strong>Automatic Recovery:</strong> System resumes processing on startup</li>
                                 <li><strong>Smart Cleanup:</strong> Separate cleanup functions for different batch states</li>
                             </ul>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Admin Dashboard Section -->
-            <section id="admin-dashboard" class="content-section">
-                <h2>Enhanced Admin Dashboard</h2>
-                <div class="card dashboard-preview">
-                    <h3><i class="fas fa-tachometer-alt"></i> Advanced Administrative Interface</h3>
-                    <p>The Symphony Logo Detection system includes an enhanced admin dashboard with advanced batch upload functionality, configurable processing, and professional UI/UX.</p>
-                    
-                    <div class="dashboard-features">
-                        <div class="feature-grid">
-                            <div class="dashboard-feature">
-                                <div class="feature-icon">
-                                    <i class="fas fa-chart-bar"></i>
-                                </div>
-                                <h4>Real-time Analytics</h4>
-                                <p>Monitor processing statistics, success rates, and system performance in real-time with enhanced metrics</p>
-                            </div>
-                            <div class="dashboard-feature">
-                                <div class="feature-icon">
-                                    <i class="fas fa-history"></i>
-                                </div>
-                                <h4>Batch History</h4>
-                                <p>Complete audit trail of all processed batches with detailed metadata and results</p>
-                            </div>
-                            <div class="dashboard-feature">
-                                <div class="feature-icon">
-                                    <i class="fas fa-shield-alt"></i>
-                                </div>
-                                <h4>Security Management</h4>
-                                <p>Secure authentication with session management, CSRF protection, and role-based access</p>
-                            </div>
-                            <div class="dashboard-feature">
-                                <div class="feature-icon">
-                                    <i class="fas fa-download"></i>
-                                </div>
-                                <h4>Export Management</h4>
-                                <p>Download batch results, generate reports, and manage export files</p>
-                            </div>
-                            <div class="dashboard-feature">
-                                <div class="feature-icon">
-                                    <i class="fas fa-cogs"></i>
-                                </div>
-                                <h4>Configurable Processing</h4>
-                                <p>Advanced batch upload with chunk size configuration, email notifications, and large file optimization</p>
-                            </div>
-                            <div class="dashboard-feature">
-                                <div class="feature-icon">
-                                    <i class="fas fa-wifi"></i>
-                                </div>
-                                <h4>Enhanced WebSocket</h4>
-                                <p>Real-time progress tracking with connection recovery, processing speed, and success rate display</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="dashboard-access">
-                        <h4>Access the Admin Dashboard</h4>
-                        <div class="access-info">
-                            <div class="access-method">
-                                <h5>Web Interface</h5>
-                                <p>Navigate to <code>/admin/login</code> in your browser</p>
-                                <div class="code-block">
-                                    <pre><code>http://localhost:8000/admin/login</code></pre>
-                                </div>
-                            </div>
-                            <div class="access-method">
-                                <h5>API Endpoints</h5>
-                                <p>Use the admin API endpoints for programmatic access</p>
-                                <div class="code-block">
-                                    <pre><code>POST /api/admin/login
-GET /api/admin/dashboard-stats
-GET /api/admin/batch-history</code></pre>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Enhanced Dashboard Features -->
-                <div class="card dashboard-preview enhanced-features">
-                    <h3><i class="fas fa-star"></i> Enhanced Dashboard Features</h3>
-                    <p>The admin dashboard now includes advanced batch upload functionality with professional UI/UX improvements.</p>
-                    
-                    <div class="dashboard-features">
-                        <div class="feature-grid">
-                            <div class="dashboard-feature enhanced">
-                                <div class="feature-icon">
-                                    <i class="fas fa-sliders-h"></i>
-                                </div>
-                                <h4>Configurable Batch Processing</h4>
-                                <p>Chunk size slider (1-999 images) with quick preset buttons (10, 50, 100, 250) for optimal processing</p>
-                            </div>
-                            <div class="dashboard-feature enhanced">
-                                <div class="feature-icon">
-                                    <i class="fas fa-envelope"></i>
-                                </div>
-                                <h4>Email Notifications</h4>
-                                <p>Optional email input for batch completion alerts with automatic summary statistics</p>
-                            </div>
-                            <div class="dashboard-feature enhanced">
-                                <div class="feature-icon">
-                                    <i class="fas fa-file-archive"></i>
-                                </div>
-                                <h4>Large File Optimization</h4>
-                                <p>Automatic zipping for batches >300 files with smart file size management</p>
-                            </div>
-                            <div class="dashboard-feature enhanced">
-                                <div class="feature-icon">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                <h4>Enhanced Error Handling</h4>
-                                <p>Connection recovery with exponential backoff, automatic retry mechanisms, and detailed error messages</p>
-                            </div>
-                            <div class="dashboard-feature enhanced">
-                                <div class="feature-icon">
-                                    <i class="fas fa-tachometer-alt"></i>
-                                </div>
-                                <h4>Improved Status Tracking</h4>
-                                <p>Real-time processing speed display, success rate calculations, and connection status indicators</p>
-                            </div>
-                            <div class="dashboard-feature enhanced">
-                                <div class="feature-icon">
-                                    <i class="fas fa-link"></i>
-                                </div>
-                                <h4>Advanced WebSocket Integration</h4>
-                                <p>Client ID generation, batch tracking initialization, and enhanced connection management</p>
-                            </div>
                         </div>
                     </div>
                 </div>
