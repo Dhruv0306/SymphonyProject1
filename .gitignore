@@ -127,6 +127,8 @@ runs/detect/yolov8s_logo_detection2/*
 !runs/detect/yolov8s_logo_detection2/weights/
 runs/detect/yolov8s_logo_detection3/*
 !runs/detect/yolov8s_logo_detection3/weights/
+runs/detect/yolov11s_cooler_detection/*
+!runs/detect/yolov11s_cooler_detection/weights/
 
 # Request tracking file
 requestID.txt

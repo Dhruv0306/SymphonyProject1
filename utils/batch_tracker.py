@@ -427,7 +427,6 @@ async def update_retry_progress(batch_id: str, is_valid: bool) -> Dict:
     async with _batch_locks[batch_id]:
         progress = _batch_data[batch_id]
         progress["retry_processed"] += 1
-        progress["processed"] += 1
         logger.info(
             f"Updating retry progress for batch {batch_id}: "
             f"retry_processed {progress['retry_processed']}/{progress['retry_total']}, "

@@ -45,6 +45,7 @@ MODEL_PATHS = [
     "../runs/detect/yolov8s_logo_detection3/weights/best.pt",  # YOLOv8s with focus on edge cases
     "../runs/detect/yolov11s_logo_detection/weights/best.pt",  # YOLOv11s for architectural diversity
     "../runs/detect/yolov11s3_logo_detection/weights/best.pt",  # Optimized YOLOv11s for speed
+    "../runs/detect/yolov11s_cooler_detection/weights/best.pt",  # YOLOv11s with additional coolers dataset
 ]
 
 # Minimum confidence threshold for logo detection
