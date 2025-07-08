@@ -546,8 +546,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(highlightNewFeatures, 1000);
     
     console.log('Symphony Logo Detection Documentation loaded successfully');
-    console.log('Features: 5 YOLO models, FastAPI 0.115.12, React 19.1.0, Real-time WebSocket updates');
-    console.log('New Features: Fault-tolerant batch processing, Smart cleanup protection, Automatic recovery system');
+    console.log('Features: 6 YOLO models, FastAPI 0.115.12, React 19.1.0, Real-time WebSocket updates');
+    console.log('New Features: YOLOv11s cooler detection model, Fixed batch retry progress, Automatic recovery system');
 });
 
 

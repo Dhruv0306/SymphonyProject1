@@ -89,12 +89,13 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
 ### 🎯 End-User Features
 
 - **📸 Advanced Multi-Model Detection**
-  - 5 specialized YOLO models with sequential processing:
+  - 6 specialized YOLO models with sequential processing:
     - `yolov8s_logo_detection` (primary)
     - `yolov8s_logo_detection2` (enhanced)
     - `yolov8s_logo_detection3` (refined)
     - `yolov11s_logo_detection` (advanced)
     - `yolov11s3_logo_detection` (optimized)
+    - `yolov11s_cooler_detection` (cooler dataset specialized)
   - Early detection return when logo is found (performance optimization)
   - Configurable confidence threshold (default: 0.35)
   - Model cascade approach for maximum accuracy
@@ -220,6 +221,7 @@ A comprehensive logo detection system built by Symphony Limited that uses advanc
   - **Resilient Processing**: Interrupted or failed batch processes are automatically resumed from pending URLs
   - **Reliability Enhancement**: Improves system reliability for large or long-running batch jobs
   - **Progress Preservation**: Maintains processing state across application restarts with pending URL tracking
+  - **Fixed Duplicate Progress Tracking**: Eliminated duplicate progress increments in batch retry logic for accurate progress reporting
 
 ---
 
@@ -591,7 +593,7 @@ graph TD
 
 ### Sequential Model Processing Flow (yolo_service/detect_logo.py)
 
-This diagram demonstrates the core AI detection logic, showing how images (files or URLs) are processed through PIL Image processing with white boundary addition, then sequentially tested against 5 YOLO models with early return optimization. It illustrates the decision flow and result structure for both successful detections and error handling.
+This diagram demonstrates the core AI detection logic, showing how images (files or URLs) are processed through PIL Image processing with white boundary addition, then sequentially tested against 6 YOLO models with early return optimization. It illustrates the decision flow and result structure for both successful detections and error handling.
 
 <details>
 <summary><strong>🤖 AI Model Processing Diagram</strong> (Click to expand)</summary>
@@ -613,11 +615,13 @@ graph TD
         style D3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
+        style D6 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         C -->|"model.predict(conf=0.35)"| D1["Model 1: yolov8s_logo_detection<br/>Confidence ≥ 0.35"]
         D1 -->|"No Symphony Detected"| D2["Model 2: yolov8s_logo_detection2<br/>Confidence ≥ 0.35"]
         D2 -->|"No Symphony Detected"| D3["Model 3: yolov8s_logo_detection3<br/>Confidence ≥ 0.35"]
         D3 -->|"No Symphony Detected"| D4["Model 4: yolov11s_logo_detection<br/>Confidence ≥ 0.35"]
         D4 -->|"No Symphony Detected"| D5["Model 5: yolov11s3_logo_detection<br/>Confidence ≥ 0.35"]
+        D5 -->|"No Symphony Detected"| D6["Model 6: yolov11s_cooler_detection<br/>Confidence ≥ 0.35"]
     end
 
     subgraph "Early Return Logic"
@@ -628,7 +632,8 @@ graph TD
         D3 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D4 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D5 -->|"Symphony Found (Conf ≥ 0.35)"| E1
-        D5 -->|"No Symphony in All Models"| E2["Return Invalid<br/>All models failed"]
+        D6 -->|"Symphony Found (Conf ≥ 0.35)"| E1
+        D6 -->|"No Symphony in All Models"| E2["Return Invalid<br/>All models failed"]
     end
 
     subgraph "Result Structure"
@@ -644,7 +649,7 @@ graph TD
     end
 ```
 
-**Fallback Description:** Image Input Processing: File Upload or URL → PIL Image Processing → Add White Boundary (10px). Sequential Model Execution: Model 1 (yolov8s_logo_detection) → Model 2 (yolov8s_logo_detection2) → Model 3 (yolov8s_logo_detection3) → Model 4 (yolov11s_logo_detection) → Model 5 (yolov11s3_logo_detection), each with confidence ≥ 0.35. Early Return Logic: If Symphony found (Conf ≥ 0.35) → Return Valid Result and stop processing; if no Symphony in all models → Return Invalid. Result Structure: JSON Response with Image_Path_or_URL, Is_Valid, Confidence, Detected_By, Bounding_Box, Error. Error Handling: Invalid file/URL → Error Response with no confidence/bounding box.
+**Fallback Description:** Image Input Processing: File Upload or URL → PIL Image Processing → Add White Boundary (10px). Sequential Model Execution: Model 1 (yolov8s_logo_detection) → Model 2 (yolov8s_logo_detection2) → Model 3 (yolov8s_logo_detection3) → Model 4 (yolov11s_logo_detection) → Model 5 (yolov11s3_logo_detection) → Model 6 (yolov11s_cooler_detection), each with confidence ≥ 0.35. Early Return Logic: If Symphony found (Conf ≥ 0.35) → Return Valid Result and stop processing; if no Symphony in all models → Return Invalid. Result Structure: JSON Response with Image_Path_or_URL, Is_Valid, Confidence, Detected_By, Bounding_Box, Error. Error Handling: Invalid file/URL → Error Response with no confidence/bounding box.
 
 </details>
 
@@ -1240,7 +1245,7 @@ git clone <repo-url>
 ```
 usingYolo/                         # 🏠 Root project directory
 ├── 🚀 App.py                      # ⭐ MAIN ENTRY POINT - FastAPI application
-├── detect_logo.py                  # Core YOLO detection logic with 5 models
+├── detect_logo.py                  # Core YOLO detection logic with 6 models
 ├── train.py                        # Model training script
 ├── requirements.txt                # Python dependencies
 ├── requirements-dev.txt            # Development dependencies
@@ -1267,7 +1272,7 @@ usingYolo/                         # 🏠 Root project directory
 │   ├── logger.py                  # Centralized logging configuration
 │   ├── file_ops.py                # File operations and management
 │   ├── cleanup.py                 # Automated cleanup tasks (APScheduler)
-│   ├── batch_tracker.py           # Batch state management with server-side retry logic
+│   ├── batch_tracker.py           # Batch state management with server-side retry logic and fixed duplicate progress tracking
 │   ├── background_tasks.py        # Server-side async task processing and chunking
 │   ├── security.py                # CSRF protection and security utilities
 │   ├── ws_manager.py              # WebSocket connection management
@@ -1284,7 +1289,9 @@ usingYolo/                         # 🏠 Root project directory
 │   │   └── weights/best.pt
 │   ├── yolov11s_logo_detection/  # YOLOv11s model
 │   │   └── weights/best.pt
-│   └── yolov11s3_logo_detection/ # Optimized YOLOv11s
+│   ├── yolov11s3_logo_detection/ # Optimized YOLOv11s
+│   │   └── weights/best.pt
+│   └── yolov11s_cooler_detection/ # YOLOv11s model with cooler dataset
 │       └── weights/best.pt
 │
 ├── frontend/                     # 💻 React frontend application (port 3000)
@@ -1358,12 +1365,13 @@ usingYolo/                         # 🏠 Root project directory
 - **Testing Library** - Comprehensive testing suite (DOM, React, User Event)
 
 ### AI/ML Components
-- **5 Specialized YOLO Models:**
+- **6 Specialized YOLO Models:**
   - `yolov8s_logo_detection` - Primary YOLOv8s model
   - `yolov8s_logo_detection2` - Enhanced YOLOv8s with additional training data
   - `yolov8s_logo_detection3` - Refined YOLOv8s with optimized parameters
   - `yolov11s_logo_detection` - Advanced YOLOv11s model
   - `yolov11s3_logo_detection` - Optimized YOLOv11s variant
+  - `yolov11s_cooler_detection` - YOLOv11s model trained on cooler dataset
 - **Confidence Threshold:** 0.35 (configurable)
 - **Early Detection Return** - Stops processing when logo is found
 - **Model Cascade** - Sequential model execution for optimal accuracy
@@ -1574,7 +1582,8 @@ MODEL_PATHS = [
     "runs/detect/yolov8s_logo_detection2/weights/best.pt",   # Enhanced with additional data
     "runs/detect/yolov8s_logo_detection3/weights/best.pt",   # Refined parameters
     "runs/detect/yolov11s_logo_detection/weights/best.pt",   # YOLOv11s comparison model
-    "runs/detect/yolov11s3_logo_detection/weights/best.pt"   # Optimized YOLOv11s
+    "runs/detect/yolov11s3_logo_detection/weights/best.pt",  # Optimized YOLOv11s
+    "runs/detect/yolov11s_cooler_detection/weights/best.pt"  # YOLOv11s with cooler dataset
 ]
 
 CONFIDENCE_THRESHOLD = 0.35  # Adjustable detection threshold

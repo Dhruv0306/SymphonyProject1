@@ -1315,6 +1315,7 @@ ul, ol {
 .model:nth-child(3) { border-left: 4px solid #FF9800; }
 .model:nth-child(4) { border-left: 4px solid #9C27B0; }
 .model:nth-child(5) { border-left: 4px solid #F44336; }
+.model:nth-child(6) { border-left: 4px solid #8E24AA; }
 
 /* Model sequence numbers */
 .model-sequence {
@@ -1341,7 +1342,8 @@ ul, ol {
 }
 
 .model:nth-child(4) .model-type,
-.model:nth-child(5) .model-type {
+.model:nth-child(5) .model-type,
+.model:nth-child(6) .model-type {
     background: var(--yolov11-color);
 }
 

@@ -141,6 +141,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                                     <li>yolov8s_logo_detection3 - Refined parameters</li>
                                     <li>yolov11s_logo_detection - Advanced YOLOv11s</li>
                                     <li>yolov11s3_logo_detection - Optimized YOLOv11s</li>
+                                    <li>yolov11s_cooler_detection - YOLOv11s with cooler dataset</li>
                                 </ul>
                             </li>
                             <li>
@@ -292,7 +293,14 @@ YOLO_SERVICE_URL=http://localhost:8001
                                     <td>95.3%</td>
                                     <td>0.28s</td>
                                     <td>0.35</td>
-                                    <td>Final fallback</td>
+                                    <td>Optimized YOLOv11s</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>yolov11s_cooler_detection</strong></td>
+                                    <td>96.1%</td>
+                                    <td>0.26s</td>
+                                    <td>0.35</td>
+                                    <td>Cooler specialized</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -346,6 +354,11 @@ YOLO_SERVICE_URL=http://localhost:8001
                             <h4>Model 5</h4>
                             <p>yolov11s3_logo_detection</p>
                         </div>
+                        <div class="model">
+                            <i class="fas fa-brain"></i>
+                            <h4>Model 6</h4>
+                            <p>yolov11s_cooler_detection</p>
+                        </div>
                     </div>
                     <div class="model-features">
                         <h4>Sequential Processing Flow</h4>
@@ -354,7 +367,8 @@ YOLO_SERVICE_URL=http://localhost:8001
                             <li>If no Symphony found, try Model 2: yolov8s_logo_detection2</li>
                             <li>If still no detection, try Model 3: yolov8s_logo_detection3</li>
                             <li>Continue to Model 4: yolov11s_logo_detection</li>
-                            <li>Final attempt: Model 5: yolov11s3_logo_detection</li>
+                            <li>If still no detection, try Model 5: yolov11s3_logo_detection</li>
+                            <li>Final attempt: Model 6: yolov11s_cooler_detection</li>
                             <li>Early return when Symphony logo detected (conf ≥ 0.35)</li>
                         </ul>
                     </div>
@@ -531,6 +545,24 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <li>Bounding box coordinates</li>
                         <li>Batch ID and timestamp</li>
                     </ul>
+                </div>
+
+                <!-- Batch Retry Fix -->
+                <div class="card feature-card">
+                    <h3><i class="fas fa-sync-alt"></i> Improved Batch Retry Tracking</h3>
+                    <div class="feature-content">
+                        <ul>
+                            <li>
+                                <strong>Fixed Duplicate Progress:</strong>
+                                <ul>
+                                    <li>Eliminated duplicate progress increments in batch retry logic</li>
+                                    <li>More accurate progress reporting during retries</li>
+                                    <li>Consistent progress percentage throughout batch processing</li>
+                                    <li>Improved reliability for tracking large batches</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
                 <!-- Cleanup Protection System -->
