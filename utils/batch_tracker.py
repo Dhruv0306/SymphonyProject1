@@ -224,8 +224,12 @@ def remove_processed_url(batch_id: str, url: str, is_valid: bool):
     with open(pending_path, "r") as f:
         data = json.load(f)
 
-    if url in data.get("image_urls", []):
-        data["image_urls"].remove(url)
+    stored_urls = [u.strip() for u in data.get("image_urls", [])]
+    url = url.strip()
+    if url in stored_urls:
+        index = stored_urls.index(url)
+        real_url = data["image_urls"][index]
+        data["image_urls"].remove(real_url)
         data["processed"] += 1
         data["valid" if is_valid else "invalid"] += 1
         with open(pending_path, "w") as f:
