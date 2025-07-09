@@ -224,8 +224,8 @@ def remove_processed_url(batch_id: str, url: str, is_valid: bool):
     with open(pending_path, "r") as f:
         data = json.load(f)
 
-    stored_urls = [u.strip() for u in data.get("image_urls", [])]
-    url = url.strip()
+    stored_urls = [(str)(u).strip() for u in data.get("image_urls", [])]
+    url = (str)(url).strip()
     if url in stored_urls:
         index = stored_urls.index(url)
         real_url = data["image_urls"][index]

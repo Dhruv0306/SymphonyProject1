@@ -11,34 +11,44 @@
  */
 
 // React and Material-UI imports
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  Box, Container, Typography, Paper, Button, CircularProgress,
-  Radio, RadioGroup, FormControlLabel, FormControl, TextField,
-  Grid, useTheme, useMediaQuery, Drawer, IconButton, LinearProgress, Slider
+  Box, Container, Typography, Paper, 
+  Radio, RadioGroup, FormControlLabel, FormControl,
+  useTheme, useMediaQuery, Drawer, IconButton
 } from '@mui/material';
 
 // Material-UI Icons
-import FileUploadIcon from '@mui/icons-material/FileUpload';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import LinkIcon from '@mui/icons-material/Link';
+
+
 import ImageIcon from '@mui/icons-material/Image';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MenuIcon from '@mui/icons-material/Menu';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
+
 
 // Third-party libraries
-import axios from 'axios';
 import { FixedSizeGrid as LazyGrid } from 'react-window';
 
 // Internal imports
-import { API_BASE_URL, WS_BASE_URL } from './config';
 import UploadStatus from './UploadStatus';
 import EmailInput from './components/EmailInput';
+import ModeSelector from './components/ModeSelector';
+import UrlInputForm from './components/UrlInputForm';
+import ChunkSizeSelector from './components/ChunkSizeSelector';
+import FileDropzone from './components/FileDropzone';
+import UploadButtons from './components/UploadButtons';
+import ProgressBar from './components/ProgressBar';
+import WsStatusBanner from './components/WsStatusBanner';
+import ExportCsvButton from './components/ExportCsvButton';
+import BatchSummary from './components/BatchSummary';
+import LazyResultRenderer from './components/LazyResultRenderer';
+import ConnectionStatus from './components/ConnectionStatus';
+import { useBatchUpload } from './hooks/useBatchUpload';
+import { batchApi } from './api/batchApi';
+import { singleApi } from './api/singleApi';
 import { getClientId } from './utils/clientId';
-import { decodeUrl } from './utils/urlDecoder';
+import { createFilePreview, createFilePreviews, createUrlPreviews, cleanupPreviews, cleanupPreview } from './utils/previewBuilder';
 
 /**
  * Theme constants for consistent Symphony branding
@@ -48,7 +58,6 @@ const symphonyBlue = '#0066B3';     // Primary brand color - used for buttons, l
 const symphonyWhite = '#FFFFFF';     // Background color - main content areas
 const symphonyGray = '#333333';      // Text color - primary text content
 const symphonyLightBlue = '#f0f9ff'; // Secondary background - preview areas and highlights
-const symphonyDarkBlue = '#005299';  // Hover/active state - interactive element states
 
 /**
  * Layout constants
@@ -70,11 +79,10 @@ const FileUploader = ({ onFilesSelected }) => {
   const [files, setFiles] = useState([]);                 // Array of uploaded File objects
   const [preview, setPreview] = useState(null);           // Single image preview URL
   const [previews, setPreviews] = useState([]);          // Array of batch image preview objects
-  const [results, setResults] = useState([]);            // Array of logo detection results
+  const [singleResults, setSingleResults] = useState([]);            // Array of single mode results
 
   // UI state management
   const [loading, setLoading] = useState(false);         // Global loading state indicator
-  const [error, setError] = useState(null);              // Error message string
   const [mobileOpen, setMobileOpen] = useState(false);   // Mobile navigation drawer state
 
   // Processing mode configuration
@@ -86,29 +94,40 @@ const FileUploader = ({ onFilesSelected }) => {
   const [batchUrls, setBatchUrls] = useState('');        // Batch image URLs (newline-separated)
 
   // Progress tracking and batch processing
-  const [progress, setProgress] = useState(null);        // Real-time progress data object
-  const [processSummary, setProcessSummary] = useState(null); // Final processing summary
-  const [batchId, setBatchId] = useState(null);          // Unique batch identifier
   const [chunkSize, setchunkSize] = useState(10);        // Images per batch chunk (optimized default)
   const [displayValue, setDisplayValue] = useState(10);  // UI display value for batch size slider
-  const [batchRunning, setBatchRunning] = useState(false); // Batch processing status flag
-
-  // Upload status tracking
-  const [uploadStatuses, setUploadStatuses] = useState({}); // Per-file upload status mapping
-
-  // WebSocket communication
-  const [websocket, setWebsocket] = useState(null);     // WebSocket connection instance
-  const wsRef = useRef(null);                           // WebSocket reference for cleanup
-  const batchRunningRef = useRef(false);                // Ref to track batch running state
-
-  // Timing and performance tracking
-  const processStartTimeRef = useRef(null);             // Process start timestamp
 
   // Notification system
   const [emailNotification, setEmailNotification] = useState(''); // Email address for batch completion notifications
 
   // Client identification
   const [clientID] = useState(getClientId()); // Unique client identifier for WebSocket
+
+  // Use batch upload hook
+  const {
+    progress,
+    processSummary,
+    batchId,
+    batchRunning,
+    uploadStatuses,
+    results,
+    error: batchError,
+    isReconnecting,
+    startBatch,
+    initializeBatch,
+    completeBatch,
+    startProcessing,
+    resetState,
+    setUploadStatuses,
+    setError: setBatchError,
+    formatTime
+  } = useBatchUpload(clientID);
+
+  // Merge batch error with local error  
+  const error = batchError || null;
+  
+  // Use batch results for batch mode, single results for single mode
+  const displayResults = mode === 'batch' ? results : singleResults;
 
   // ==================== RESPONSIVE DESIGN HOOKS ====================
   const theme = useTheme();
@@ -129,211 +148,13 @@ const FileUploader = ({ onFilesSelected }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Add new state for connection management
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  const reconnectAttemptRef = useRef(0);
-  const maxReconnectAttempts = 5; // Maximum number of reconnection attempts
-
-  const connectWebSocket = useCallback(() => {
-    if (wsRef.current) return; // Already connected
-
-    const wsUrl = `${WS_BASE_URL}/ws/${clientID}`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWebsocket(ws);
-      setIsReconnecting(false);
-      reconnectAttemptRef.current = 0; // Reset attempt counter on successful connection
-    };
-
-    ws.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
-      console.log('WebSocket message:', data);
-
-      // Option 2: Ignore progress events for old batches
-      if (data.event === 'progress' || data.event === 'retry_start' || data.event === 'complete') {
-        // Only handle if batchId matches (for batch mode)
-        if (mode === 'batch') {
-          if (!data.batch_id || data.batch_id !== batchId) {
-            // Ignore progress for old/other batches
-            return;
-          }
-        }
-      }
-
-      if (data.event === 'progress') {
-        const currentTime = Date.now();
-        const elapsedTime = processStartTimeRef.current ? currentTime - processStartTimeRef.current : 0;
-        const estimatedTimeRemaining = (data.processed > 0 && elapsedTime > 0) ?
-          ((data.total - data.processed) * elapsedTime) / data.processed : 0;
-
-        setProgress({
-          processedImages: data.processed,
-          totalImages: data.total,
-          currentChunk: (data.chunk_index || 0) + 1,
-          totalChunks: data.total_chunks || 1,
-          percent: data.percentage,
-          elapsedTime: elapsedTime > 0 ? formatTime(elapsedTime) : '0s',
-          estimatedTimeRemaining: estimatedTimeRemaining > 0 ? formatTime(estimatedTimeRemaining) : 'Calculating...'
-        });
-        const currentFile = data.current_file || decodeUrl(data.current_url) || '';
-        if (data.current_status === "Valid") {
-          setUploadStatuses((prev) => ({ ...prev, [currentFile]: "valid" }));
-        } else {
-          setUploadStatuses((prev) => ({ ...prev, [currentFile]: "invalid" }));
-        }
-      } else if (data.event === 'retry_start') {
-        setProgress({
-          isRetry: true,
-          retryProgress: `Starting retry for ${data.retry_total} failed requests...`,
-          percent: 0
-        });
-      } else if (data.event === 'complete') {
-        setBatchRunning(false);
-        batchRunningRef.current = false;
-        setProgress(null);
-        const processEndTime = Date.now();
-        setProcessSummary({
-          totalImages: data.total,
-          totalTime: processEndTime - processStartTimeRef.current,
-          averageTimePerImage: (processEndTime - processStartTimeRef.current) / data.total,
-          startTime: processStartTimeRef.current,
-          endTime: processEndTime
-        });
-        setLoading(false);
-      } else if (data.event === 'heartbeat_ack') {
-        console.log('Heartbeat acknowledged by server');
-      }
-    };
-
-    ws.onclose = (event) => {
-      setWebsocket(null);
-      wsRef.current = null;
-
-      if (batchRunningRef.current) {
-        console.warn('WebSocket disconnected during batch processing, attempting reconnection...');
-
-        // Only attempt reconnection if we haven't exceeded max attempts
-        if (reconnectAttemptRef.current < maxReconnectAttempts) {
-          setIsReconnecting(true);
-          reconnectAttemptRef.current += 1;
-
-          // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current - 1), 16000);
-
-          setTimeout(() => {
-            console.log(`Attempting WebSocket reconnection (${reconnectAttemptRef.current}/${maxReconnectAttempts})...`);
-            connectWebSocket(); // Trigger reconnection
-          }, delay);
-        } else {
-          console.error('Maximum reconnection attempts reached');
-          setIsReconnecting(false);
-          // Show error to the user
-          setError('Lost connection to server. Please refresh the page to retry.');
-        }
-      } else {
-        console.log('WebSocket disconnected cleanly');
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket connection error:', error);
-      // Let onclose handle reconnection
-    };
-
-    wsRef.current = ws;
-  }, [clientID, batchId, mode, setError]); // Include necessary dependencies
-
-  // WebSocket connection effect
+  // Batch completion effect
   useEffect(() => {
-    connectWebSocket();
-
-    return () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
-      wsRef.current = null;
-    };
-  }, [connectWebSocket]);
-
-  // Add visual feedback for reconnection attempts
-  useEffect(() => {
-    if (isReconnecting) {
-      setError(`Lost connection to server. Attempting to reconnect... (Attempt ${reconnectAttemptRef.current}/${maxReconnectAttempts})`);
-    } else if (!isReconnecting && wsRef.current) {
-      setError(null); // Clear error when reconnected
+    if (batchId && !batchRunning) {
+      completeBatch(batchId);
+      setLoading(false);
     }
-  }, [isReconnecting]);
-
-  /**
-   * Utility function to format milliseconds into human-readable time string
-   * Provides appropriate precision based on duration length
-   * 
-   * @param {number} milliseconds - Time duration in milliseconds
-   * @returns {string} - Formatted time string (e.g., "2h 30m 15.5s", "45.2s")
-   */
-  const formatTime = (milliseconds) => {
-    const totalSeconds = milliseconds / 1000;
-    const hours = totalSeconds / 3600;
-    const minutes = (totalSeconds % 3600) / 60;
-    const seconds = totalSeconds % 60;
-
-    if (hours >= 1) {
-      return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else if (minutes >= 1) {
-      return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else {
-      return `${seconds.toFixed(1)}s`;
-    }
-  };
-
-  /**
-   * WebSocket Heartbeat Effect
-   * Maintains WebSocket connection with periodic heartbeat messages
-   * Prevents connection timeout and ensures reliable communication
-   */
-  useEffect(() => {
-    const heartbeatInterval = setInterval(() => {
-      if (websocket?.readyState === WebSocket.OPEN) {
-        console.log('Sending heartbeat...');
-        websocket.send(JSON.stringify({
-          event: "heartbeat",
-          client_id: clientID,
-          timestamp: Date.now()
-        }));
-      }
-    }, 30000); // Send heartbeat every 30 seconds
-
-    return () => clearInterval(heartbeatInterval);
-  }, [websocket, clientID]);
-
-  /**
-   * Batch Completion Handler Effect
-   * Monitors batch processing completion and retrieves final results
-   * Automatically triggered when batch processing finishes
-   */
-  useEffect(() => {
-    const handleBatchComplete = async () => {
-      if (!batchRunning && batchId) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/api/check-logo/batch/${batchId}/complete`);
-          if (response.data?.results && Array.isArray(response.data.results)) {
-            setResults(response.data.results.map(result => ({
-              isValid: result.Is_Valid === "Valid",
-              message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
-              name: decodeUrl(result.Image_Path_or_URL)
-            })));
-          }
-          console.log('Processing complete:', response.data);
-        } catch (error) {
-          console.error('Error completing batch:', error);
-        }
-      }
-    };
-
-    handleBatchComplete();
-  }, [batchRunning, batchId, clientID]);
+  }, [batchRunning, batchId, completeBatch]);
 
   /**
    * Toggle mobile navigation drawer visibility
@@ -351,13 +172,9 @@ const FileUploader = ({ onFilesSelected }) => {
   useEffect(() => {
     return () => {
       if (preview) {
-        URL.revokeObjectURL(preview);
+        cleanupPreview(preview);
       }
-      previews.forEach(preview => {
-        if (preview.url) {
-          URL.revokeObjectURL(preview.url);
-        }
-      });
+      cleanupPreviews(previews);
     };
   }, [preview, previews]);
 
@@ -369,11 +186,9 @@ const FileUploader = ({ onFilesSelected }) => {
   useEffect(() => {
     setPreview(null);
     setPreviews([]);
-    setBatchId(null); // Reset batchId when mode or input method changes
-    setLoading(false); // Reset loading state
-    setBatchRunning(false); // Reset batch running state
-    batchRunningRef.current = false; // Reset batch running ref
-  }, [inputMethod, mode]);
+    setLoading(false);
+    resetState();
+  }, [inputMethod, mode, resetState]);
 
   /**
    * Handle URL input changes for single image mode
@@ -384,8 +199,8 @@ const FileUploader = ({ onFilesSelected }) => {
   const handleUrlChange = (e) => {
     const url = e.target.value;
     setImageUrl(url);
-    setResults([]);
-    setError(null);
+    setSingleResults([]);
+    setBatchError(null);
     setUploadStatuses({}); // Reset upload statuses when URL changes
 
     // Update preview for single mode
@@ -403,13 +218,13 @@ const FileUploader = ({ onFilesSelected }) => {
   const handleBatchUrlsChange = (e) => {
     const urls = e.target.value;
     setBatchUrls(urls);
-    setResults([]);
-    setError(null);
+    setSingleResults([]);
+    setBatchError(null);
     setUploadStatuses({}); // Reset upload statuses when batch URLs change
 
     // Parse and preview URLs from textarea
-    const urlList = urls.split('\n').filter(url => url.trim());
-    setPreviews(urlList.map(url => ({ url })));
+    const urlPreviews = createUrlPreviews(urls);
+    setPreviews(urlPreviews);
   };
 
   /**
@@ -428,22 +243,19 @@ const FileUploader = ({ onFilesSelected }) => {
     if (mode === 'single') {
       const selectedFile = acceptedFiles[0];
       setFiles([selectedFile]);
-      setError(null);
-      setResults([]);
+      setBatchError(null);
+      setSingleResults([]);
 
-      const previewUrl = URL.createObjectURL(selectedFile);
+      const previewUrl = createFilePreview(selectedFile);
       setPreview(previewUrl);
       setPreviews([]);
     } else {
       setFiles(acceptedFiles);
-      setError(null);
-      setResults([]);
+      setBatchError(null);
+      setSingleResults([]);
       setPreview(null);
 
-      const newPreviews = acceptedFiles.map(file => ({
-        url: URL.createObjectURL(file),
-        name: file.name
-      }));
+      const newPreviews = createFilePreviews(acceptedFiles);
       setPreviews(newPreviews);
     }
 
@@ -466,33 +278,28 @@ const FileUploader = ({ onFilesSelected }) => {
    */
   const handleSubmit = async () => {
     // Clear previous results and errors before starting new detection
-    setResults([]);
-    setError(null);
-    setProgress(null);
-    setProcessSummary(null);
+    setSingleResults([]);
+    setBatchError(null);
 
     if (inputMethod === 'upload' && files.length === 0) {
-      setError('Please select image(s) first');
+      setBatchError('Please select image(s) first');
       return;
     }
 
     if (inputMethod === 'url' && mode === 'single' && !imageUrl) {
-      setError('Please enter an image URL');
+      setBatchError('Please enter an image URL');
       return;
     }
 
     if (inputMethod === 'url' && mode === 'batch' && !batchUrls) {
-      setError('Please enter image URLs');
+      setBatchError('Please enter image URLs');
       return;
     }
 
     setLoading(true);
-    const startTime = Date.now();
-    processStartTimeRef.current = startTime;
-
+    
     if (mode === 'batch') {
-      setBatchRunning(true);
-      batchRunningRef.current = true;
+      startProcessing();
     }
 
     try {
@@ -501,74 +308,36 @@ const FileUploader = ({ onFilesSelected }) => {
       if (mode === 'batch') {
         newBatchId = await handleStartBatch();
         if (!newBatchId) {
-          setError('Failed to start batch process');
+          setBatchError('Failed to start batch process');
           setLoading(false);
           return;
         }
-        setBatchId(newBatchId);
 
-        // Initialize batch tracking on backend
         const totalImages = inputMethod === 'upload' ? files.length : batchUrls.split('\n').filter(url => url.trim()).length;
-        await initializeBatchTracking(newBatchId, clientID, totalImages);
+        await initializeBatch(newBatchId, totalImages);
       }
 
       if (mode === 'single') {
         let response;
+        const formData = new FormData();
         if (inputMethod === 'upload') {
-          const formData = new FormData();
           formData.append('file', files[0]);
-
-          // Set uploading status
           setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "uploading" }));
-
-          response = await axios.post(`${API_BASE_URL}/api/check-logo/single/`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-
-          // Set validating status after upload is complete
-          setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "validating" }));
-
-          // Process the response
-          const result = await response.data;
-
-          // Update status based on validation result
-          if (result.Is_Valid === "Valid") {
-            setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "valid" }));
-          } else {
-            setUploadStatuses((prev) => ({ ...prev, [files[0].name]: "invalid" }));
-          }
-
         } else {
-          // For URL input
-          const formData = new FormData();
           formData.append('image_path', imageUrl);
-
-          // Set uploading status for URL
           setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "uploading" }));
-
-          response = await axios.post(`${API_BASE_URL}/api/check-logo/single/`, formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-
-          // Set validating status after upload is complete
-          setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "validating" }));
-
-          // Process the response
-          const result = await response.data;
-
-          // Update status based on validation result
-          if (result.Is_Valid === "Valid") {
-            setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "valid" }));
-          } else {
-            setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "invalid" }));
-          }
         }
 
-        setResults([{
+        response = await singleApi.processSingleImage(formData);
+
+        const statusKey = inputMethod === 'upload' ? files[0].name : imageUrl;
+        setUploadStatuses((prev) => ({ ...prev, [statusKey]: "validating" }));
+
+        const result = response.data;
+        const finalStatus = result.Is_Valid === "Valid" ? "valid" : "invalid";
+        setUploadStatuses((prev) => ({ ...prev, [statusKey]: finalStatus }));
+
+        setSingleResults([{
           isValid: response.data.Is_Valid === "Valid",
           message: `Logo detection result: ${response.data.Is_Valid}${response.data.Error ? ` (${response.data.Error})` : ''}`,
           name: inputMethod === 'upload' ? files[0].name : imageUrl
@@ -599,15 +368,7 @@ const FileUploader = ({ onFilesSelected }) => {
             formData.append('total_files', files.length);
             formData.append('chunkSize', chunkSize);
 
-            const response = await axios.post(
-              `${API_BASE_URL}/api/check-logo/batch/`,
-              formData,
-              {
-                headers: {
-                  'Content-Type': 'multipart/form-data',
-                },
-              }
-            );
+            const response = await batchApi.processBatchFiles(formData);
             console.log('Batch upload completed (zipped). Total files:', files.length);
             console.log('Batch upload response:', response.data);
             files.forEach(file => {
@@ -628,15 +389,7 @@ const FileUploader = ({ onFilesSelected }) => {
             formData.append('total_files', files.length);
             formData.append('chunkSize', chunkSize);
 
-            const response = await axios.post(
-              `${API_BASE_URL}/api/check-logo/batch/`,
-              formData,
-              {
-                headers: {
-                  'Content-Type': 'multipart/form-data',
-                },
-              }
-            );
+            const response = await batchApi.processBatchFiles(formData);
             console.log('Batch upload completed. Total files:', files.length);
             console.log('Batch upload response:', response.data);
             files.forEach(file => {
@@ -659,16 +412,7 @@ const FileUploader = ({ onFilesSelected }) => {
             client_id: clientID,
             chunkSize: chunkSize
           };
-          const response = await axios.post(
-            `${API_BASE_URL}/api/check-logo/batch/`,
-            JSON.stringify(data),
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-            }
-          );
+          const response = await batchApi.processBatchUrls(data);
 
           console.log('Batch upload completed. Total urls:', urls.length);
           console.log('Batch upload response:', response.data);
@@ -680,7 +424,7 @@ const FileUploader = ({ onFilesSelected }) => {
       }
     } catch (error) {
       console.error('Error:', error);
-      setError(error.response?.data?.detail || 'An error occurred during processing');
+      setBatchError(error.response?.data?.detail || 'An error occurred during processing');
     } finally {
       if (mode === 'single') {
         setLoading(false);
@@ -688,56 +432,8 @@ const FileUploader = ({ onFilesSelected }) => {
     }
   };
 
-  /**
-   * Initialize batch tracking on the backend
-   * Sets up server-side tracking for batch processing progress
-   * 
-   * @param {string} batchId - Unique batch identifier
-   * @param {string} clientId - Client identifier for WebSocket communication
-   * @param {number} total - Total number of images to process
-   * @async
-   * @throws {Error} - Throws error if initialization fails
-   */
-  const initializeBatchTracking = async (batchId, clientId, total) => {
-    try {
-      await axios.post(`${API_BASE_URL}/api/init-batch`, {
-        batch_id: batchId,
-        client_id: clientId,
-        total: total
-      });
-      console.log('Batch tracking initialized');
-    } catch (error) {
-      console.error('Error initializing batch tracking:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Initialize a new batch processing session
-   * Creates a new batch ID and sets up server-side batch tracking
-   * 
-   * @async
-   * @returns {string|null} - Returns batch ID on success, null on failure
-   * @throws {Error} - Throws error if batch initialization fails
-   */
   const handleStartBatch = async () => {
-    try {
-      const formData = new FormData();
-
-      // Add email if provided for completion notifications
-      if (emailNotification.trim()) {
-        formData.append('email', emailNotification.trim());
-      }
-      formData.append('client_id', clientID);
-
-      const response = await axios.post(`${API_BASE_URL}/api/start-batch`, formData);
-      setBatchId(response.data.batch_id);
-      return response.data.batch_id;
-    } catch (error) {
-      console.error('Error starting batch:', error);
-      setError(error.response?.data?.detail || 'Error starting batch process');
-      return null;
-    }
+    return await startBatch(emailNotification);
   };
 
   /**
@@ -1250,43 +946,7 @@ const FileUploader = ({ onFilesSelected }) => {
     if (inputMethod === 'upload') {
       return (
         <Box>
-          {/* File upload drop zone with visual feedback */}
-          <Box
-            sx={{
-              p: 2,
-              border: '2px dashed #0066B3',
-              borderRadius: 2,
-              textAlign: 'center',
-              backgroundColor: '#f0f9ff',
-              cursor: 'pointer',
-            }}
-          >
-            <input
-              accept="image/*"
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-              id="file-uploader"
-            />
-            <label htmlFor="file-uploader">
-              <Button
-                variant="contained"
-                component="span"
-                startIcon={<FileUploadIcon />}
-                sx={{
-                  backgroundColor: '#0066B3',
-                  '&:hover': { backgroundColor: '#005299' },
-                  mb: 1,
-                }}
-              >
-                Upload Images
-              </Button>
-            </label>
-            <Typography variant="body2" sx={{ color: '#333' }}>
-              You can select multiple images.
-            </Typography>
-          </Box>
+          <FileDropzone onFileChange={handleFileChange} />
           {/* Files list with separate scroll */}
           {files.length > 0 && (
             <Paper
@@ -1341,84 +1001,13 @@ const FileUploader = ({ onFilesSelected }) => {
     } else {
       return (
         <Box>
-          <Paper
-            sx={{
-              p: { xs: 2, sm: 3 },
-              borderRadius: 2,
-              backgroundColor: symphonyWhite,
-              height: { xs: mode === 'batch' ? '200px' : 'auto', sm: mode === 'batch' ? '250px' : 'auto' }
-            }}
-          >
-            {mode === 'single' ? (
-              <TextField
-                fullWidth
-                label="Image URL"
-                value={imageUrl}
-                onChange={handleUrlChange}
-                placeholder="Enter the URL of the image"
-                variant="outlined"
-                size={isMobile ? "small" : "medium"}
-                InputProps={{
-                  startAdornment: <LinkIcon sx={{ color: symphonyBlue, mr: 1 }} />,
-                }}
-                sx={{
-                  '& .MuiInputBase-input': {
-                    fontSize: { xs: '0.9rem', sm: '1rem' }
-                  },
-                  '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': {
-                      borderColor: symphonyBlue,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: symphonyBlue,
-                    },
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: symphonyBlue,
-                  }
-                }}
-              />
-            ) : (
-              <Box sx={{ height: '100%' }}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={4}
-                  label="Image URLs"
-                  value={batchUrls}
-                  onChange={handleBatchUrlsChange}
-                  placeholder="Enter one URL per line"
-                  variant="outlined"
-                  size={isMobile ? "small" : "medium"}
-                  InputProps={{
-                    startAdornment: <LinkIcon sx={{ color: symphonyBlue, mr: 1, alignSelf: 'flex-start', mt: 1 }} />,
-                  }}
-                  sx={{
-                    height: '100%',
-                    '& .MuiInputBase-root': {
-                      height: '100%',
-                    },
-                    '& .MuiInputBase-input': {
-                      height: '100% !important',
-                      overflow: 'auto !important',
-                      fontSize: { xs: '0.9rem', sm: '1rem' }
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      '&:hover fieldset': {
-                        borderColor: symphonyBlue,
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: symphonyBlue,
-                      },
-                    },
-                    '& .MuiInputLabel-root.Mui-focused': {
-                      color: symphonyBlue,
-                    }
-                  }}
-                />
-              </Box>
-            )}
-          </Paper>
+          <UrlInputForm
+            mode={mode}
+            imageUrl={imageUrl}
+            batchUrls={batchUrls}
+            onUrlChange={handleUrlChange}
+            onBatchUrlsChange={handleBatchUrlsChange}
+          />
           {renderPreview()}
         </Box>
       );
@@ -1469,425 +1058,64 @@ const FileUploader = ({ onFilesSelected }) => {
       </Box>
 
       <Box sx={{ p: 3 }}>
-        <FormControl component="fieldset" fullWidth>
-          <RadioGroup
-            value={mode}
-            onChange={(e) => {
-              setMode(e.target.value);
-              setFiles([]);
-              setPreview(null);
-              setResults([]);
-              setError(null);
-              setImageUrl('');
-              setBatchUrls('');
-              setUploadStatuses({}); // Reset upload statuses when mode changes
-            }}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2
-            }}
-          >
-            <Paper
-              elevation={mode === 'single' ? 3 : 0}
-              sx={{
-                p: 2,
-                backgroundColor: mode === 'single' ? symphonyLightBlue : symphonyWhite,
-                border: `1px solid ${mode === 'single' ? symphonyBlue : symphonyBlue + '20'}`,
-                borderRadius: 2,
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <FormControlLabel
-                value="single"
-                control={
-                  <Radio
-                    sx={{
-                      color: symphonyBlue,
-                      '&.Mui-checked': {
-                        color: symphonyBlue,
-                      },
-                    }}
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography sx={{
-                      color: symphonyGray,
-                      fontWeight: mode === 'single' ? 500 : 400
-                    }}>
-                      Single Image
-                    </Typography>
-                    <Typography variant="body2" sx={{
-                      color: symphonyGray,
-                      opacity: 0.7,
-                      fontSize: '0.8rem',
-                      mt: 0.5
-                    }}>
-                      Process one image at a time
-                    </Typography>
-                  </Box>
-                }
-                sx={{ margin: 0 }}
-              />
-            </Paper>
-
-            <Paper
-              elevation={mode === 'batch' ? 3 : 0}
-              sx={{
-                p: 2,
-                backgroundColor: mode === 'batch' ? symphonyLightBlue : symphonyWhite,
-                border: `1px solid ${mode === 'batch' ? symphonyBlue : symphonyBlue + '20'}`,
-                borderRadius: 2,
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <FormControlLabel
-                value="batch"
-                control={
-                  <Radio
-                    sx={{
-                      color: symphonyBlue,
-                      '&.Mui-checked': {
-                        color: symphonyBlue,
-                      },
-                    }}
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography sx={{
-                      color: symphonyGray,
-                      fontWeight: mode === 'batch' ? 500 : 400
-                    }}>
-                      Batch Processing
-                    </Typography>
-                    <Typography variant="body2" sx={{
-                      color: symphonyGray,
-                      opacity: 0.7,
-                      fontSize: '0.8rem',
-                      mt: 0.5
-                    }}>
-                      Process multiple images at once
-                    </Typography>
-                  </Box>
-                }
-                sx={{ margin: 0 }}
-              />
-            </Paper>
-          </RadioGroup>
-        </FormControl>
+        <ModeSelector 
+          mode={mode}
+          setMode={(newMode) => {
+            setMode(newMode);
+            setFiles([]);
+            setPreview(null);
+            setSingleResults([]);
+            setBatchError(null);
+            setImageUrl('');
+            setBatchUrls('');
+            setUploadStatuses({});
+          }}
+          inputMethod={inputMethod}
+          setInputMethod={(newInputMethod) => {
+            setInputMethod(newInputMethod);
+            setFiles([]);
+            setPreview(null);
+            setSingleResults([]);
+            setBatchError(null);
+            setImageUrl('');
+            setBatchUrls('');
+            setUploadStatuses({});
+          }}
+        />
       </Box>
     </Box>
   );
 
-  // Update progress display component with larger sizes and retry support
-  const ProgressDisplay = ({ progress }) => {
-    if (!progress) return null;
 
-    const isRetry = progress.isRetry;
-    const progressColor = isRetry ? 'orange' : symphonyBlue;
 
-    return (
-      <Box sx={{ width: '100%', mt: 3, mb: 3 }}>
-        {isRetry && (
-          <Typography variant="h6" color="warning.main" align="center" sx={{ fontSize: '1.4rem', mb: 2 }}>
-            🔄 Retrying Failed Images
-          </Typography>
-        )}
 
-        <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-          {isRetry ? progress.retryProgress : `Processing images: ${progress.processedImages} / ${progress.totalImages}`}
-        </Typography>
-
-        {/* Time information with larger text */}
-        {!isRetry && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 6, my: 2 }}>
-            <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-              Time elapsed: {progress.elapsedTime}
-            </Typography>
-            <Typography variant="h6" color="text.secondary" align="center" sx={{ fontSize: '1.4rem' }}>
-              Est. time remaining: {progress.estimatedTimeRemaining}
-            </Typography>
-          </Box>
-        )}
-
-        {progress.failedChunks > 0 && !isRetry && (
-          <Typography variant="h6" color="warning.main" align="center" sx={{ fontSize: '1.2rem', mb: 2 }}>
-            ⚠️ {progress.failedChunks} chunks failed (can be retried)
-          </Typography>
-        )}
-
-        <LinearProgress
-          variant="determinate"
-          value={progress.percent || progress.percentComplete || 0}
-          sx={{
-            mt: 2,
-            mb: 2,
-            height: 12,
-            borderRadius: 6,
-            backgroundColor: `rgba(${isRetry ? '255, 165, 0' : '0, 102, 179'}, 0.1)`,
-            '& .MuiLinearProgress-bar': {
-              backgroundColor: progressColor,
-              borderRadius: 6,
-            }
-          }}
-        />
-        <Typography variant="h6" color="text.secondary" align="center" sx={{ fontWeight: 500, fontSize: '1.4rem' }}>
-          {Math.round(progress.percent || progress.percentComplete || 0)}% complete
-        </Typography>
-      </Box>
-    );
-  };
-
-  // Add ProcessingSummary component
-  const ProcessingSummary = ({ summary, results }) => {
-    if (!summary) return null;
-
-    const formatTime = (ms) => {
-      if (!ms || isNaN(ms) || ms <= 0) return '0s';
-      const totalSeconds = ms / 1000;
-      const hours = totalSeconds / 3600;
-      const minutes = (totalSeconds % 3600) / 60;
-      const seconds = totalSeconds % 60;
-
-      if (hours >= 1) {
-        return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-      } else if (minutes >= 1) {
-        return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-      } else {
-        return `${seconds.toFixed(1)}s`;
-      }
-    };
-
-    const validCount = results.filter(r => r.isValid).length;
-    const successRate = results.length > 0 ? (validCount / results.length) * 100 : 0;
-
-    return (
-      <Paper sx={{
-        p: 3,
-        mt: 3,
-        backgroundColor: symphonyLightBlue,
-        border: `1px solid ${symphonyBlue}20`
-      }}>
-        <Typography variant="h6" sx={{ color: symphonyBlue, mb: 2 }}>
-          Processing Summary
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid xs={12} sm={6} md={3}>
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">
-                Total Images
-              </Typography>
-              <Typography variant="h4" sx={{ color: symphonyBlue }}>
-                {summary.totalImages}
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid xs={12} sm={6} md={3}>
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">
-                Total Time
-              </Typography>
-              <Typography variant="h4" sx={{ color: symphonyBlue }}>
-                {formatTime(summary.totalTime)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Processing speed: {summary.totalTime > 0 ? (summary.totalImages / (summary.totalTime / 1000)).toFixed(2) : '0'} images/sec
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid xs={12} sm={6} md={3}>
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">
-                Success Rate
-              </Typography>
-              <Typography variant="h4" sx={{ color: symphonyBlue }}>
-                {successRate.toFixed(1)}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {validCount} valid / {results.filter(r => !r.isValid).length} invalid
-              </Typography>
-            </Box>
-          </Grid>
-          <Grid xs={12} sm={6} md={3}>
-            <Box>
-              <Typography variant="subtitle2" color="text.secondary">
-                Avg. Time per Image
-              </Typography>
-              <Typography variant="h4" sx={{ color: symphonyBlue }}>
-                {formatTime(summary.averageTimePerImage)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Min: {summary.totalImages > 0 ? formatTime(summary.totalTime / summary.totalImages) : '0s'}
-              </Typography>
-            </Box>
-          </Grid>
-
-        </Grid>
-      </Paper>
-    );
-  };
 
   // Update the results section to include both progress and summary
   const renderResults = () => {
     return (
       <Box sx={{ mt: 4 }}>
         {/* Show progress during loading */}
-        {loading && (
-          <Paper
-            sx={{
-              p: 4,
-              backgroundColor: symphonyWhite,
-              borderRadius: 2,
-              border: `1px solid ${symphonyBlue}20`
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-              <CircularProgress sx={{ color: symphonyBlue, width: '4rem !important', height: '4rem !important' }} />
-            </Box>
-            <ProgressDisplay progress={progress} />
-          </Paper>
-        )}
+        <ProgressBar 
+          loading={loading} 
+          progress={progress} 
+          formatTime={formatTime} 
+        />
 
         {/* Show results section when we have results */}
-        {results.length > 0 && !loading && (
+        {displayResults.length > 0 && !loading && (
           <>
             {/* Show processing summary for batch mode */}
-            {mode === 'batch' && processSummary && (
-              <ProcessingSummary summary={processSummary} results={results} />
-            )}
+            <BatchSummary 
+              mode={mode} 
+              processSummary={processSummary} 
+              results={displayResults} 
+            />
 
-            {/* Results list */}
-            <Paper
-              sx={{
-                backgroundColor: symphonyWhite,
-                borderRadius: 2,
-                height: { xs: 'auto', sm: 'calc(100vh - 400px)' },
-                maxHeight: { xs: '100%', sm: 'calc(100vh - 400px)' },
-                minHeight: { xs: '400px', sm: '500px' },
-                display: 'flex',
-                flexDirection: 'column',
-                mt: { xs: 2, sm: 3 },
-                position: { xs: 'relative', sm: 'sticky' },
-                bottom: { xs: 'auto', sm: 0 },
-                zIndex: 1,
-                boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.1)'
-              }}
-            >
-              {/* Results header */}
-              <Box
-                sx={{
-                  borderBottom: `1px solid ${symphonyBlue}20`,
-                  backgroundColor: symphonyWhite,
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 2,
-                  p: { xs: 3, sm: 2 },
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: symphonyBlue,
-                    fontWeight: 500,
-                    fontSize: '1.4rem'
-                  }}
-                >
-                  Results ({results.length} {results.length === 1 ? 'image' : 'images'})
-                </Typography>
-                {mode === 'batch' && (
-                  <Typography
-                    sx={{
-                      color: 'text.secondary',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2,
-                      fontSize: '1rem'
-                    }}
-                  >
-                    <Box component="span" sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      color: 'success.main'
-                    }}>
-                      <CheckCircleIcon sx={{ fontSize: '2.8rem', mr: 1 }} />
-                      {results.filter(r => r.isValid).length} Valid
-                    </Box>
-                    <Box component="span" sx={{ mx: 2 }}>•</Box>
-                    <Box component="span" sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      color: 'error.main'
-                    }}>
-                      <CancelIcon sx={{ fontSize: '2.8rem', mr: 1 }} />
-                      {results.filter(r => !r.isValid).length} Invalid
-                    </Box>
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Results list */}
-              <Box sx={{
-                flex: 1,
-                overflow: 'auto',
-                p: { xs: 2, sm: 3 },
-                pt: 0
-              }}>
-                <Grid container spacing={2}>
-                  {results.map((result, index) => (
-                    <Grid xs={12} sm={6} md={4} key={index}>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          backgroundColor: result.isValid ? 'rgba(76, 175, 80, 0.05)' : 'rgba(211, 47, 47, 0.05)',
-                          border: `1px solid ${result.isValid ? 'rgba(76, 175, 80, 0.1)' : 'rgba(211, 47, 47, 0.1)'}`,
-                          borderRadius: 2,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 2,
-                          height: '100%'
-                        }}
-                      >
-                        {result.isValid ? (
-                          <CheckCircleIcon sx={{
-                            color: 'success.main',
-                            fontSize: '2.5rem'
-                          }} />
-                        ) : (
-                          <CancelIcon sx={{
-                            color: 'error.main',
-                            fontSize: '2.5rem'
-                          }} />
-                        )}
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="h6" sx={{
-                            color: result.isValid ? 'success.main' : 'error.main',
-                            fontWeight: 500,
-                            fontSize: '1.1rem',
-                            mb: 0.5
-                          }}>
-                            {result.isValid ? 'Valid Logo' : 'Invalid Logo'}
-                          </Typography>
-                          <Typography sx={{
-                            color: 'text.secondary',
-                            fontSize: '0.9rem',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            {result.name}
-                          </Typography>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
-            </Paper>
+            <LazyResultRenderer 
+              loading={loading}
+              results={displayResults}
+              mode={mode}
+            />
           </>
         )}
       </Box>
@@ -1902,9 +1130,7 @@ const FileUploader = ({ onFilesSelected }) => {
 
     try {
       // Make the request to the export endpoint with batch_id
-      const response = await fetch(`${API_BASE_URL}/api/check-logo/batch/export-csv?batch_id=${batchId}`, {
-        method: 'GET',
-      });
+      const response = await batchApi.exportCSV(batchId);
 
       if (!response.ok) {
         throw new Error('Failed to export CSV');
@@ -1941,7 +1167,9 @@ const FileUploader = ({ onFilesSelected }) => {
 
   // Return the component UI
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <>
+      <ConnectionStatus isConnected={!error} isReconnecting={isReconnecting} />
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar for desktop */}
       {!isMobile && (
         <Box
@@ -2075,8 +1303,8 @@ const FileUploader = ({ onFilesSelected }) => {
                       setInputMethod(e.target.value);
                       setFiles([]);
                       setPreview(null);
-                      setResults([]);
-                      setError(null);
+                      setSingleResults([]);
+                      setBatchError(null);
                       setImageUrl('');
                       setBatchUrls('');
                       setUploadStatuses({}); // Reset upload statuses when input method changes
@@ -2150,193 +1378,40 @@ const FileUploader = ({ onFilesSelected }) => {
                     setEmail={setEmailNotification}
                   />
 
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      color: symphonyBlue,
-                      fontWeight: 500,
-                      mt: 1,
-                      textAlign: 'center',
-                      width: '100%'
+                  <ChunkSizeSelector
+                    displayValue={displayValue}
+                    onValueChange={(value) => {
+                      setDisplayValue(value);
+                      setchunkSize(value);
                     }}
-                  >
-                    Batch Size: {displayValue} images
-                  </Typography>
-                  <Box sx={{
-                    width: '100%',
-                    px: 3,
-                    mt: 2,
-                    mb: 2
-                  }}>
-                    <Slider
-                      value={displayValue}
-                      onChange={(_, value) => {
-                        setDisplayValue(value);
-                        setchunkSize(value);
-                      }}
-                      min={1}
-                      max={999}
-                      step={1}
-                      marks={[
-                        { value: 1, label: '1' },
-                        { value: 250, label: '250' },
-                        { value: 500, label: '500' },
-                        { value: 999, label: '999' }
-                      ]}
-                      sx={{
-                        color: symphonyBlue,
-                        height: 8,
-                        '& .MuiSlider-thumb': {
-                          height: 24,
-                          width: 24,
-                          backgroundColor: symphonyWhite,
-                          border: `2px solid ${symphonyBlue}`,
-                          '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
-                            boxShadow: 'inherit',
-                          },
-                        },
-                        '& .MuiSlider-track': {
-                          height: 8,
-                          backgroundColor: symphonyBlue,
-                        },
-                        '& .MuiSlider-rail': {
-                          height: 8,
-                          backgroundColor: `${symphonyBlue}20`,
-                        },
-                        '& .MuiSlider-mark': {
-                          backgroundColor: symphonyBlue,
-                          height: 8,
-                        },
-                        '& .MuiSlider-markLabel': {
-                          color: symphonyGray,
-                          fontSize: '0.875rem',
-                          fontWeight: 500,
-                          marginTop: 4,
-                        },
-                        '& .MuiSlider-valueLabel': {
-                          backgroundColor: symphonyBlue,
-                        }
-                      }}
-                      valueLabelDisplay="auto"
-                      aria-label="Batch size slider"
-                    />
-                  </Box>
-                  <Box sx={{
-                    display: 'flex',
-                    gap: 2,
-                    justifyContent: 'center',
-                    width: '100%'
-                  }}>
-                    {[10, 50, 100, 250].map((value) => (
-                      <Button
-                        key={value}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => {
-                          setchunkSize(value);
-                          setDisplayValue(value);
-                        }}
-                        sx={{
-                          borderColor: symphonyBlue,
-                          color: symphonyBlue,
-                          '&:hover': {
-                            backgroundColor: symphonyLightBlue,
-                            borderColor: symphonyBlue,
-                          },
-                          minWidth: '60px'
-                        }}
-                      >
-                        {value}
-                      </Button>
-                    ))}
-                  </Box>
-                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handleStartBatch}
-                      sx={{
-                        borderColor: symphonyBlue,
-                        color: symphonyBlue,
-                        '&:hover': {
-                          backgroundColor: symphonyLightBlue,
-                        },
-                        minWidth: '200px',
-                        height: '48px',
-                        fontSize: '1.1rem',
-                        mt: 2
-                      }}
-                    >
-                      Start Batch
-                    </Button>
-                  </Box>
+                    onPresetClick={(value) => {
+                      setchunkSize(value);
+                      setDisplayValue(value);
+                    }}
+                  />
                 </Box>
               )}
 
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <Button
-                  variant="contained"
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  sx={{
-                    backgroundColor: symphonyBlue,
-                    '&:hover': {
-                      backgroundColor: symphonyDarkBlue,
-                    },
-                    minWidth: '200px',
-                    height: '48px',
-                    fontSize: '1.2rem'
-                  }}
-                >
-                  {loading ? (
-                    <CircularProgress size={28} sx={{ color: symphonyWhite }} />
-                  ) : (
-                    'Process Images'
-                  )}
-                </Button>
-              </Box>
+              <UploadButtons
+                mode={mode}
+                loading={loading}
+                onSubmit={handleSubmit}
+                onStartBatch={handleStartBatch}
+              />
             </Paper>
 
-            {error && (
-              <Paper
-                sx={{
-                  p: { xs: 2, sm: 3 },
-                  mb: { xs: 2, sm: 3 },
-                  backgroundColor: '#ffebee',
-                  borderRadius: 2
-                }}
-              >
-                <Typography
-                  color="error"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    fontSize: { xs: '0.9rem', sm: '1rem' }
-                  }}
-                >
-                  <ErrorOutlineIcon sx={{ mr: 1 }} />
-                  {error}
-                </Typography>
-              </Paper>
-            )}
-
+            {isReconnecting && <WsStatusBanner error={error} />}
             {renderResults()}
 
-            {results.length > 0 && (
-              <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<FileDownloadIcon />}
-                  onClick={handleExportCSV}
-                >
-                  Export Results to CSV
-                </Button>
-              </Box>
-            )}
+            <ExportCsvButton 
+              results={displayResults} 
+              onExportCSV={handleExportCSV} 
+            />
           </Box>
         </Container>
       </Box>
     </Box>
+    </>
   );
 };
 

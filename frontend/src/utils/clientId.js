@@ -19,3 +19,29 @@ export function getClientId() {
   }
   return id;
 }
+
+/**
+ * Refresh client ID (generate new one)
+ * Useful for new sessions or connection issues
+ */
+export const refreshClientId = () => {
+  const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : fallbackUUID();
+  localStorage.setItem("client_id", uuid);
+  return uuid;
+};
+
+/**
+ * Clear client ID from storage
+ */
+export const clearClientId = () => {
+  localStorage.removeItem("client_id");
+};
+
+/**
+ * Check if client ID exists
+ */
+export const hasClientId = () => {
+  return !!localStorage.getItem("client_id");
+};
