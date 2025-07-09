@@ -42,10 +42,13 @@ import ProgressBar from './components/ProgressBar';
 import WsStatusBanner from './components/WsStatusBanner';
 import ExportCsvButton from './components/ExportCsvButton';
 import BatchSummary from './components/BatchSummary';
-import ResultRenderer from './components/ResultRenderer';
+import LazyResultRenderer from './components/LazyResultRenderer';
+import ConnectionStatus from './components/ConnectionStatus';
 import { useBatchUpload } from './hooks/useBatchUpload';
 import { batchApi } from './api/batchApi';
+import { singleApi } from './api/singleApi';
 import { getClientId } from './utils/clientId';
+import { createFilePreview, createFilePreviews, createUrlPreviews, cleanupPreviews, cleanupPreview } from './utils/previewBuilder';
 
 /**
  * Theme constants for consistent Symphony branding
@@ -169,13 +172,9 @@ const FileUploader = ({ onFilesSelected }) => {
   useEffect(() => {
     return () => {
       if (preview) {
-        URL.revokeObjectURL(preview);
+        cleanupPreview(preview);
       }
-      previews.forEach(preview => {
-        if (preview.url) {
-          URL.revokeObjectURL(preview.url);
-        }
-      });
+      cleanupPreviews(previews);
     };
   }, [preview, previews]);
 
@@ -224,8 +223,8 @@ const FileUploader = ({ onFilesSelected }) => {
     setUploadStatuses({}); // Reset upload statuses when batch URLs change
 
     // Parse and preview URLs from textarea
-    const urlList = urls.split('\n').filter(url => url.trim());
-    setPreviews(urlList.map(url => ({ url })));
+    const urlPreviews = createUrlPreviews(urls);
+    setPreviews(urlPreviews);
   };
 
   /**
@@ -247,7 +246,7 @@ const FileUploader = ({ onFilesSelected }) => {
       setBatchError(null);
       setSingleResults([]);
 
-      const previewUrl = URL.createObjectURL(selectedFile);
+      const previewUrl = createFilePreview(selectedFile);
       setPreview(previewUrl);
       setPreviews([]);
     } else {
@@ -256,10 +255,7 @@ const FileUploader = ({ onFilesSelected }) => {
       setSingleResults([]);
       setPreview(null);
 
-      const newPreviews = acceptedFiles.map(file => ({
-        url: URL.createObjectURL(file),
-        name: file.name
-      }));
+      const newPreviews = createFilePreviews(acceptedFiles);
       setPreviews(newPreviews);
     }
 
@@ -332,7 +328,7 @@ const FileUploader = ({ onFilesSelected }) => {
           setUploadStatuses((prev) => ({ ...prev, [imageUrl]: "uploading" }));
         }
 
-        response = await batchApi.processSingleImage(formData);
+        response = await singleApi.processSingleImage(formData);
 
         const statusKey = inputMethod === 'upload' ? files[0].name : imageUrl;
         setUploadStatuses((prev) => ({ ...prev, [statusKey]: "validating" }));
@@ -1115,7 +1111,7 @@ const FileUploader = ({ onFilesSelected }) => {
               results={displayResults} 
             />
 
-            <ResultRenderer 
+            <LazyResultRenderer 
               loading={loading}
               results={displayResults}
               mode={mode}
@@ -1171,7 +1167,9 @@ const FileUploader = ({ onFilesSelected }) => {
 
   // Return the component UI
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <>
+      <ConnectionStatus isConnected={!error} isReconnecting={isReconnecting} />
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar for desktop */}
       {!isMobile && (
         <Box
@@ -1413,6 +1411,7 @@ const FileUploader = ({ onFilesSelected }) => {
         </Container>
       </Box>
     </Box>
+    </>
   );
 };
 

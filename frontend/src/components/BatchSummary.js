@@ -1,5 +1,6 @@
 import React from 'react';
 import { Paper, Typography, Grid, Box } from '@mui/material';
+import { formatTime } from '../utils/timeFormatter';
 
 /**
  * Theme constants for consistent Symphony branding
@@ -10,21 +11,7 @@ const symphonyLightBlue = '#f0f9ff';
 const BatchSummary = ({ mode, processSummary, results }) => {
   if (mode !== 'batch' || !processSummary) return null;
 
-  const formatTime = (ms) => {
-    if (!ms || isNaN(ms) || ms <= 0) return '0s';
-    const totalSeconds = ms / 1000;
-    const hours = totalSeconds / 3600;
-    const minutes = (totalSeconds % 3600) / 60;
-    const seconds = totalSeconds % 60;
 
-    if (hours >= 1) {
-      return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else if (minutes >= 1) {
-      return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else {
-      return `${seconds.toFixed(1)}s`;
-    }
-  };
 
   const validCount = results.filter(r => r.isValid).length;
   const successRate = results.length > 0 ? (validCount / results.length) * 100 : 0;

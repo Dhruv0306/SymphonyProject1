@@ -1,17 +1,17 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useReducer } from 'react';
 import { WebSocketManager } from '../utils/WebSocketManager';
+import { uploadReducer, initialUploadState, UPLOAD_ACTIONS } from './uploadReducer';
 import { batchApi } from '../api/batchApi';
+import { formatTime as utilFormatTime } from '../utils/timeFormatter';
 import { decodeUrl } from '../utils/urlDecoder';
 
 export const useBatchUpload = (clientId) => {
-  // State management
+  // State management with reducer for complex upload states
+  const [uploadState, dispatch] = useReducer(uploadReducer, initialUploadState);
   const [progress, setProgress] = useState(null);
   const [processSummary, setProcessSummary] = useState(null);
   const [batchId, setBatchId] = useState(null);
   const [batchRunning, setBatchRunning] = useState(false);
-  const [uploadStatuses, setUploadStatuses] = useState({});
-  const [results, setResults] = useState([]);
-  const [error, setError] = useState(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
   // Refs
@@ -20,20 +20,7 @@ export const useBatchUpload = (clientId) => {
   const wsManagerRef = useRef(null);
 
   // Time formatting utility
-  const formatTime = useCallback((milliseconds) => {
-    const totalSeconds = milliseconds / 1000;
-    const hours = totalSeconds / 3600;
-    const minutes = (totalSeconds % 3600) / 60;
-    const seconds = totalSeconds % 60;
-
-    if (hours >= 1) {
-      return `${Math.trunc(hours)}h ${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else if (minutes >= 1) {
-      return `${Math.trunc(minutes)}m ${seconds.toFixed(1)}s`;
-    } else {
-      return `${seconds.toFixed(1)}s`;
-    }
-  }, []);
+  const formatTime = useCallback(utilFormatTime, []);
 
   // WebSocket message handler
   const handleWebSocketMessage = useCallback((data) => {
@@ -51,8 +38,8 @@ export const useBatchUpload = (clientId) => {
         currentChunk: (data.chunk_index || 0) + 1,
         totalChunks: data.total_chunks || 1,
         percent: data.percentage,
-        elapsedTime: elapsedTime > 0 ? formatTime(elapsedTime) : '0s',
-        estimatedTimeRemaining: estimatedTimeRemaining > 0 ? formatTime(estimatedTimeRemaining) : 'Calculating...'
+        elapsedTime: elapsedTime > 0 ? utilFormatTime(elapsedTime) : '0s',
+        estimatedTimeRemaining: estimatedTimeRemaining > 0 ? utilFormatTime(estimatedTimeRemaining) : 'Calculating...'
       });
 
       const currentFile = data.current_file || decodeUrl(data.current_url) || '';
@@ -82,7 +69,7 @@ export const useBatchUpload = (clientId) => {
     } else if (data.event === 'heartbeat_ack') {
       console.log('Heartbeat acknowledged by server');
     }
-  }, [formatTime]);
+  }, []);
 
   // WebSocket error handler
   const handleWebSocketError = useCallback((error) => {
@@ -151,11 +138,12 @@ export const useBatchUpload = (clientId) => {
       try {
         const response = await batchApi.completeBatch(batchId);
         if (response.data?.results && Array.isArray(response.data.results)) {
-          setResults(response.data.results.map(result => ({
+          const formattedResults = response.data.results.map(result => ({
             isValid: result.Is_Valid === "Valid",
             message: `Logo detection result: ${result.Is_Valid}${result.Error ? ` (${result.Error})` : ''}`,
             name: decodeUrl(result.Image_Path_or_URL)
-          })));
+          }));
+          setResults(formattedResults);
         }
         console.log('Processing complete:', response.data);
       } catch (error) {
@@ -178,10 +166,35 @@ export const useBatchUpload = (clientId) => {
     setBatchId(null);
     setBatchRunning(false);
     batchRunningRef.current = false;
-    setUploadStatuses({});
-    setResults([]);
-    setError(null);
     setIsReconnecting(false);
+    dispatch({ type: UPLOAD_ACTIONS.RESET_STATE });
+  }, []);
+
+  // Enhanced state setters using reducer
+  const setUploadStatuses = useCallback((statusOrUpdater) => {
+    if (typeof statusOrUpdater === 'function') {
+      // Handle function updates
+      const currentStatuses = uploadState.uploadStatuses;
+      const newStatuses = statusOrUpdater(currentStatuses);
+      Object.entries(newStatuses).forEach(([key, status]) => {
+        if (currentStatuses[key] !== status) {
+          dispatch({ type: UPLOAD_ACTIONS.SET_UPLOAD_STATUS, payload: { key, status } });
+        }
+      });
+    } else {
+      // Handle direct object updates
+      Object.entries(statusOrUpdater).forEach(([key, status]) => {
+        dispatch({ type: UPLOAD_ACTIONS.SET_UPLOAD_STATUS, payload: { key, status } });
+      });
+    }
+  }, [uploadState.uploadStatuses]);
+
+  const setError = useCallback((error) => {
+    dispatch({ type: UPLOAD_ACTIONS.SET_ERROR, payload: error });
+  }, []);
+
+  const setResults = useCallback((results) => {
+    dispatch({ type: UPLOAD_ACTIONS.SET_RESULTS, payload: results });
   }, []);
 
   return {
@@ -190,9 +203,9 @@ export const useBatchUpload = (clientId) => {
     processSummary,
     batchId,
     batchRunning,
-    uploadStatuses,
-    results,
-    error,
+    uploadStatuses: uploadState.uploadStatuses,
+    results: uploadState.results,
+    error: uploadState.error,
     isReconnecting,
     
     // Actions
@@ -202,7 +215,7 @@ export const useBatchUpload = (clientId) => {
     startProcessing,
     resetState,
     setUploadStatuses,
-    setError,
+    setError: setError,
     
     // Utilities
     formatTime
