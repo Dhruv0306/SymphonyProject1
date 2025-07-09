@@ -134,3 +134,5 @@ runs/detect/yolov11s_cooler_detection/*
 requestID.txt
 temp-files/*
 *.diff
+
+*.old
