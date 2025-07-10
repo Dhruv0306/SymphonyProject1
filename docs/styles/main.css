@@ -1317,6 +1317,19 @@ ul, ol {
 .model:nth-child(5) { border-left: 4px solid #F44336; }
 .model:nth-child(6) { border-left: 4px solid #8E24AA; }
 
+/* Model type indicators */
+.model:nth-child(1) .model-sequence,
+.model:nth-child(2) .model-sequence,
+.model:nth-child(3) .model-sequence {
+    background: var(--yolov8-color);
+}
+
+.model:nth-child(4) .model-sequence,
+.model:nth-child(5) .model-sequence,
+.model:nth-child(6) .model-sequence {
+    background: var(--yolov11-color);
+}
+
 /* Model sequence numbers */
 .model-sequence {
     position: absolute;
@@ -1858,6 +1871,8 @@ ul, ol {
 .ratelimit-feature { background: #f9fbe7; color: #afb42b; border-color: #afb42b; }
 .fault-tolerance { background: #e8f5e8; color: #2e7d32; border-color: #2e7d32; }
 .file-storage { background: #fff8e1; color: #f57f17; border-color: #f57f17; }
+.websocket-reconnect { background: #e3f2fd; color: #0288d1; border-color: #0288d1; }
+.parallel-processing { background: #f3e5f5; color: #7b1fa2; border-color: #7b1fa2; }
 
 /* .env Example Block - improve visibility */
 .env-example {

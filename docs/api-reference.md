@@ -1,419 +1,469 @@
 # API Reference
 
-This document provides detailed information about the Symphony Logo Detection API endpoints.
+The Symphony Logo Detection API is a FastAPI-based service that detects Symphony logos in images using YOLO-based machine learning models. The API supports both single image processing and batch processing with real-time WebSocket updates.
 
-## System Overview
+**Base URL:** `http://localhost:8000`  
+**API Documentation:** `http://localhost:8000/docs`  
+**Interactive API Explorer:** `http://localhost:8000/redoc`
 
-The Symphony Logo Detection System is an enterprise-grade platform that uses 5 sequential YOLO models (YOLOv8s and YOLOv11s variants) for high-accuracy logo detection. The system features:
+## Main Endpoints (Business Logic)
 
-- **FastAPI Backend** with async processing and WebSocket support
-- **React Frontend** with real-time progress tracking
-- **Batch Processing** with automatic retry and error handling
-- **Admin Dashboard** with comprehensive analytics
-- **Automated Cleanup** via APScheduler for resource management
+### 1. Single Image Processing
 
-## Authentication
-
-All API requests require an API key passed in the header:
-```http
-X-API-Key: your-api-key-here
-```
-
-## Rate Limiting
-
-The API uses SlowAPI for rate limiting with the following constraints:
-
-- Single image endpoint: 150 requests per minute
-- Batch processing endpoints: 30 requests per minute
-- CSV export endpoints: 25 requests per minute
-- Analytics API endpoints: 50 requests per minute
-
-Rate limit headers returned:
-- `X-RateLimit-Limit`
-- `X-RateLimit-Remaining`
-- `X-RateLimit-Reset`
-
-## Endpoints
-
-### 1. Single Image Validation
-
+#### Check Logo in Single Image (File Upload)
 ```http
 POST /api/check-logo/single/
 ```
 
-Validates a single image for Symphony logo presence using sequential YOLO model testing.
-
-#### Request
-
-**Content-Type:** `multipart/form-data` or `application/json`
+**Description:** Validate a single image for Symphony logo presence via file upload or image URL.
 
 **Parameters:**
-- `file`: Image file (when using multipart/form-data)
-  - **Supported formats:** JPG, JPEG, PNG, WEBP, BMP
-- `image_path`: Image URL (when using application/json)
-  - **Supported formats:** JPG, JPEG, PNG, WEBP, BMP
+- `file` (UploadFile, optional): Image file to validate (JPG/PNG)
+- `image_path` (str, optional): URL or path of the image to validate
 
-**Example (File Upload):**
-```bash
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
-  -F "file=@logo.jpg"
-```
+**Rate Limit:** 100 requests/minute per IP
 
-**Example (URL):**
-```bash
-curl -X POST "http://localhost:8000/api/check-logo/single/" \
-  -H "Content-Type: application/json" \
-  -d '{"image_path": "https://example.com/logo.jpg"}'
-```
-
-#### Response
-
+**Response:**
 ```json
 {
-  "Image_Path_or_URL": "logo.jpg",
-  "Is_Valid": "Valid",
-  "Confidence": 0.92,
-  "Detected_By": "yolov8s_logo_detection",
-  "Bounding_Box": [100, 150, 300, 350],
-  "Processing_Time": 0.8
+  "image_path": "string",
+  "is_valid": true,
+  "confidence": 0.95,
+  "model": "YOLOv8s #1",
+  "bbox": {
+    "x1": 100,
+    "y1": 150,
+    "x2": 300,
+    "y2": 350
+  },
+  "error": null
 }
 ```
 
-### 2. Batch Processing
+#### Check Logo by URL (JSON)
+```http
+POST /api/check-logo/single/url
+```
 
-#### Start Batch
+**Description:** Validate a single image by URL using JSON request body.
 
+**Request Body:**
+```json
+{
+  "image_path": "https://example.com/image.jpg"
+}
+```
+
+**Rate Limit:** 100 requests/minute per IP
+
+## 2. Batch Processing
+
+### Start Batch Session
 ```http
 POST /api/start-batch
 ```
 
-Start a new batch processing session.
+**Description:** Initialize a new batch processing session and get a unique batch ID.
+
+**Parameters:**
+- `client_id` (str, optional): Client identifier for WebSocket association
+- `email` (str, optional): Email for batch completion notification
+- `X-Auth-Token` (header, optional): Admin authentication token
 
 **Response:**
 ```json
 {
   "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-  "message": "Batch created successfully"
+  "message": "Batch processing session started"
 }
 ```
 
-#### Initialize Batch
-
+### Initialize Batch Tracking
 ```http
 POST /api/init-batch
 ```
 
-Initialize batch parameters before processing.
+**Description:** Initialize batch tracking with total count before uploading chunks.
 
-**Parameters:**
-- `batch_id`: UUID from start-batch endpoint
-- `client_id`: Unique client identifier
-- `total`: Total number of images to process
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8000/api/init-batch" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-    "client_id": "client-123",
-    "total": 50
-  }'
+**Request Body:**
+```json
+{
+  "batch_id": "string",
+  "client_id": "string",
+  "total": 100
+}
 ```
 
-#### Process Batch
-
+### Process Batch
 ```http
 POST /api/check-logo/batch/
 ```
 
-Process multiple images within a batch session. Supports both file uploads and URL processing.
+**Description:** Start batch processing with files, zip archive, or URL list. Returns immediately for background processing.
 
-**Rate Limit:** 30 requests per minute with automatic retry and exponential backoff.
+**Parameters:**
+- `files` (List[UploadFile], optional): List of image files
+- `zip_file` (UploadFile, optional): Zip file containing images
+- `batch_id` (str): Batch ID from start-batch endpoint
+- `client_id` (str, optional): Client ID for WebSocket updates
 
-**Content Types:**
-- `multipart/form-data` for file uploads
-- `application/json` for URL processing
-
-**Parameters for File Upload:**
-- `files[]`: Array of image files
-  - **Supported formats:** JPG, JPEG, PNG, WEBP, BMP
-- `batch_id`: UUID from start-batch endpoint
-
-**Parameters for URL Processing (JSON):**
+**For URL processing (JSON body):**
 ```json
 {
-  "image_paths": ["https://example.com/image1.jpg", "https://example.com/image2.png", "https://example.com/image3.webp", "https://example.com/image4.bmp"],
-  "batch_id": "550e8400-e29b-41d4-a716-446655440000"
+  "batch_id": "string",
+  "client_id": "string",
+  "image_paths": [
+    "https://example.com/image1.jpg",
+    "https://example.com/image2.jpg"
+  ]
 }
 ```
 
-**Example (Files with Batch ID):**
-```bash
-curl -X POST "http://localhost:8000/api/check-logo/batch/" \
-  -F "files[]=@logo1.jpg" \
-  -F "files[]=@logo2.jpg" \
-  -F "batch_id=550e8400-e29b-41d4-a716-446655440000"
-```
-
-**Example (URLs with Batch ID):**
-```bash
-curl -X POST "http://localhost:8000/api/check-logo/batch/" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "image_paths": [
-      "https://example.com/logo1.jpg",
-      "https://example.com/logo2.jpg"
-    ],
-    "batch_id": "550e8400-e29b-41d4-a716-446655440000"
-  }'
-```
+**Rate Limit:** 60 requests/minute per IP
 
 **Response:**
 ```json
 {
   "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-  "message": "Processing complete",
+  "message": "Batch processing started",
   "status": "processing"
 }
 ```
 
-#### Batch Status
-
+### Get Batch Status
 ```http
 GET /api/check-logo/batch/{batch_id}/status
 ```
 
-Check the status of a batch processing session.
+**Description:** Get current status and progress of batch processing.
 
 **Response:**
 ```json
 {
-  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "completed",
-  "counts": {
-    "total": 100,
-    "processed": 100,
-    "valid": 85,
-    "invalid": 15
-  },
-  "progress": 100
-}
-```
-
-### 3. Batch Results Export
-
-```http
-GET /api/check-logo/batch/export-csv/{batch_id}
-```
-
-Export the batch processing results as a CSV file.
-
-**Parameters:**
-- `batch_id`: (Required) The UUID of the batch session to export
-
-**Example:**
-```bash
-curl -X GET "http://localhost:8000/api/check-logo/batch/export-csv/550e8400-e29b-41d4-a716-446655440000" \
-  --output results.csv
-```
-
-**Response:**
-A CSV file with the following columns:
-- Image_Path_or_URL: Path or URL of the processed image
-- Is_Valid: Whether a valid logo was detected ("Valid" or "Invalid")
-- Confidence: Confidence score of the detection (0.0 to 1.0)
-- Detected_By: Which model made the detection
-- Bounding_Box: Coordinates of the detected logo
-- Error: Error message if any occurred during processing
-- Timestamp: When the image was processed
-- Batch_ID: The batch session ID
-
-The file is named: `batch_{batch_id}_results.csv`
-
-### 4. WebSocket Endpoints
-
-```http
-WS /ws/batch/{batch_id}
-```
-
-Real-time WebSocket connection for batch processing updates.
-
-**Connection URL:** `ws://localhost:8000/ws/batch/{batch_id}`
-
-**Message Types:**
-- `progress`: Processing progress updates
-- `ping`: Keep-alive messages
-- `pong`: Client response to ping
-- `error`: Error notifications
-- `complete`: Batch completion notification
-
-**Example Messages:**
-```json
-{
-  "type": "progress",
-  "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-  "processed": 25,
+  "batch_id": "string",
+  "status": "processing",
+  "processed": 50,
   "total": 100,
-  "progress": 25
+  "valid": 30,
+  "invalid": 20,
+  "progress_percentage": 50.0
 }
 ```
 
-### 5. Admin Endpoints
+### Complete Batch
+```http
+POST /api/check-logo/batch/{batch_id}/complete
+```
+
+**Description:** Mark batch as complete and finalize results.
+
+### Send Batch Email Notification
+```http
+POST /api/check-logo/batch/{batch_id}/send-email
+```
+
+**Description:** Send batch summary email notification.
+
+## 3. Export & Results
+
+### Get Batch Count
+```http
+GET /check-logo/batch/getCount?batch_id={batch_id}
+```
+
+**Description:** Get count of processed items for a specific batch.
+
+**Response:**
+```json
+{
+  "valid": 30,
+  "invalid": 20,
+  "total": 50
+}
+```
+
+### Export Batch Results to CSV
+```http
+GET /api/check-logo/batch/export-csv?batch_id={batch_id}
+```
+
+**Description:** Export batch processing results as downloadable CSV file.
+
+**Rate Limit:** 10 requests/minute per IP
+
+**Response:** CSV file download with filename `logo_detection_results_{batch_id}.csv`
+
+### Get Export File
+```http
+GET /api/exports/{batch_id}/{filename}?token={auth_token}
+```
+
+**Description:** Download an exported file by batch ID and filename (requires authentication).
+
+## 4. WebSocket Connections
+
+### Batch Progress WebSocket
+```http
+WebSocket: /ws/batch/{batch_id}
+```
+
+**Description:** Real-time updates for batch processing progress with ping/pong support and 10-minute timeout.
+
+**Messages:**
+- **Ping:** `{"type": "ping", "timestamp": 1234567890}`
+- **Pong:** `{"type": "pong", "timestamp": 1234567890}`
+- **Progress Updates:** Automatic progress notifications
+
+### Client WebSocket
+```http
+WebSocket: /ws/{client_id}
+```
+
+**Description:** General WebSocket endpoint for client connections with heartbeat support.
+
+**Messages:**
+- **Heartbeat:** `{"event": "heartbeat", "timestamp": 1234567890}`
+- **Heartbeat ACK:** `{"event": "heartbeat_ack", "timestamp": 1234567890}`
+
+## System Endpoints (Administrative & Infrastructure)
+
+### 1. Authentication
 
 #### Admin Login
-
 ```http
 POST /api/admin/login
 ```
 
-Authenticate admin user and create session.
+**Description:** Authenticate admin credentials and create session with CSRF protection.
 
-**Parameters:**
-- `username`: Admin username
-- `password`: Admin password
+**Request Body (Form Data):**
+- `username` (str): Admin username
+- `password` (str): Admin password
 
 **Response:**
 ```json
 {
+  "status": "success",
   "message": "Login successful",
-  "session_duration": 1800
+  "token": "auth_token_here",
+  "csrf_token": "csrf_token_here"
 }
 ```
 
-#### Admin Dashboard Stats
+#### Admin Logout
+```http
+POST /api/admin/logout
+```
 
+**Headers:**
+- `X-Auth-Token`: Session token
+- `X-CSRF-Token`: CSRF token
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Logged out successfully"
+}
+```
+
+#### Check Admin Session
+```http
+GET /api/admin/check-session
+```
+
+**Headers:**
+- `X-Auth-Token`: Session token
+
+**Response:**
+```json
+{
+  "status": "success",
+  "authenticated": true
+}
+```
+
+### 2. Admin Dashboard & Statistics
+
+#### Get Dashboard Statistics
 ```http
 GET /api/admin/dashboard-stats
 ```
 
-Retrieve dashboard statistics (admin only).
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get key metrics for admin dashboard.
 
 **Response:**
 ```json
 {
-  "total_batches": 150,
-  "total_images_processed": 12450,
-  "valid_detections": 9876,
-  "invalid_detections": 2574,
-  "average_confidence": 0.87,
-  "model_usage": {
-    "yolov8s_logo_detection": 4500,
-    "yolov8s_logo_detection2": 3200,
-    "yolov8s_logo_detection3": 2100,
-    "yolov11s_logo_detection": 1800,
-    "yolov11s3_logo_detection": 850
-  }
+  "batches_today": 15,
+  "success_rate": 92.5,
+  "avg_processing_time": 45.2,
+  "error_rate": 7.5
 }
 ```
 
-#### Batch History
+### 3. Batch History Management
 
+#### Get Batch History
 ```http
 GET /api/admin/batch-history
 ```
 
-Retrieve batch processing history (admin only).
+**Headers:**
+- `X-Auth-Token`: Admin session token
 
-**Parameters:**
-- `limit`: (Optional) Number of batches to return (default: 50)
-- `offset`: (Optional) Offset for pagination (default: 0)
+**Description:** Get history of all processed batches (admin only).
+
+**Response:**
+```json
+[
+  {
+    "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+    "filename": "550e8400-e29b-41d4-a716-446655440000/results.csv",
+    "created_at": "2024-01-15T10:30:00",
+    "file_size": 15420,
+    "download_url": "/api/exports/550e8400-e29b-41d4-a716-446655440000/results.csv",
+    "valid_count": 85,
+    "invalid_count": 15,
+    "total_count": 100
+  }
+]
+```
+
+#### Get Batch Details
+```http
+GET /api/admin/batch/{batch_id}
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get detailed information about a specific batch.
 
 **Response:**
 ```json
 {
-  "batches": [
+  "batch_id": "string",
+  "filename": "string",
+  "created_at": "2024-01-15T10:30:00",
+  "file_size": 15420,
+  "download_url": "string",
+  "valid_count": 85,
+  "invalid_count": 15,
+  "total_count": 100,
+  "metadata": {
+    "status": "completed",
+    "email": "user@example.com"
+  }
+}
+```
+
+#### Get Batch Preview
+```http
+GET /api/admin/batch/{batch_id}/preview
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Description:** Get preview of first 5 entries in batch results.
+
+**Response:**
+```json
+{
+  "batch_id": "string",
+  "preview": [
     {
-      "batch_id": "550e8400-e29b-41d4-a716-446655440000",
-      "created_at": "2024-01-15T10:30:00Z",
-      "status": "completed",
-      "total_images": 100,
-      "valid_count": 85,
-      "invalid_count": 15,
-      "processing_time": 45.2
+      "Image_Path_or_URL": "example.jpg",
+      "Is_Valid": "Valid",
+      "Confidence": "0.92",
+      "Detected_By": "YOLOv8s #1",
+      "Bounding_Box": "{\"x1\": 100, \"y1\": 150, \"x2\": 300, \"y2\": 350}",
+      "Error": null
     }
-  ],
-  "total_count": 150,
-  "has_more": true
+  ]
+}
+```
+
+### 4. System Maintenance
+
+#### Manual Cleanup
+```http
+POST /maintenance/cleanup
+```
+
+**Headers:**
+- `X-Auth-Token`: Admin session token
+
+**Parameters:**
+- `batch_age_hours` (int, default=24): Max age for batch files
+- `temp_age_minutes` (int, default=30): Max age for temp files
+- `pending_age_hours` (int, default=72): Max age for pending batches (3 days)
+
+**Rate Limit:** 2 requests/minute per IP
+
+**Description:** Manually trigger cleanup of old files with smart pending batch protection.
+
+**Response:**
+```json
+{
+  "status": "success",
+  "batches_cleaned": 5,
+  "temp_files_cleaned": 12,
+  "pending_batches_cleaned": 2,
+  "batch_age_hours": 24,
+  "temp_age_minutes": 30,
+  "pending_age_hours": 72
 }
 ```
 
 ## Error Responses
 
-### 400 Bad Request
+### Common HTTP Status Codes
 
+- **400 Bad Request:** Invalid input or missing required fields
+- **401 Unauthorized:** Authentication required or invalid credentials
+- **403 Forbidden:** Invalid CSRF token or insufficient permissions
+- **404 Not Found:** Batch or resource not found
+- **429 Too Many Requests:** Rate limit exceeded
+- **500 Internal Server Error:** Server-side processing error
+
+### Error Response Format
 ```json
 {
-  "detail": "Invalid file format. Supported formats: JPG, JPEG, PNG, WEBP, BMP",
-  "status_code": 400,
-  "supported_formats": ["jpg", "jpeg", "png", "webp", "bmp"],
-  "max_file_size": "10MB"
+  "detail": "Error description here"
 }
 ```
 
-### 404 Not Found
+## Rate Limits
 
-```json
-{
-  "detail": "Batch not found with ID: invalid-batch-id",
-  "status_code": 404
-}
-```
+| Endpoint | Limit |
+|----------|-------|
+| Single image processing | 100/minute per IP |
+| Batch processing | 60/minute per IP |
+| CSV export | 10/minute per IP |
+| Manual cleanup | 2/minute per IP |
 
-### 429 Too Many Requests
+## Authentication
 
-```json
-{
-  "detail": "Rate limit exceeded. Try again later.",
-  "status_code": 429,
-  "rate_limit": {
-    "limit": 30,
-    "reset": 60,
-    "endpoint": "batch"
-  }
-}
-```
+- **Session-based:** Admin endpoints use session tokens
+- **CSRF Protection:** Admin state-changing operations require CSRF tokens
+- **Token Headers:** 
+  - `X-Auth-Token`: Session authentication
+  - `X-CSRF-Token`: CSRF protection
 
-### 500 Internal Server Error
+## WebSocket Features
 
-```json
-{
-  "detail": "Model inference failed",
-  "status_code": 500,
-  "error_type": "model_error"
-}
-```
+- **Auto-reconnection:** Clients can recover previous batch associations
+- **Heartbeat Support:** Automatic connection health monitoring
+- **Timeout Handling:** 10-minute inactivity timeout for batch connections
+- **Real-time Updates:** Live progress updates during batch processing
 
-## Model Architecture
+## File Support
 
-The system uses 5 sequential YOLO models with early return optimization:
-
-1. **yolov8s_logo_detection** - Primary YOLOv8s model
-2. **yolov8s_logo_detection2** - Enhanced YOLOv8s variant
-3. **yolov8s_logo_detection3** - Refined YOLOv8s model
-4. **yolov11s_logo_detection** - Advanced YOLOv11s model
-5. **yolov11s3_logo_detection** - Optimized YOLOv11s variant
-
-**Processing Flow:**
-- Images are enhanced with 10px white boundary
-- Models are tested sequentially with confidence threshold 0.35
-- Processing stops at first successful detection (early return)
-- If no model detects a logo, result is marked as "Invalid"
-
-## Best Practices
-
-1. Use batch processing for multiple images (more efficient)
-2. Start with a batch session for large processing jobs
-3. Monitor WebSocket connections for real-time updates
-4. Implement exponential backoff for rate limit retries
-5. Download CSV exports promptly (24-hour retention)
-6. Handle rate limits gracefully with retry logic
-7. Validate file types and sizes before upload
-8. Use appropriate confidence thresholds for your use case
-
-## See Also
-
-- [System Architecture](./architecture.md)
-- [Getting Started Guide](./getting-started.md)
-- [Error Handling Guide](./error-handling.md)
-- [Security Guidelines](./security.md)
+- **Image Formats:** JPG, PNG, WEBP, BMP
+- **Batch Uploads:** Multiple files, ZIP archives, URL lists
+- **Export Formats:** CSV with detailed results and metadata 

@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Validation Using Logo Detection - Symphony Limited</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972">
+    <link rel="icon" type="image/png"
+        href="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972">
 </head>
+
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="documentation-container">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
             <div class="sidebar-header">
-                <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972" alt="Symphony Logo" class="logo">
+                <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972"
+                    alt="Symphony Logo" class="logo">
                 <h2>Documentation</h2>
                 <button id="menuToggle" class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
                     <i class="fas fa-bars" aria-hidden="true"></i>
@@ -39,11 +43,12 @@
         <main class="main-content" id="main-content">
             <header class="header">
                 <h1>Image Validation Using Logo Detection</h1>
-                <p class="subtitle">Enterprise-Grade Logo Detection System by Symphony Limited</p>
+                <p class="subtitle">Enterprise-Grade Fault-Tolerant Logo Detection System by Symphony Limited</p>
                 <div class="search-box">
                     <input type="text" placeholder="Search the documentation..." aria-label="Search documentation">
                     <i class="fas fa-search" aria-hidden="true"></i>
-                    <button class="search-clear" title="Clear search" style="display: none;"><i class="fas fa-times"></i></button>
+                    <button class="search-clear" title="Clear search" style="display: none;"><i
+                            class="fas fa-times"></i></button>
                 </div>
             </header>
 
@@ -51,17 +56,29 @@
             <section id="overview" class="content-section">
                 <h2>Overview</h2>
                 <div class="card overview">
-                    <p><strong>Symphony Logo Detection</strong> is an enterprise-grade API and batch processing system for validating images using advanced YOLO models. The latest version introduces:</p>
+                    <p><strong>Symphony Logo Detection</strong> is an enterprise-grade API and batch processing system
+                        for validating images using advanced YOLO models. Key features include:</p>
                     <ul>
-                        <li><span class="feature-badge admin-feature">Admin Authentication</span> for secure dashboard access</li>
-                        <li><span class="feature-badge env-feature">Environment-based Configuration</span> via <code>.env</code> file</li>
-                        <li><span class="feature-badge log-feature">Improved Logging</span> with rotation and error tracking</li>
-                        <li><span class="feature-badge security-feature">Security</span> with session, CSRF, and CORS protection</li>
-                        <li><span class="feature-badge yolo-feature">YOLO Microservice</span> URL is now configurable</li>
-                        <li><span class="feature-badge cleanup-feature">Smart Cleanup</span> with pending batch protection</li>
+                        <li><span class="feature-badge admin-feature">Admin Authentication</span> for secure dashboard
+                            access</li>
+                        <li><span class="feature-badge env-feature">Environment-based Configuration</span> via
+                            <code>.env</code> file</li>
+                        <li><span class="feature-badge log-feature">Improved Logging</span> with rotation and error
+                            tracking</li>
+                        <li><span class="feature-badge security-feature">Security</span> with session, CSRF, and CORS
+                            protection</li>
+                        <li><span class="feature-badge yolo-feature">YOLO Microservice</span> with configurable URL</li>
+                        <li><span class="feature-badge cleanup-feature">Smart Cleanup</span> with pending batch
+                            protection</li>
                         <li><span class="feature-badge ratelimit-feature">Rate Limiting</span> to prevent abuse</li>
-                        <li><span class="feature-badge fault-tolerance">Fault-Tolerant Processing</span> with automatic recovery</li>
-                        <li><span class="feature-badge file-storage">File-Based Batch Processing</span> with disk persistence</li>
+                        <li><span class="feature-badge fault-tolerance">Fault-Tolerant Processing</span> with automatic
+                            recovery</li>
+                        <li><span class="feature-badge file-storage">File-Based Batch Processing</span> with disk
+                            persistence</li>
+                        <li><span class="feature-badge websocket-reconnect">WebSocket Auto-Reconnection</span> with
+                            exponential backoff</li>
+                        <li><span class="feature-badge parallel-processing">Parallel Chunk Processing</span> with server-side
+                            optimization</li>
                     </ul>
                 </div>
             </section>
@@ -79,7 +96,8 @@ ADMIN_PASSWORD=your_secure_password
 SMTP_SERVER=...
 YOLO_SERVICE_URL=http://localhost:8001
 ...</code></pre>
-                            <button class="copy-btn" data-copy-target=".env-example"><i class="fas fa-copy"></i> Copy .env Example</button>
+                            <button class="copy-btn" data-copy-target=".env-example"><i class="fas fa-copy"></i> Copy
+                                .env Example</button>
                         </li>
                         <li><strong>Start the backend and frontend servers.</strong></li>
                         <li><strong>Access the admin dashboard</strong> for monitoring and batch management.</li>
@@ -104,30 +122,34 @@ YOLO_SERVICE_URL=http://localhost:8001
                 <div class="card feature-card">
                     <ul>
                         <li><strong>Admin Dashboard:</strong> Secure login, session management, and batch history</li>
-                        <li><strong>Configurable via .env:</strong> Easily set SMTP, YOLO service, and security settings</li>
-                        <li><strong>Rate Limiting & CORS:</strong> Prevents abuse and allows safe frontend integration</li>
+                        <li><strong>Configurable via .env:</strong> Easily set SMTP, YOLO service, and security settings
+                        </li>
+                        <li><strong>Rate Limiting & CORS:</strong> Prevents abuse and allows safe frontend integration
+                        </li>
                         <li><strong>Smart Cleanup:</strong> Preserves pending batches while cleaning old data</li>
                         <li><strong>Detailed Logging:</strong> Rotating logs for all requests and errors</li>
                         <li><strong>Fault-Tolerant Processing:</strong> Automatic recovery from server restarts</li>
                         <li><strong>File-Based Batches:</strong> Persistent storage for reliable batch processing</li>
                     </ul>
                 </div>
-                
+
                 <!-- System Architecture Diagram -->
                 <div class="card diagram-card">
                     <h3>System Architecture Overview</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
                         <object data="images/svg/system_overview.svg" type="image/svg+xml" class="responsive-svg">
                             <img src="images/svg/system_overview.svg" alt="System Architecture" class="fallback-img">
                         </object>
                     </div>
                 </div>
-                
+
                 <!-- Multi-Model Detection -->
                 <div class="card feature-card">
                     <h3><i class="fas fa-brain"></i> Cascading Model Architecture</h3>
@@ -311,15 +333,17 @@ YOLO_SERVICE_URL=http://localhost:8001
             <!-- Detection Models Section -->
             <section id="models" class="content-section">
                 <h2>Detection Models</h2>
-                
+
                 <!-- Image Processing Pipeline Diagram -->
                 <div class="card diagram-card">
                     <h3>Image Processing Pipeline</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
                         <object data="images/svg/model_architecture.svg" type="image/svg+xml" class="responsive-svg">
                             <img src="images/svg/model_architecture.svg" alt="Model Architecture" class="fallback-img">
@@ -399,7 +423,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <div class="limit">
                             <i class="fas fa-plug"></i>
                             <h4>WebSocket</h4>
-                            <p>Real-time updates</p>
+                            <p>Real-time updates with auto-reconnect</p>
                         </div>
                     </div>
                     <div class="limit-info">
@@ -416,18 +440,22 @@ YOLO_SERVICE_URL=http://localhost:8001
             <!-- Single Image Detection Section -->
             <section id="single-image" class="content-section">
                 <h2>Single Image Detection</h2>
-                
+
                 <!-- File Processing Workflow Diagram -->
                 <div class="card diagram-card">
                     <h3>File Processing Workflow</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
-                        <object data="images/svg/detailed_processing_pipeline.svg" type="image/svg+xml" class="responsive-svg">
-                            <img src="images/svg/detailed_processing_pipeline.svg" alt="Processing Pipeline" class="fallback-img">
+                        <object data="images/svg/detailed_processing_pipeline.svg" type="image/svg+xml"
+                            class="responsive-svg">
+                            <img src="images/svg/detailed_processing_pipeline.svg" alt="Processing Pipeline"
+                                class="fallback-img">
                         </object>
                     </div>
                 </div>
@@ -465,18 +493,22 @@ YOLO_SERVICE_URL=http://localhost:8001
             <!-- Batch Processing Section -->
             <section id="batch-processing" class="content-section">
                 <h2>Batch Processing</h2>
-                
+
                 <!-- Batch Processing Diagram -->
                 <div class="card diagram-card">
                     <h3>Batch Processing Flow</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
-                        <object data="images/svg/batch_processing_sequence.svg" type="image/svg+xml" class="responsive-svg">
-                            <img src="images/svg/batch_processing_sequence.svg" alt="Batch Processing Flow" class="fallback-img">
+                        <object data="images/svg/batch_processing_sequence.svg" type="image/svg+xml"
+                            class="responsive-svg">
+                            <img src="images/svg/batch_processing_sequence.svg" alt="Batch Processing Flow"
+                                class="fallback-img">
                         </object>
                     </div>
                 </div>
@@ -496,26 +528,32 @@ YOLO_SERVICE_URL=http://localhost:8001
                             <p>Store uploaded files to disk with metadata</p>
                         </div>
                         <div class="step">
-                            <i class="fas fa-brain step-icon"></i>
+                            <i class="fas fa-layer-group step-icon"></i>
                             <span class="step-number">3</span>
+                            <h4>Chunk</h4>
+                            <p>Server-side division into manageable chunks</p>
+                        </div>
+                        <div class="step">
+                            <i class="fas fa-brain step-icon"></i>
+                            <span class="step-number">4</span>
                             <h4>Process</h4>
-                            <p>Run detection pipeline with recovery support</p>
+                            <p>Parallel detection with progress tracking</p>
                         </div>
                         <div class="step">
                             <i class="fas fa-shield-alt step-icon"></i>
-                            <span class="step-number">4</span>
+                            <span class="step-number">5</span>
                             <h4>Recovery</h4>
                             <p>Automatic resume if interrupted</p>
                         </div>
                         <div class="step">
                             <i class="fas fa-download step-icon"></i>
-                            <span class="step-number">5</span>
+                            <span class="step-number">6</span>
                             <h4>Export</h4>
                             <p>Download CSV results</p>
                         </div>
                         <div class="step">
                             <i class="fas fa-broom step-icon"></i>
-                            <span class="step-number">6</span>
+                            <span class="step-number">7</span>
                             <h4>Cleanup</h4>
                             <p>Smart cleanup with pending batch protection</p>
                         </div>
@@ -528,15 +566,18 @@ YOLO_SERVICE_URL=http://localhost:8001
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
                         <object data="images/svg/csv_export_lifecycle.svg" type="image/svg+xml" class="responsive-svg">
-                            <img src="images/svg/csv_export_lifecycle.svg" alt="CSV Export Process" class="fallback-img">
+                            <img src="images/svg/csv_export_lifecycle.svg" alt="CSV Export Process"
+                                class="fallback-img">
                         </object>
                     </div>
                 </div>
-                
+
                 <div class="card batch-tips">
                     <h3>CSV Export Details</h3>
                     <ul>
@@ -595,10 +636,12 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <div class="cleanup-info">
                             <h4>Protection Strategy</h4>
                             <ul>
-                                <li><strong>Immediate Protection:</strong> Pending batches are preserved during regular cleanup</li>
+                                <li><strong>Immediate Protection:</strong> Pending batches are preserved during regular
+                                    cleanup</li>
                                 <li><strong>Recovery Window:</strong> 3-day grace period for interrupted batches</li>
                                 <li><strong>Automatic Recovery:</strong> System resumes processing on startup</li>
-                                <li><strong>Smart Cleanup:</strong> Separate cleanup functions for different batch states</li>
+                                <li><strong>Smart Cleanup:</strong> Separate cleanup functions for different batch
+                                    states</li>
                             </ul>
                         </div>
                     </div>
@@ -608,30 +651,34 @@ YOLO_SERVICE_URL=http://localhost:8001
             <!-- API Integration Section -->
             <section id="api-integration" class="content-section">
                 <h2>API Integration</h2>
-                
+
                 <!-- API Security Flow Diagram -->
                 <div class="card diagram-card">
                     <h3>API Security & Authentication Flow</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
                         <object data="images/svg/api_security_flow.svg" type="image/svg+xml" class="responsive-svg">
                             <img src="images/svg/api_security_flow.svg" alt="API Security Flow" class="fallback-img">
                         </object>
                     </div>
                 </div>
-                
+
                 <!-- Frontend API Integration Diagram -->
                 <div class="card diagram-card">
                     <h3>Frontend API Integration</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
                         <object data="images/svg/state_management.svg" type="image/svg+xml" class="responsive-svg">
                             <img src="images/svg/state_management.svg" alt="State Management" class="fallback-img">
@@ -640,7 +687,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                 </div>
                 <div class="card api-overview">
                     <h3>Key Endpoints</h3>
-                    
+
                     <!-- Single Image Detection -->
                     <div class="api-endpoint">
                         <div class="endpoint-header">
@@ -650,7 +697,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <div class="endpoint-content">
                             <h4>Single Image Detection</h4>
                             <p>Detect Symphony logo in a single image file or URL.</p>
-                            
+
                             <h5>Request Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">Request</div>
@@ -658,7 +705,7 @@ YOLO_SERVICE_URL=http://localhost:8001
   -H "Content-Type: multipart/form-data" \
   -F "file=@image.jpg"</code></pre>
                             </div>
-                            
+
                             <h5>Response Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">Response</div>
@@ -672,7 +719,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Batch Processing -->
                     <div class="api-endpoint">
                         <div class="endpoint-header">
@@ -682,7 +729,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <div class="endpoint-content">
                             <h4>Start Batch Session</h4>
                             <p>Initialize a new batch processing session.</p>
-                            
+
                             <h5>Response Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">Response</div>
@@ -694,7 +741,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Batch Image Detection -->
                     <div class="api-endpoint">
                         <div class="endpoint-header">
@@ -704,7 +751,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <div class="endpoint-content">
                             <h4>Batch Image Detection</h4>
                             <p>Process multiple images in a batch session.</p>
-                            
+
                             <h5>Request Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">Request</div>
@@ -715,7 +762,7 @@ YOLO_SERVICE_URL=http://localhost:8001
   -F "files=@image2.png" \
   -F "files=@image3.jpg"</code></pre>
                             </div>
-                            
+
                             <h5>Response Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">Response</div>
@@ -729,7 +776,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- CSV Export -->
                     <div class="api-endpoint">
                         <div class="endpoint-header">
@@ -739,7 +786,7 @@ YOLO_SERVICE_URL=http://localhost:8001
                         <div class="endpoint-content">
                             <h4>CSV Export</h4>
                             <p>Download batch results as CSV file.</p>
-                            
+
                             <h5>Request Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">Request</div>
@@ -747,7 +794,7 @@ YOLO_SERVICE_URL=http://localhost:8001
   -H "Accept: text/csv" \
   -o results.csv</code></pre>
                             </div>
-                            
+
                             <h5>CSV Format:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">CSV Output</div>
@@ -758,7 +805,7 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- WebSocket -->
                     <div class="api-endpoint">
                         <div class="endpoint-header">
@@ -768,7 +815,7 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
                         <div class="endpoint-content">
                             <h4>WebSocket Updates</h4>
                             <p>Real-time batch processing progress updates.</p>
-                            
+
                             <h5>Message Example:</h5>
                             <div class="code-block">
                                 <div class="code-block-label">WebSocket Message</div>
@@ -789,22 +836,26 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
             <!-- Troubleshooting Section -->
             <section id="troubleshooting" class="content-section">
                 <h2>Troubleshooting</h2>
-                
+
                 <!-- Error Handling Diagram -->
                 <div class="card diagram-card">
                     <h3>Error Handling & Monitoring</h3>
                     <div class="svg-container">
                         <div class="zoom-controls">
                             <button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-search-plus"></i></button>
-                            <button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
-                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                            <button class="zoom-btn zoom-out" title="Zoom Out"><i
+                                    class="fas fa-search-minus"></i></button>
+                            <button class="zoom-btn zoom-reset" title="Reset Zoom"><i
+                                    class="fas fa-expand-arrows-alt"></i></button>
                         </div>
-                        <object data="images/svg/error_handling_monitoring.svg" type="image/svg+xml" class="responsive-svg">
-                            <img src="images/svg/error_handling_monitoring.svg" alt="Error Handling & Monitoring" class="fallback-img">
+                        <object data="images/svg/error_handling_monitoring.svg" type="image/svg+xml"
+                            class="responsive-svg">
+                            <img src="images/svg/error_handling_monitoring.svg" alt="Error Handling & Monitoring"
+                                class="fallback-img">
                         </object>
                     </div>
                 </div>
-                
+
                 <!-- Rate Limit Issues -->
                 <div class="card error-card">
                     <h3><i class="fas fa-tachometer-alt"></i> Rate Limit Issues</h3>
@@ -842,7 +893,7 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
                         <div class="error-details">
                             <h4>Common Causes:</h4>
                             <ul>
-                                <li>Unsupported file type (only JPG, JPEG, PNG allowed)</li>
+                                <li>Unsupported file type (only JPG, JPEG, PNG, WEBP, BMP allowed)</li>
                                 <li>File size exceeds limit (10MB per file)</li>
                                 <li>Corrupted image file</li>
                                 <li>Empty file upload</li>
@@ -920,16 +971,41 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
                     <div class="recovery-features">
                         <h4>How Recovery Works</h4>
                         <ul>
-                            <li><strong>Startup Scan:</strong> System automatically detects pending batches on startup</li>
-                            <li><strong>File Persistence:</strong> Uploaded files are saved to disk before processing</li>
-                            <li><strong>State Tracking:</strong> Progress is tracked in pending_files.json and pending_urls.json</li>
-                            <li><strong>Resume Processing:</strong> Interrupted batches resume from last saved state</li>
-                            <li><strong>Clean Completion:</strong> All temporary files are cleaned up after completion</li>
+                            <li><strong>Startup Scan:</strong> System automatically detects pending batches on startup
+                            </li>
+                            <li><strong>File Persistence:</strong> Uploaded files are saved to disk before processing
+                            </li>
+                            <li><strong>State Tracking:</strong> Progress is tracked in pending_files.json and
+                                pending_urls.json</li>
+                            <li><strong>Resume Processing:</strong> Interrupted batches resume from last saved state
+                            </li>
+                            <li><strong>Clean Completion:</strong> All temporary files are cleaned up after completion
+                            </li>
                         </ul>
                         <div class="recovery-note">
                             <i class="fas fa-info-circle"></i>
-                            <p><strong>Note:</strong> The system now provides 100% reliability for batch processing. Server restarts, crashes, or network interruptions no longer cause data loss.</p>
+                            <p><strong>Note:</strong> The system provides 100% reliability for batch processing.
+                                Server restarts, crashes, or network interruptions no longer cause data loss.</p>
                         </div>
+                    </div>
+                </div>
+
+                <!-- WebSocket Reconnection -->
+                <div class="card feature-card">
+                    <h3><i class="fas fa-wifi"></i> Robust WebSocket Connection</h3>
+                    <div class="feature-content">
+                        <ul>
+                            <li>
+                                <strong>Connection Resilience:</strong>
+                                <ul>
+                                    <li>Exponential backoff retry mechanism (1s to 16s)</li>
+                                    <li>Limited reconnection attempts to prevent resource exhaustion</li>
+                                    <li>Visual feedback during reconnection attempts</li>
+                                    <li>Proper cleanup of WebSocket resources</li>
+                                    <li>Heartbeat mechanism to detect stale connections</li>
+                                </ul>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
@@ -977,12 +1053,13 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
             </section>
         </main>
     </div>
-    
+
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
             <div class="footer-brand">
-                <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972" alt="Symphony Logo" class="footer-logo">
+                <img src="https://shop.symphonylimited.com/cdn/shop/files/logo-new-header.png?v=1704892972"
+                    alt="Symphony Logo" class="footer-logo">
                 <p>&copy; 2024 Symphony Limited. All rights reserved.</p>
             </div>
             <div class="footer-links">
@@ -992,10 +1069,12 @@ image3.jpg,true,0.92,yolov8s_logo_detection2,"[95,30,255,165]",0.267</code></pre
             </div>
         </div>
     </footer>
-    
+
     <!-- Back to Top Button -->
-    <button id="backToTop" class="back-to-top" title="Back to Top" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
-    
+    <button id="backToTop" class="back-to-top" title="Back to Top" aria-label="Back to top"><i
+            class="fas fa-arrow-up"></i></button>
+
     <script src="js/main.js"></script>
 </body>
-</html> 
+
+</html>
