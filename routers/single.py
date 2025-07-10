@@ -1,3 +1,28 @@
+"""
+Single Image Logo Detection Router
+
+This module provides REST API endpoints for detecting logos in single images through various input methods:
+- File uploads (JPG, PNG, WEBP, BMP)
+- Image URLs
+- JSON payload with image URLs
+
+The router implements rate limiting to prevent abuse and provides detailed error handling
+with appropriate HTTP status codes.
+
+Routes:
+    POST /api/check-logo/single/ - Process uploaded file or image path
+    POST /api/check-logo/single/url - Process image from URL in JSON payload
+
+Dependencies:
+    - FastAPI for routing
+    - YOLO client service for logo detection
+    - Validation utilities for image verification
+    - Rate limiting for API protection
+
+Author: Symphony AI Team
+Version: 1.0.0
+"""
+
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from starlette.requests import Request
 from models.logo_check import LogoCheckResult, SingleImageUrlRequest

@@ -1,3 +1,25 @@
+"""
+YOLO Logo Detection Service API
+
+This module implements a FastAPI application providing logo detection services using YOLO models.
+It offers endpoints for processing both uploaded files and image URLs, returning standardized
+detection results with confidence scores and bounding boxes.
+
+Features:
+    - Logo detection from uploaded image files
+    - Logo detection from image URLs or paths
+    - Health monitoring endpoint
+    - Standardized response format
+
+Dependencies:
+    - FastAPI for API framework
+    - Pydantic for request/response modeling
+    - detect_logo for YOLO model integration
+
+Author: Symphony AI Team
+Version: 1.0.0
+"""
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -35,8 +57,8 @@ class DetectionResponse(BaseModel):
 
     Attributes:
         Image_Path_or_URL (str): Path or URL of the processed image
-        Is_Valid (str): Whether a valid logo was detected
-        Confidence (float, optional): Confidence score of the detection
+        Is_Valid (str): Whether a valid logo was detected ('Valid' or 'Invalid')
+        Confidence (float, optional): Confidence score of the detection (0-1)
         Detected_By (str, optional): Model/method used for detection
         Bounding_Box (dict, optional): Coordinates of detected logo
         Error (str, optional): Error message if detection failed
@@ -56,17 +78,27 @@ async def detect_logo_endpoint(
 ):
     """
     Endpoint for logo detection in images.
-    Accepts either an uploaded file or an image path.
+
+    This endpoint accepts either an uploaded file or an image path/URL and processes
+    the image using YOLO models to detect Symphony logos. It handles file uploads with
+    proper temporary file management and supports remote image URLs.
 
     Args:
         file (UploadFile, optional): Uploaded image file
-        image_path (str, optional): Path to image file
+        image_path (str, optional): URL or path to image file
 
     Returns:
-        DetectionResponse: Results of logo detection
+        DetectionResponse: Results of logo detection including:
+            - Image path/URL
+            - Validation result
+            - Confidence score (if detected)
+            - Detection model used
+            - Bounding box coordinates (if detected)
 
     Raises:
-        HTTPException: If neither file nor image_path is provided
+        HTTPException:
+            - 400 if neither file nor image_path is provided or if they are invalid
+            - 500 if a server-side error occurs during processing
     """
     if file:
         # Create temporary file to store uploaded image
@@ -83,11 +115,11 @@ async def detect_logo_endpoint(
             result["Image_Path_or_URL"] = file.filename
             return DetectionResponse(**result)
         finally:
-            # Clean up temporary file
+            # Clean up temporary file to prevent storage leaks
             os.unlink(tmp_path)
 
     elif image_path:
-        # Process image from provided path
+        # Process image from provided path or URL
         if not image_path.strip():
             raise HTTPException(status_code=400, detail="image_path is empty.")
         result = check_logo(image_path)
@@ -108,6 +140,9 @@ async def detect_logo_endpoint(
 async def health_check():
     """
     Simple health check endpoint to verify service status.
+
+    This endpoint is useful for monitoring and health checks in containerized environments
+    and orchestration systems like Kubernetes.
 
     Returns:
         dict: Status message indicating service health
