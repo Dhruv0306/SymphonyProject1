@@ -18,9 +18,40 @@ export const useBatchUpload = (clientId) => {
   const processStartTimeRef = useRef(null);
   const batchRunningRef = useRef(false);
   const wsManagerRef = useRef(null);
+  const handlersRef = useRef({});
 
   // Time formatting utility
   const formatTime = useCallback(utilFormatTime, []);
+  // Enhanced state setters using reducer
+  const setUploadStatuses = useCallback((statusOrUpdater) => {
+    if (typeof statusOrUpdater === 'function') {
+      // Handle function updates
+      const currentStatuses = uploadState.uploadStatuses;
+      const newStatuses = statusOrUpdater(currentStatuses);
+      Object.entries(newStatuses).forEach(([key, status]) => {
+        if (currentStatuses[key] !== status) {
+          dispatch({ type: UPLOAD_ACTIONS.SET_UPLOAD_STATUS, payload: { key, status } });
+        }
+      });
+    } else {
+      // Handle direct object updates
+      Object.entries(statusOrUpdater).forEach(([key, status]) => {
+        dispatch({ type: UPLOAD_ACTIONS.SET_UPLOAD_STATUS, payload: { key, status } });
+      });
+    }
+  }, [uploadState.uploadStatuses]);
+
+  const setError = useCallback((error) => {
+    dispatch({ type: UPLOAD_ACTIONS.SET_ERROR, payload: error });
+  }, []);
+
+  const setResults = useCallback((results) => {
+    dispatch({ type: UPLOAD_ACTIONS.SET_RESULTS, payload: results });
+  }, []);
+
+  // Update handlers ref
+  handlersRef.current.setUploadStatuses = setUploadStatuses;
+  handlersRef.current.setError = setError;
 
   // WebSocket message handler
   const handleWebSocketMessage = useCallback((data) => {
@@ -44,9 +75,9 @@ export const useBatchUpload = (clientId) => {
 
       const currentFile = data.current_file || decodeUrl(data.current_url) || '';
       if (data.current_status === "Valid") {
-        setUploadStatuses((prev) => ({ ...prev, [currentFile]: "valid" }));
+        handlersRef.current.setUploadStatuses((prev) => ({ ...prev, [currentFile]: "valid" }));
       } else {
-        setUploadStatuses((prev) => ({ ...prev, [currentFile]: "invalid" }));
+        handlersRef.current.setUploadStatuses((prev) => ({ ...prev, [currentFile]: "invalid" }));
       }
     } else if (data.event === 'retry_start') {
       setProgress({
@@ -75,7 +106,7 @@ export const useBatchUpload = (clientId) => {
   const handleWebSocketError = useCallback((error) => {
     if (batchRunningRef.current) {
       setIsReconnecting(true);
-      setError('Lost connection to server. Attempting to reconnect...');
+      handlersRef.current.setError('Lost connection to server. Attempting to reconnect...');
     }
   }, []);
 
@@ -119,7 +150,7 @@ export const useBatchUpload = (clientId) => {
       setError(error.response?.data?.detail || 'Error starting batch process');
       return null;
     }
-  }, [clientId]);
+  }, [clientId, setError]);
 
   // Initialize batch tracking
   const initializeBatch = useCallback(async (batchId, total) => {
@@ -150,7 +181,7 @@ export const useBatchUpload = (clientId) => {
         console.error('Error completing batch:', error);
       }
     }
-  }, [batchRunning]);
+  }, [batchRunning, setResults]);
 
   // Start processing
   const startProcessing = useCallback(() => {
@@ -168,33 +199,6 @@ export const useBatchUpload = (clientId) => {
     batchRunningRef.current = false;
     setIsReconnecting(false);
     dispatch({ type: UPLOAD_ACTIONS.RESET_STATE });
-  }, []);
-
-  // Enhanced state setters using reducer
-  const setUploadStatuses = useCallback((statusOrUpdater) => {
-    if (typeof statusOrUpdater === 'function') {
-      // Handle function updates
-      const currentStatuses = uploadState.uploadStatuses;
-      const newStatuses = statusOrUpdater(currentStatuses);
-      Object.entries(newStatuses).forEach(([key, status]) => {
-        if (currentStatuses[key] !== status) {
-          dispatch({ type: UPLOAD_ACTIONS.SET_UPLOAD_STATUS, payload: { key, status } });
-        }
-      });
-    } else {
-      // Handle direct object updates
-      Object.entries(statusOrUpdater).forEach(([key, status]) => {
-        dispatch({ type: UPLOAD_ACTIONS.SET_UPLOAD_STATUS, payload: { key, status } });
-      });
-    }
-  }, [uploadState.uploadStatuses]);
-
-  const setError = useCallback((error) => {
-    dispatch({ type: UPLOAD_ACTIONS.SET_ERROR, payload: error });
-  }, []);
-
-  const setResults = useCallback((results) => {
-    dispatch({ type: UPLOAD_ACTIONS.SET_RESULTS, payload: results });
   }, []);
 
   return {
