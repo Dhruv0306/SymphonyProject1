@@ -5,7 +5,7 @@
     --text-color: #333333;         /* Symphony Gray */
     --light-text: #666666;         /* Secondary text color */
     --background-color: #FFFFFF;    /* White background */
-    --sidebar-width: 230px;
+    --sidebar-width: 15vw; /* Sidebar width */
     --header-height: 80px;
     --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     --success-color: #28A745;
@@ -162,7 +162,7 @@ body {
 
 /* Content Section Styles */
 .content-section {
-    max-width: 1000px;
+    max-width: 100%;
 }
 
 .card {
@@ -704,8 +704,8 @@ ul, ol {
     width: 100%;
     height: auto;
     max-width: 100%;
-    min-height: 300px;
-    max-height: 600px;
+    min-height: 60vh;
+    max-height: 75vh;
     transition: transform 0.2s ease;
     transform-origin: center center;
     user-select: none;
