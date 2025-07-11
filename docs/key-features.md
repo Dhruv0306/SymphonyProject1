@@ -26,7 +26,7 @@ The system leverages a cascade of 6 specialized YOLO models for maximum accuracy
 ### Real-Time Image Processing
 
 - Single image validation via file upload or URL
-- Batch processing with unique session tracking (1-999+ images)
+- Batch processing with unique session tracking (1-100 images)
 - Smart Zip Processing: Automatic zip file creation for batches >300 images
 - Batch uploads sent in a single request (or zipped if large); all chunking and retry logic is handled server-side
 - Real-time progress and per-file status delivered via WebSocket

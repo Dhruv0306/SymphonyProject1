@@ -83,7 +83,7 @@ Integrate with content workflows for immediate logo validation:
 2. **Batch Processing Optimization**:
    - For very large batches (>300 files), use ZIP files
    - Provide an email for notification on large batches
-   - Use the chunk size selector to optimize for your network conditions
+   - Use the chunk size selector to adjust batch size (1-100 images) based on your network conditions
 
 3. **Performance Considerations**:
    - The system processes images sequentially through multiple models

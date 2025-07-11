@@ -91,6 +91,7 @@ Symphony's batch processing system provides enterprise-grade reliability:
 - 🔁 **Automatic Recovery**: Server-side retry mechanism for failed requests
 - 📊 **Progress Tracking**: Real-time WebSocket updates with accurate ETA
 - 🧹 **Resource Management**: Automatic cleanup with configurable retention periods
+- 🛠️ **Configurable Batch Size**: Adjustable processing batch size from 1-100 images
 
 📄 **[Learn about batch processing workflows →](docs/batch-processing.md)**
 
