@@ -4,9 +4,9 @@ graph TD
         style A fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A["React Frontend\nPort 3000"] -->|"Render Components"| A1["FileUploader, BatchProcessingForm, ProgressBar, EmailInput\nMaterial-UI 7.1.0\nJSZip for zip >300 files"]
-        A -->|"Admin Access"| A2["Admin Dashboard, BatchHistory, Dashboard\nAuthentication required"]
-        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py\nPort 8000"]
+        A["React Frontend<br>Port 3000"] -->|"Render Components"| A1["FileUploader, BatchProcessingForm, ProgressBar, EmailInput<br>Material-UI 7.1.0<br>JSZip for zip >300 files"]
+        A -->|"Admin Access"| A2["Admin Dashboard, BatchHistory, Dashboard<br>Authentication required"]
+        A1 -->|"API Calls + WebSocket"| B["FastAPI App.py<br>Port 8000"]
         A2 -->|"Auth Requests"| B
     end
 
@@ -19,23 +19,23 @@ graph TD
         style C5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C6 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style C7 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Route Single Images"| C1["routers/single.py\nPOST /api/check-logo/single"]
-        B -->|"Route Batch Requests"| C2["routers/batch.py\nPOST /api/start-batch\nPOST /api/init-batch\nPOST /api/check-logo/batch/"]
-        B -->|"Route CSV Exports"| C3["routers/export.py\nGET /api/check-logo/batch/export-csv/{id}"]
-        B -->|"Route Admin Auth"| C4["routers/admin_auth.py\nPOST /api/admin/login"]
-        B -->|"Route WebSocket"| C5["routers/websocket.py\nWS /ws/{client_id}"]
-        B -->|"Route Dashboard"| C6["routers/dashboard_stats.py\nGET /api/admin/dashboard"]
-        B -->|"Route Batch History"| C7["routers/batch_history.py\nGET /api/admin/batch-history"]
+        B -->|"Route Single Images"| C1["routers/single.py<br>POST /api/check-logo/single"]
+        B -->|"Route Batch Requests"| C2["routers/batch.py<br>POST /api/start-batch<br>POST /api/init-batch<br>POST /api/check-logo/batch/"]
+        B -->|"Route CSV Exports"| C3["routers/export.py<br>GET /api/check-logo/batch/export-csv/{id}"]
+        B -->|"Route Admin Auth"| C4["routers/admin_auth.py<br>POST /api/admin/login"]
+        B -->|"Route WebSocket"| C5["routers/websocket.py<br>WS /ws/{client_id}"]
+        B -->|"Route Dashboard"| C6["routers/dashboard_stats.py<br>GET /api/admin/dashboard"]
+        B -->|"Route Batch History"| C7["routers/batch_history.py<br>GET /api/admin/batch-history"]
     end
 
     subgraph "Microservice Detection Engine"
         style D fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style E fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Call check_logo()"| D["detect_logo.py\nSequential model cascade\nConfidence threshold 0.35\nImage enhancement"]
+        C1 -->|"Call check_logo()"| D["detect_logo.py<br>Sequential model cascade<br>Confidence threshold 0.35<br>Image enhancement"]
         C2 -->|"Call check_logo()"| D
-        D -->|"Via services/yolo_client.py\n(Retry logic)"| D2["yolo_service/\nmain.py + start.py\n(port 8001)"]
-        D2 -->|"Load YOLO Models"| E["runs/detect/yolov8s_logo_detection, yolov8s_logo_detection2, yolov8s_logo_detection3, yolov11s_logo_detection, yolov11s3_logo_detection\nweights/best.pt"]
+        D -->|"Via services/yolo_client.py<br>(Retry logic)"| D2["yolo_service/<br>main.py + start.py<br>(port 8001)"]
+        D2 -->|"Load YOLO Models"| E["runs/detect/yolov8s_logo_detection, yolov8s_logo_detection2, yolov8s_logo_detection3, yolov11s_logo_detection, yolov11s3_logo_detection<br>weights/best.pt"]
     end
 
     subgraph "Utility Services (utils/)"
@@ -47,14 +47,14 @@ graph TD
         style F6 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F7 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style F8 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B -->|"Track Batch State"| F1["utils/batch_tracker.py\nServer-side retry logic\nJSON state management\n24h retention"]
-        B -->|"Manage WebSocket"| F2["utils/ws_manager.py\nReal-time progress updates\nClient connections"]
-        B -->|"Schedule Cleanup"| F3["utils/cleanup.py\nAPScheduler tasks\nResource management"]
-        B -->|"Apply Security"| F4["utils/security.py\nCORS, rate limiting, CSRF\nSlowAPI integration"]
-        B -->|"Async Tasks"| F5["utils/background_tasks.py\nServer-side chunking\nAsync batch processing"]
-        B -->|"Logging"| F6["utils/logger.py\nStructured logging\n10MB rotation"]
-        B -->|"File Ops"| F7["utils/file_ops.py\nFile validation, temp storage"]
-        B -->|"Email"| F8["utils/emailer.py\nBatch completion notifications"]
+        B -->|"Track Batch State"| F1["utils/batch_tracker.py<br>Server-side retry logic<br>JSON state management<br>24h retention"]
+        B -->|"Manage WebSocket"| F2["utils/ws_manager.py<br>Real-time progress updates<br>Client connections"]
+        B -->|"Schedule Cleanup"| F3["utils/cleanup.py<br>APScheduler tasks<br>Resource management"]
+        B -->|"Apply Security"| F4["utils/security.py<br>CORS, rate limiting, CSRF<br>SlowAPI integration"]
+        B -->|"Async Tasks"| F5["utils/background_tasks.py<br>Server-side chunking<br>Async batch processing"]
+        B -->|"Logging"| F6["utils/logger.py<br>Structured logging<br>10MB rotation"]
+        B -->|"File Ops"| F7["utils/file_ops.py<br>File validation, temp storage"]
+        B -->|"Email"| F8["utils/emailer.py<br>Batch completion notifications"]
     end
 
     subgraph "Storage & Data"
@@ -63,10 +63,10 @@ graph TD
         style G3 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G4 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style G5 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        F1 -->|"Store Batch Data"| G1["data/\n{batch_id}.json\nState persistence"]
-        F7 -->|"Temp Files"| G2["temp_uploads/\nAuto-cleanup 30min"]
-        F7 -->|"Uploads"| G3["uploads/\nPersistent uploads"]
-        F1 -->|"Exports"| G4["exports/\nCSV export files\n24h retention"]
-        F6 -->|"Logs"| G5["logs/\nApplication logs\n10MB rotation"]
+        F1 -->|"Store Batch Data"| G1["data/<br>{batch_id}.json<br>State persistence"]
+        F7 -->|"Temp Files"| G2["temp_uploads/<br>Auto-cleanup 30min"]
+        F7 -->|"Uploads"| G3["uploads/<br>Persistent uploads"]
+        F1 -->|"Exports"| G4["exports/<br>CSV export files<br>24h retention"]
+        F6 -->|"Logs"| G5["logs/<br>Application logs<br>10MB rotation"]
     end
     

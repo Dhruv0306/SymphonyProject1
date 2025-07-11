@@ -4,8 +4,8 @@ graph TD
         style A1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A2 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
         style A3 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,color:#000000,font-weight:bold
-        A1["Multipart File Upload\nFastAPI UploadFile[]"] -->|"Process Files"| A3["utils/file_ops.py\nFile validation & processing"]
-        A2["Image URL Array\nJSON image_paths[]"] -->|"Validate URL"| A3
+        A1["Multipart File Upload<br>FastAPI UploadFile[]"] -->|"Process Files"| A3["utils/file_ops.py<br>File validation & processing"]
+        A2["Image URL Array<br>JSON image_paths[]"] -->|"Validate URL"| A3
     end
 
     subgraph "Storage Directories"
@@ -14,20 +14,20 @@ graph TD
         style B3 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style B4 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style B5 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        A3 -->|"Save Temp Files"| B1["temp_uploads/\nTemporary processing files\nAuto-cleanup 30min"]
-        A3 -->|"Store Uploads"| B2["uploads/\nPersistent uploaded files\nLong-term storage"]
-        A3 -->|"Generate CSV"| B3["exports/\nCSV export files\nbatch_{id}_results.csv\n24h retention"]
-        A3 -->|"Track Batches"| B4["data/\nBatch state JSON files\n{batch_id}.json\n24h retention"]
-        A3 -->|"Write Logs"| B5["logs/\nApplication logs\n10MB rotation limit"]
+        A3 -->|"Save Temp Files"| B1["temp_uploads/<br>Temporary processing files<br>Auto-cleanup 30min"]
+        A3 -->|"Store Uploads"| B2["uploads/<br>Persistent uploaded files<br>Long-term storage"]
+        A3 -->|"Generate CSV"| B3["exports/<br>CSV export files<br>batch_{id}_results.csv<br>24h retention"]
+        A3 -->|"Track Batches"| B4["data/<br>Batch state JSON files<br>{batch_id}.json<br>24h retention"]
+        A3 -->|"Write Logs"| B5["logs/<br>Application logs<br>10MB rotation limit"]
     end
 
     subgraph "Batch State Management"
         style C1 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style C2 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style C3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        B4 -->|"Manage State"| C1["utils/batch_tracker.py\n- initialize_batch()\n- update_batch_state()\n- validate_batch_exists()\n- server-side retry"]
-        C1 -->|"Save/Load State"| C2["JSON State Files\n- batch_id, client_id\n- total, processed counts\n- results array"]
-        C1 -->|"Test Coverage"| C3["tests/test_batch.py\n- Batch lifecycle tests\n- Status validation\n- Error scenarios"]
+        B4 -->|"Manage State"| C1["utils/batch_tracker.py<br>- initialize_batch()<br>- update_batch_state()<br>- validate_batch_exists()<br>- server-side retry"]
+        C1 -->|"Save/Load State"| C2["JSON State Files<br>- batch_id, client_id<br>- total, processed counts<br>- results array"]
+        C1 -->|"Test Coverage"| C3["tests/test_batch.py<br>- Batch lifecycle tests<br>- Status validation<br>- Error scenarios"]
     end
 
     subgraph "Automated Cleanup (APScheduler)"
@@ -35,10 +35,10 @@ graph TD
         style D2 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D3 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        B1 -->|"Delete Old Files"| D1["cleanup_temp_uploads()\nEvery 30 minutes\nRemove processing artifacts"]
-        B4 -->|"Remove Expired Batches"| D2["cleanup_old_batches()\nEvery 1 hour\n24h retention policy"]
-        B5 -->|"Rotate Large Logs"| D3["Log Rotation\n10MB size limit\nPrevent disk overflow"]
-        D1 -->|"Execute Cleanup"| D4["utils/cleanup.py\nScheduled maintenance\nResource management"]
+        B1 -->|"Delete Old Files"| D1["cleanup_temp_uploads()<br>Every 30 minutes<br>Remove processing artifacts"]
+        B4 -->|"Remove Expired Batches"| D2["cleanup_old_batches()<br>Every 1 hour<br>24h retention policy"]
+        B5 -->|"Rotate Large Logs"| D3["Log Rotation<br>10MB size limit<br>Prevent disk overflow"]
+        D1 -->|"Execute Cleanup"| D4["utils/cleanup.py<br>Scheduled maintenance<br>Resource management"]
         D2 -->|"Execute Cleanup"| D4
         D3 -->|"Execute Cleanup"| D4
     end
@@ -46,6 +46,6 @@ graph TD
     subgraph "WebSocket State Management"
         style E1 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
         style E2 fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        C1 -->|"Connect WebSocket"| E1["utils/ws_manager.py\nReal-time communication\nClient-specific connections"]
-        E1 -->|"Send Progress"| E2["Progress Updates\nBatch processing status\nReal-time feedback"]
+        C1 -->|"Connect WebSocket"| E1["utils/ws_manager.py<br>Real-time communication<br>Client-specific connections"]
+        E1 -->|"Send Progress"| E2["Progress Updates<br>Batch processing status<br>Real-time feedback"]
     end

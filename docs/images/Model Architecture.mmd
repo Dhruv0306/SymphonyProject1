@@ -14,32 +14,32 @@ graph TD
         style D3 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D4 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
         style D5 fill:#e1bee7,stroke:#7b1fa2,stroke-width:2px,color:#000000,font-weight:bold
-        C -->|"model.predict(conf=0.35)"| D1["Model 1: yolov8s_logo_detection\nConfidence ≥ 0.35"]
-        D1 -->|"No Symphony Detected"| D2["Model 2: yolov8s_logo_detection2\nConfidence ≥ 0.35"]
-        D2 -->|"No Symphony Detected"| D3["Model 3: yolov8s_logo_detection3\nConfidence ≥ 0.35"]
-        D3 -->|"No Symphony Detected"| D4["Model 4: yolov11s_logo_detection\nConfidence ≥ 0.35"]
-        D4 -->|"No Symphony Detected"| D5["Model 5: yolov11s3_logo_detection\nConfidence ≥ 0.35"]
+        C -->|"model.predict(conf=0.35)"| D1["Model 1: yolov8s_logo_detection<br>Confidence ≥ 0.35"]
+        D1 -->|"No Symphony Detected"| D2["Model 2: yolov8s_logo_detection2<br>Confidence ≥ 0.35"]
+        D2 -->|"No Symphony Detected"| D3["Model 3: yolov8s_logo_detection3<br>Confidence ≥ 0.35"]
+        D3 -->|"No Symphony Detected"| D4["Model 4: yolov11s_logo_detection<br>Confidence ≥ 0.35"]
+        D4 -->|"No Symphony Detected"| D5["Model 5: yolov11s3_logo_detection<br>Confidence ≥ 0.35"]
     end
 
     subgraph "Early Return Logic"
         style E1 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
         style E2 fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000000,font-weight:bold
-        D1 -->|"Symphony Found (Conf ≥ 0.35)"| E1["Return Valid Result\nStop processing other models"]
+        D1 -->|"Symphony Found (Conf ≥ 0.35)"| E1["Return Valid Result<br>Stop processing other models"]
         D2 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D3 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D4 -->|"Symphony Found (Conf ≥ 0.35)"| E1
         D5 -->|"Symphony Found (Conf ≥ 0.35)"| E1
-        D5 -->|"No Symphony in All Models"| E2["Return Invalid\nAll models failed"]
+        D5 -->|"No Symphony in All Models"| E2["Return Invalid<br>All models failed"]
     end
 
     subgraph "Result Structure"
         style F fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,color:#000000,font-weight:bold
-        E1 -->|"Format JSON Response"| F["JSON Response:\n- Image_Path_or_URL\n- Is_Valid: 'Valid'/'Invalid'\n- Confidence (if valid)\n- Detected_By (model name)\n- Bounding_Box [x1,y1,x2,y2]\n- Error (if processing failed)"]
+        E1 -->|"Format JSON Response"| F["JSON Response:<br>- Image_Path_or_URL<br>- Is_Valid: 'Valid'/'Invalid'<br>- Confidence (if valid)<br>- Detected_By (model name)<br>- Bounding_Box [x1,y1,x2,y2]<br>- Error (if processing failed)"]
         E2 -->|"Format JSON Response"| F
     end
 
     subgraph "Error Handling"
         style G fill:#ffcdd2,stroke:#d32f2f,stroke-width:2px,color:#000000,font-weight:bold
-        A -->|"Invalid file/URL"| G["Error Response\n- Is_Valid: 'Invalid'\n- Error: description\n- No confidence/bounding box"]
+        A -->|"Invalid file/URL"| G["Error Response<br>- Is_Valid: 'Invalid'<br>- Error: description<br>- No confidence/bounding box"]
         G --> F
     end

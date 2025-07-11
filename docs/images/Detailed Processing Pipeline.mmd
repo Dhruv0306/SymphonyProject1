@@ -31,7 +31,7 @@ sequenceDiagram
     rect rgba(30, 90, 50, 0.4)
         Note over C,A: "Phase 3: File Processing"
         C->>A: "POST /api/check-logo/batch/"
-        Note right of C: "FormData: files[] or zip + batch_id\nOR JSON: image_paths[] + batch_id"
+        Note right of C: "FormData: files[] or zip + batch_id<br>OR JSON: image_paths[] + batch_id"
         A->>B: "process_batch_images()"
         alt "Validation Checks"
             B->>T: "validate_batch_exists(batch_id)"
