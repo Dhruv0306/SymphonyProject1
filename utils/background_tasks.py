@@ -297,6 +297,7 @@ async def process_with_chunks(
         metadata["counts"]["total"] = final_stats["total"]
         metadata["status"] = "completed"
         metadata["completed_at"] = time.time()
+        email = metadata.get("email")
 
         with open(metadata_path, "w") as f:
             json.dump(metadata, f)
@@ -328,12 +329,15 @@ async def process_with_chunks(
             clear_pending_files(batch_id)
 
     # Send email after all chunks complete
-    try:
-        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
-        async with httpx.AsyncClient() as client:
-            await client.post(f"{base_url}/api/check-logo/batch/{batch_id}/send-email")
-    except Exception as e:
-        logger.error(f"Failed to send email for batch {batch_id}: {e}")
+    if email:
+        try:
+            base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{base_url}/api/check-logo/batch/{batch_id}/send-email"
+                )
+        except Exception as e:
+            logger.error(f"Failed to send email for batch {batch_id}: {e}")
 
 
 async def process_batch_background(

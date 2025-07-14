@@ -1403,10 +1403,10 @@ const FileUploader = ({ onFilesSelected }) => {
             {isReconnecting && <WsStatusBanner error={error} />}
             {renderResults()}
 
-            <ExportCsvButton 
+            {mode === 'batch' && <ExportCsvButton 
               results={displayResults} 
               onExportCSV={handleExportCSV} 
-            />
+            />}
           </Box>
         </Container>
       </Box>

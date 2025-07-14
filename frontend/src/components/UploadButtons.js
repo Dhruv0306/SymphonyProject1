@@ -7,38 +7,13 @@ import { Box, Button, CircularProgress } from '@mui/material';
 const symphonyBlue = '#0066B3';
 const symphonyDarkBlue = '#005299';
 const symphonyWhite = '#FFFFFF';
-const symphonyLightBlue = '#f0f9ff';
 
-const UploadButtons = ({ 
-  mode, 
-  loading, 
-  onSubmit, 
-  onStartBatch 
-}) => {
+const UploadButtons = ({
+  mode,
+  loading,
+  onSubmit}) => {
   return (
     <>
-      {mode === 'batch' && (
-        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-          <Button
-            variant="outlined"
-            onClick={onStartBatch}
-            sx={{
-              borderColor: symphonyBlue,
-              color: symphonyBlue,
-              '&:hover': {
-                backgroundColor: symphonyLightBlue,
-              },
-              minWidth: '200px',
-              height: '48px',
-              fontSize: '1.1rem',
-              mt: 2
-            }}
-          >
-            Start Batch
-          </Button>
-        </Box>
-      )}
-
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
         <Button
           variant="contained"
@@ -57,11 +32,10 @@ const UploadButtons = ({
           {loading ? (
             <CircularProgress size={28} sx={{ color: symphonyWhite }} />
           ) : (
-            'Process Images'
+            `Process Image${mode === 'batch' ? 's' : ''}`
           )}
         </Button>
-      </Box>
-    </>
+      </Box>    </>
   );
 };
 
