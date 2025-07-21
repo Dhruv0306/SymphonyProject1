@@ -62,6 +62,9 @@ def run_command(cmd, name, cwd=None):
     print(f"{Colors.YELLOW}[{name}] Starting...{Colors.ENDC}")
 
     try:
+        # Determine if we need to use shell=True (for string commands on Windows)
+        use_shell = isinstance(cmd, str) and sys.platform == "win32"
+        
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -70,13 +73,15 @@ def run_command(cmd, name, cwd=None):
             cwd=cwd,
             bufsize=1,
             universal_newlines=True,
+            shell=use_shell
         )
 
         prefix = f"{Colors.BLUE}[{name}]{Colors.ENDC} "
 
         # Print the process output with the service name as prefix
-        for line in process.stdout:
-            print(f"{prefix}{line.rstrip()}")
+        if process.stdout:
+            for line in process.stdout:
+                print(f"{prefix}{line.rstrip()}")
 
         process.wait()
         if process.returncode != 0:
@@ -115,6 +120,11 @@ def start_yolo_service(host, port, venv_path=None):
 
 def start_fastapi_backend(host, port, venv_path=None):
     """Start the FastAPI backend using run.py"""
+    # Set environment variable for YOLO service URL to ensure backend connects to the right YOLO service
+    yolo_port = port + 1
+    os.environ["YOLO_SERVICE_URL"] = f"http://{host}:{yolo_port}"
+    print(f"{Colors.YELLOW}Setting YOLO_SERVICE_URL to http://{host}:{yolo_port}{Colors.ENDC}")
+    
     if venv_path:
         if sys.platform == "win32":
             python_path = os.path.join(venv_path, "Scripts", "python.exe")
@@ -132,23 +142,66 @@ def start_fastapi_backend(host, port, venv_path=None):
     )
 
 
+def check_npm_exists():
+    """Check if npm is installed and available"""
+    try:
+        if sys.platform == "win32":
+            # On Windows, use where command with shell=True
+            result = subprocess.run("where npm", capture_output=True, text=True, shell=True)
+        else:
+            # On Unix-like systems, use which command
+            result = subprocess.run(["which", "npm"], capture_output=True, text=True)
+        
+        return result.returncode == 0
+    except Exception as e:
+        print(f"{Colors.YELLOW}Error checking for npm: {str(e)}{Colors.ENDC}")
+        return False
+
 def install_npm_dependencies():
     """Install npm dependencies for the frontend"""
     frontend_dir = os.path.join(os.getcwd(), "frontend")
+    print(f"{Colors.YELLOW}Frontend DIR: {frontend_dir}{Colors.ENDC}")
+    
+    # Check if frontend directory exists
+    if not os.path.isdir(frontend_dir):
+        print(f"{Colors.RED}Frontend directory not found at {frontend_dir}{Colors.ENDC}")
+        return False
+    
+    # Check if package.json exists
+    if not os.path.exists(os.path.join(frontend_dir, "package.json")):
+        print(f"{Colors.RED}package.json not found in {frontend_dir}. Cannot install dependencies.{Colors.ENDC}")
+        return False
+        
+    # Check if npm is installed
+    if not check_npm_exists():
+        print(f"{Colors.RED}npm not found. Please install Node.js and npm before running the frontend.{Colors.ENDC}")
+        return False
+    
     print(f"{Colors.YELLOW}Installing npm dependencies for frontend...{Colors.ENDC}")
 
-    cmd = ["npm", "install"]
-
     try:
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            cwd=frontend_dir,
-            bufsize=1,
-            universal_newlines=True,
-        )
+        # On Windows, use shell=True for npm commands
+        if sys.platform == "win32":
+            process = subprocess.Popen(
+                "npm install",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=frontend_dir,
+                bufsize=1,
+                universal_newlines=True,
+                shell=True,
+            )
+        else:
+            process = subprocess.Popen(
+                ["npm", "install"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=frontend_dir,
+                bufsize=1,
+                universal_newlines=True,
+            )
 
         prefix = f"{Colors.BLUE}[npm]{Colors.ENDC} "
 
@@ -173,25 +226,47 @@ def install_npm_dependencies():
 def start_react_frontend(host, backend_port, frontend_port=3000):
     """Start the React frontend using npm run start-backend"""
     frontend_dir = os.path.join(os.getcwd(), "frontend")
+    
+    # Check if frontend directory exists
+    if not os.path.isdir(frontend_dir):
+        print(f"{Colors.RED}Frontend directory not found at {frontend_dir}{Colors.ENDC}")
+        return None
+        
+    # Check if package.json exists
+    if not os.path.exists(os.path.join(frontend_dir, "package.json")):
+        print(f"{Colors.RED}package.json not found in {frontend_dir}. Cannot start frontend.{Colors.ENDC}")
+        return None
+        
+    # Check if npm is installed
+    if not check_npm_exists():
+        print(f"{Colors.RED}npm not found. Please install Node.js and npm before running the frontend.{Colors.ENDC}")
+        return None
 
     # Generate backend URL based on host and port
     backend_url = f"http://{host}:{backend_port}"
 
     # Use npm run start-backend with appropriate arguments
-    cmd = [
-        "npm",
-        "run",
-        "start-backend",
-        "--",
-        f"--backend={backend_url}",
-        f"--port={frontend_port}",
-        "--host",
-        host,
-    ]
-
-    return threading.Thread(
-        target=run_command, args=(cmd, "React Frontend", frontend_dir), daemon=True
-    )
+    if sys.platform == "win32":
+        # On Windows, use a single command string with shell=True
+        cmd_str = f"npm run start-backend -- --backend={backend_url} --port={frontend_port} --host {host}"
+        return threading.Thread(
+            target=lambda: run_command(cmd_str, "React Frontend", frontend_dir), daemon=True
+        )
+    else:
+        # On Unix-like systems, use array of arguments
+        cmd = [
+            "npm",
+            "run",
+            "start-backend",
+            "--",
+            f"--backend={backend_url}",
+            f"--port={frontend_port}",
+            "--host",
+            host,
+        ]
+        return threading.Thread(
+            target=run_command, args=(cmd, "React Frontend", frontend_dir), daemon=True
+        )
 
 
 def create_virtual_environment(venv_path):
@@ -334,15 +409,16 @@ def main():
     parser.add_argument(
         "--skip-npm", action="store_true", help="Skip npm dependencies installation"
     )
-    parser.add_argument(
-        "--skip-npm", action="store_true", help="Skip npm dependencies installation"
-    )
     args = parser.parse_args()
 
     # Calculate ports for each service
     backend_port = args.port
     yolo_port = backend_port + 1
     frontend_port = backend_port + 2
+    
+    # Set environment variables for API and WebSocket URLs
+    os.environ["API_BASE_URL"] = f"http://{args.host}:{backend_port}"
+    os.environ["WS_BASE_URL"] = f"ws://{args.host}:{backend_port}"
 
     print_banner()
     print(f"{Colors.GREEN}Starting Symphony Logo Detection System...{Colors.ENDC}")
@@ -350,6 +426,8 @@ def main():
     print(
         f"{Colors.YELLOW}Ports: Backend: {backend_port}, YOLO: {yolo_port}, Frontend: {frontend_port}{Colors.ENDC}"
     )
+    print(f"{Colors.YELLOW}API URL: {os.environ['API_BASE_URL']}{Colors.ENDC}")
+    print(f"{Colors.YELLOW}WebSocket URL: {os.environ['WS_BASE_URL']}{Colors.ENDC}")
 
     # Setup virtual environment if not skipped
     venv_path = args.venv
@@ -411,11 +489,14 @@ def main():
             print(f"{Colors.YELLOW}Skipping npm dependencies installation{Colors.ENDC}")
 
         frontend_thread = start_react_frontend(args.host, args.port, frontend_port)
-        frontend_thread.start()
-
-        # Wait a bit and then open the browser
-        time.sleep(5)
-        webbrowser.open(f"http://{args.host}:{frontend_port}")
+        if frontend_thread:
+            frontend_thread.start()
+            
+            # Wait a bit and then open the browser
+            time.sleep(5)
+            webbrowser.open(f"http://{args.host}:{frontend_port}")
+        else:
+            print(f"{Colors.YELLOW}Frontend will not be started due to configuration issues.{Colors.ENDC}")
 
     try:
         # Keep the main thread alive

@@ -22,12 +22,14 @@ class YOLOClient:
 
         Args:
             base_url (str, optional): Base URL of the YOLO service. If not provided,
-                                    falls back to YOLO_SERVICE_URL environment variable
-                                    or default localhost URL.
+                                    falls back to YOLO_SERVICE_URL environment variable.
         """
-        self.base_url = base_url or os.getenv(
-            "YOLO_SERVICE_URL", "http://localhost:8001"
-        )
+        # Always check environment variable first, then fallback to provided URL or default
+        # This ensures we always use the most up-to-date configuration
+        self.base_url = os.getenv("YOLO_SERVICE_URL") or base_url or "http://localhost:8001"
+        
+        # Log the YOLO service URL being used
+        logger.info(f"Initializing YOLO client with service URL: {self.base_url}")
         # Configure httpx client with connection pooling and limits
         self.client = httpx.AsyncClient(
             timeout=httpx.Timeout(30.0, connect=10.0),
@@ -129,4 +131,5 @@ class YOLOClient:
 
 
 # Create a default instance of the YOLO client
-yolo_client = YOLOClient()
+# Always use the environment variable to ensure dynamic configuration
+yolo_client = YOLOClient(os.getenv("YOLO_SERVICE_URL"))

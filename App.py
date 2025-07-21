@@ -60,16 +60,19 @@ from routers import (
 # Initialize logging
 logger = setup_logging()
 
-# Configure YOLO service URL based on host argument
-if "--host" in sys.argv:
+# YOLO service URL is now set by run_symphony.py
+# This code is kept for backward compatibility when running directly
+if "--host" in sys.argv and "--port" in sys.argv:
     host_index = sys.argv.index("--host")
-    if host_index + 1 < len(sys.argv):
+    port_index = sys.argv.index("--port")
+    if host_index + 1 < len(sys.argv) and port_index + 1 < len(sys.argv):
         host = sys.argv[host_index + 1]
-        if host != "localhost" and host != "127.0.0.1":
-            os.environ["YOLO_SERVICE_URL"] = f"http://{host}:8001"
-            logger.info(
-                f"Setting YOLO_SERVICE_URL to http://{host}:8001 based on command line argument"
-            )
+        port = int(sys.argv[port_index + 1])
+        yolo_port = port + 1
+        os.environ["YOLO_SERVICE_URL"] = f"http://{host}:{yolo_port}"
+        logger.info(
+            f"Setting YOLO_SERVICE_URL to http://{host}:{yolo_port} based on command line arguments"
+        )
 
 
 @asynccontextmanager
@@ -311,7 +314,8 @@ async def log_requests(request: Request, call_next):
 # Configure CORS middleware for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://10.1.2.97:3000"],
+    # Use dynamic origins to support any host/port combination
+    allow_origins=["*"],  # In production, you should restrict this to specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
