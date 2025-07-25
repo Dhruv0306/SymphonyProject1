@@ -335,25 +335,26 @@ async def process_with_chunks(
             # This ensures it works with any host/port configuration
             from starlette.requests import Request
             from fastapi import Request as FastAPIRequest
-            
+
             # Get the current request from the context if available
             # Otherwise fall back to environment variable or default
             request = None
             try:
                 from fastapi import _request_scope_context_var
+
                 request_scope = _request_scope_context_var.get(None)
                 if request_scope is not None:
                     request = Request(request_scope)
             except:
                 pass
-                
+
             if request:
                 # Extract base URL from current request
-                base_url = str(request.base_url).rstrip('/')
+                base_url = str(request.base_url).rstrip("/")
             else:
                 # Fall back to environment variable or default
                 base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
-                
+
             async with httpx.AsyncClient() as client:
                 await client.post(
                     f"{base_url}/api/check-logo/batch/{batch_id}/send-email"
